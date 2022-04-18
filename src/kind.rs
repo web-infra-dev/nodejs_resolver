@@ -2,11 +2,11 @@ use crate::Resolver;
 
 pub enum PathKind {
     Empty,
-    Normal,
     Relative,
     // TODO: win or unix
     Absolute,
     Internal,
+    NormalModule,
 }
 
 impl Resolver {
@@ -20,7 +20,7 @@ impl Resolver {
         } else if Resolver::is_build_in_module(target) {
             PathKind::Internal
         } else {
-            PathKind::Normal
+            PathKind::NormalModule
         }
     }
 
@@ -100,10 +100,6 @@ impl Resolver {
     fn is_absolute_path(target: &str) -> bool {
         target.starts_with('/')
     }
-
-    pub fn may_be_dir(target: &str) -> bool {
-        target.ends_with('/')
-    }
 }
 
 #[test]
@@ -114,5 +110,4 @@ fn test_resolver() {
     assert!(Resolver::is_relative_path("../a"));
     assert!(Resolver::is_absolute_path("/"));
     assert!(Resolver::is_absolute_path("/a/a"));
-    assert!(Resolver::may_be_dir("/a/a/"));
 }

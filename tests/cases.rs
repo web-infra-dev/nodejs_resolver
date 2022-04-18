@@ -15,9 +15,16 @@ macro_rules! fixture {
 
 macro_rules! should_equal {
     ($resolver: expr, $resolve_target: expr; $path: expr) => {
-        assert_eq!($resolver.resolve($resolve_target), Ok($path));
+        assert_eq!($resolver.resolve($resolve_target), Ok(Some($path)));
     };
 }
+
+macro_rules! should_ignore {
+    ($resolver: expr, $resolve_target: expr) => {
+        assert_eq!($resolver.resolve($resolve_target), Ok(None));
+    };
+}
+
 macro_rules! should_error {
     ($resolver: expr, $resolve_target: expr; $expected_err_msg: expr) => {
         assert_eq!(
@@ -50,10 +57,12 @@ fn alias_test() {
     let alias_cases_path = get_cases_path!("tests/fixtures/alias");
     let mut resolver = Resolver::default()
         .with_alias(vec![
-            ("aliasA", "./a"),
-            ("recursive", "./recursive/dir"),
-            ("#", "./c/dir"),
-            ("@", "./c/dir"),
+            ("aliasA", Some("./a")),
+            ("recursive", Some("./recursive/dir")),
+            ("#", Some("./c/dir")),
+            ("@", Some("./c/dir")),
+            ("@", Some("./c/dir")),
+            ("ignore", None),
         ])
         .with_base_dir(&alias_cases_path);
 
@@ -71,6 +80,7 @@ fn alias_test() {
     should_equal!(resolver, "@/index"; fixture!("alias/c/dir/index"));
     should_equal!(resolver, "recursive"; fixture!("alias/recursive/dir/index"));
     should_equal!(resolver, "recursive/index"; fixture!("alias/recursive/dir/index"));
+    should_ignore!(resolver, "ignore");
 }
 
 #[test]
@@ -123,4 +133,93 @@ fn symlink_test() {
         .with_base_dir(&linked_path);
 
     should_equal!(resolver, "./index.js"; fixture!("symlink/linked/index.js"));
+    should_equal!(resolver, "./this/this/index.js"; fixture!("symlink/linked/this/this/index.js"));
+}
+
+#[test]
+fn simple_test() {
+    let simple_case_path = get_cases_path!("tests/fixtures/simple");
+    let mut resolver = Resolver::default().with_base_dir(&simple_case_path);
+    // directly
+    should_equal!(resolver, "./lib/index"; fixture!("simple/lib/index.js"));
+    // as directory
+    should_equal!(resolver, "."; fixture!("simple/lib/index.js"));
+
+    resolver.use_base_dir(&simple_case_path.join(".."));
+    should_equal!(resolver, "./simple"; fixture!("simple/lib/index.js"));
+    should_equal!(resolver, "./simple/lib/index"; fixture!("simple/lib/index.js"));
+}
+
+#[test]
+fn browser_filed_test() {
+    let browser_module_case_path = get_cases_path!("tests/fixtures/browser-module");
+    let mut resolver = Resolver::default()
+        .with_base_dir(&browser_module_case_path)
+        .with_alias_fields(vec!["browser"]);
+
+    should_ignore!(resolver, "./lib/ignore");
+    should_ignore!(resolver, "./lib/ignore.js");
+    should_equal!(resolver, "./lib/replaced"; fixture!("browser-module/lib/browser.js"));
+    should_equal!(resolver, "./lib/replaced.js"; fixture!("browser-module/lib/browser.js"));
+    should_equal!(resolver, "module-a"; fixture!("browser-module/browser/module-a.js"));
+    should_equal!(resolver, "module-b"; fixture!("browser-module/node_modules/module-c.js"));
+    should_equal!(resolver, "./toString"; fixture!("browser-module/lib/toString.js"));
+    // should fix
+    // should_equal!(resolver, "./lib/redirect"; fixture!("browser-module/lib/sub/dir/index.js"));
+
+    resolver.use_base_dir(&browser_module_case_path.join("lib"));
+    should_ignore!(resolver, "./ignore");
+    should_ignore!(resolver, "./ignore.js");
+    should_equal!(resolver, "./replaced"; fixture!("browser-module/lib/browser.js"));
+    should_equal!(resolver, "./replaced.js"; fixture!("browser-module/lib/browser.js"));
+    should_equal!(resolver, "module-a"; fixture!("browser-module/browser/module-a.js"));
+    should_equal!(resolver, "module-b"; fixture!("browser-module/node_modules/module-c.js"));
+    // should fix
+    // should_equal!(resolver, "/redirect"; fixture!("browser-module/lib/sub/dir/index.js"));
+
+    // TODO: alias
+}
+
+#[test]
+fn dependencies_test() {
+    let dep_case_path = get_cases_path!("tests/fixtures/dependencies");
+    let mut resolver = Resolver::default()
+        .with_modules(vec!["modules", "node_modules"])
+        .with_extensions(vec![".json", ".js"]);
+
+    resolver.use_base_dir(&dep_case_path.join("a/b/c"));
+    should_equal!(resolver, "module/file"; fixture!("dependencies/a/node_modules/module/file.js"));
+    should_equal!(resolver, "other-module/file.js"; fixture!("dependencies/modules/other-module/file.js"));
+
+    // TODO: how passing on context?
+}
+
+#[test]
+fn exports_fields_test() {}
+
+#[test]
+fn imports_fields_test() {}
+
+#[test]
+fn full_specified_test() {
+    // TODO: should I need add `fullSpecified` flag?
+    let full_cases_path = get_cases_path!("tests/fixtures/full/a");
+    let mut resolver = Resolver::default()
+        .with_alias(vec![("alias1", Some("./abc")), ("alias2", Some("./"))])
+        .with_alias_fields(vec!["browser"])
+        .with_base_dir(&full_cases_path);
+
+
+    // should_equal!(resolver, "package3"; fixture!("full/a/node_modules/package3/dir/index.js"));
+
+    should_equal!(resolver, "./abc.js"; fixture!("full/a/abc.js"));
+    should_equal!(resolver, "package1/file.js"; fixture!("full/a/node_modules/package1/file.js"));
+    should_equal!(resolver, "package1"; fixture!("full/a/node_modules/package1/index.js"));
+    should_equal!(resolver, "package2"; fixture!("full/a/node_modules/package2/a.js"));
+    should_equal!(resolver, "alias1"; fixture!("full/a/abc.js"));
+    should_equal!(resolver, "alias2"; fixture!("full/a/index.js"));
+    // should fix
+    // should_equal!(resolver, "package3"; fixture!("full/a/node_modules/package3/dir/index.js"));
+    // should fix
+    // should_equal!(resolver, "package4/a.js"; fixture!("full/a/node_modules/package4/b.js"));
 }
