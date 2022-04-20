@@ -1,4 +1,4 @@
-use crate::{DirInfo, Resolver};
+use crate::{DirInfo, RResult, Resolver};
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -11,9 +11,10 @@ pub struct DescriptionFileInfo {
 }
 
 impl Resolver {
-    fn parse_description_file(&self, path: &Path) -> DescriptionFileInfo {
-        let file = File::open(&path).map_err(|_| "open failed".to_string());
-        let json: serde_json::Value = serde_json::from_reader(file.unwrap()).unwrap();
+    fn parse_description_file(&self, path: &Path) -> RResult<DescriptionFileInfo> {
+        let file = File::open(&path).map_err(|_| "Open failed".to_string())?;
+        let json: serde_json::Value = serde_json::from_reader(file)
+            .map_err(|_| "Read description file failed".to_string())?;
 
         let main_fields = self
             .options
@@ -46,11 +47,11 @@ impl Resolver {
             }
         }
 
-        DescriptionFileInfo {
+        Ok(DescriptionFileInfo {
             abs_dir_path: path.parent().unwrap().to_path_buf(),
             main_fields,
             alias_fields,
-        }
+        })
     }
 
     fn find_description_file_dir(
@@ -61,31 +62,30 @@ impl Resolver {
         if description_path.is_file() {
             Some(now_dir.to_path_buf())
         } else {
-            match now_dir.parent() {
-                Some(parent) => Self::find_description_file_dir(parent, description_file_name),
-                None => None,
-            }
+            now_dir
+                .parent()
+                .and_then(|parent| Self::find_description_file_dir(parent, description_file_name))
         }
     }
 
-    fn go_description_file_dir() {}
-
-    pub(crate) fn load_description_file(&self, now_path: &Path) -> Option<DescriptionFileInfo> {
+    pub(crate) fn load_description_file(
+        &self,
+        now_path: &Path,
+    ) -> RResult<Option<DescriptionFileInfo>> {
         if !now_path.is_dir() {
             self.load_description_file(now_path.parent().unwrap())
         } else if let Some(dir) = self.cache_dir_info.get(&now_path.to_path_buf()) {
-            self.cache_description_file_info
+            Ok(self
+                .cache_description_file_info
                 .get(&dir.description_file_path)
-                .map(|info| info.to_owned())
+                .map(|info| info.to_owned()))
         } else {
-            let description_file_dir =
-                Self::find_description_file_dir(now_path, &self.options.description_file);
-            match description_file_dir {
-                None => None,
+            match Self::find_description_file_dir(now_path, &self.options.description_file) {
                 Some(target_dir) => {
                     let description_file_path = target_dir.join(&self.options.description_file);
-                    Some(self.parse_description_file(&description_file_path))
+                    Ok(Some(self.parse_description_file(&description_file_path)?))
                 }
+                None => Ok(None),
             }
         }
     }

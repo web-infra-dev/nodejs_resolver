@@ -3,8 +3,11 @@
     "./lib/ignore.js": false,
     "./lib/replaced.js": "./lib/browser",
     "./lib/redirect.js": "./lib/sub",
+    "./lib/redirect2.js": "./lib/sub/",
+    "./lib/redirect3.js": "./lib/redirect3-target",
     "module-a": "./browser/module-a.js",
     "module-b": "module-c",
+    "module-d": "module-b",
     "./toString": "./lib/toString.js",
     ".": false
   },

@@ -2,6 +2,7 @@ mod description;
 mod kind;
 mod normalize;
 mod options;
+mod parse;
 mod resolve;
 
 use description::DescriptionFileInfo;
@@ -47,55 +48,52 @@ impl Resolver {
     }
 
     pub fn resolve(&mut self, target: &str) -> ResolverResult {
-        let original_target = &if let Some(target_after_alias) = self.normalize_alias(target) {
+        self._resolve(self.get_base_dir(), target.to_owned())
+    }
+
+    // pub fn resolve_from(&mut self, base_dir: &Path, target: &str) -> ResolverResult {
+    //     self.resolve_inner(base_dir, target.to_owned())
+    // }
+
+    fn _resolve(&self, base_dir: &Path, target: String) -> ResolverResult {
+        let normalized_target = &if let Some(target_after_alias) = self.normalize_alias(target) {
             target_after_alias
         } else {
             return Ok(None);
         };
 
-        let kind = self.get_path_kind(original_target);
-        let original_base_dir = match &kind {
+        let part = Self::parse(normalized_target);
+        let request = &part.request;
+        let kind = Self::get_path_kind(request);
+        let dir = match kind {
             PathKind::Empty => return Err(ResolverError::from("empty path")),
-            PathKind::Internal => return Ok(Some(PathBuf::from(target))),
-            PathKind::Absolute => PathBuf::from("/"),
-            _ => self.get_base_dir().clone(),
+            PathKind::BuildInModule => return Ok(Some(PathBuf::from(request))),
+            PathKind::AbsolutePosix | PathKind::AbsoluteWin => PathBuf::from("/"),
+            _ => base_dir.to_path_buf(),
         };
-
-        let target_path = match kind {
-            // TODO: use `self.options.modules`.
-            PathKind::NormalModule => {
-                original_base_dir.join(format!("node_modules/{}", original_target))
-            }
-            _ => original_base_dir.join(original_target),
-        };
-        let description_file_info = self.load_description_file(&target_path);
+        let description_file_info = self.load_description_file(&dir.join(request))?;
         let (base_dir, target) =
-            match self.get_real_target(&original_base_dir, target, &kind, &description_file_info) {
-                Some((dir, target)) => {
-                    if let Some(target) = target {
-                        (dir, target)
-                    } else {
-                        return Ok(None);
-                    }
-                }
-                None => (original_base_dir.clone(), original_target.to_string()),
+            match self.get_real_target(&dir, request, &kind, &description_file_info) {
+                Some((dir, target)) => (dir, target),
+                None => return Ok(None),
             };
 
-        let result = if matches!(
-            self.get_path_kind(&target),
-            PathKind::Absolute | PathKind::Relative
+        (if matches!(
+            Self::get_path_kind(&target),
+            PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
         ) {
             self.resolve_as_file(&base_dir, &target)
-                .or_else(|_| self.resolve_as_dir(&description_file_info, &base_dir, &target))
-                .and_then(|path| self.normalize_path(path))
+                .or_else(|_| self.resolve_as_dir(&base_dir, &target))
         } else {
-            self.resolve_as_modules(&base_dir, &target, &description_file_info)
-                .and_then(|path| self.normalize_path(path))
-        };
-        if let Some(info) = description_file_info {
-            self.cache_dir_info(&original_base_dir, &info.abs_dir_path);
-            self.cache_description_file_info(info);
-        }
-        result
+            self.resolve_as_modules(&base_dir, &target)
+        })
+        .and_then(|path| self.normalize_path(path, &part))
     }
+
+    // fn cache(&mut self) {
+    //     if let Some(info) = description_file_info {
+    //         self.cache_dir_info(&original_base_dir, &info.abs_dir_path);
+    //         self.cache_description_file_info(info);
+    //     }
+    // }
 }

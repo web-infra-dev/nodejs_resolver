@@ -3,24 +3,42 @@ use crate::Resolver;
 pub enum PathKind {
     Empty,
     Relative,
-    // TODO: win or unix
-    Absolute,
+    AbsoluteWin,
+    AbsolutePosix,
     Internal,
-    NormalModule,
+    BuildInModule,
+    Normal,
 }
 
 impl Resolver {
-    pub fn get_path_kind(&self, target: &str) -> PathKind {
+    pub fn get_path_kind(target: &str) -> PathKind {
         if target.is_empty() {
             PathKind::Empty
-        } else if Resolver::is_absolute_path(target) {
-            PathKind::Absolute
-        } else if Resolver::is_relative_path(target) {
-            PathKind::Relative
-        } else if Resolver::is_build_in_module(target) {
+        } else if Self::is_build_in_module(target) {
+            PathKind::BuildInModule
+        } else if target.starts_with('#') {
             PathKind::Internal
+        } else if target.starts_with('/') {
+            PathKind::AbsolutePosix
+        } else if target == "."
+            || target.starts_with("./")
+            || target.starts_with("../")
+            || (target.len() == 2 && target.starts_with(".."))
+        {
+            PathKind::Relative
+        } else if (target.len() == 2
+            && (('a'..='z').any(|c| target.starts_with(&format!("{c}:")))
+                || ('A'..='Z').any(|c| target.starts_with(&format!("{c}:")))))
+            || ('a'..='z').any(|c| {
+                target.starts_with(&format!("{c}:\\")) || target.starts_with(&format!("{c}:/"))
+            })
+            || ('A'..='Z').any(|c| {
+                target.starts_with(&format!("{c}:\\")) || target.starts_with(&format!("{c}:/"))
+            })
+        {
+            PathKind::AbsoluteWin
         } else {
-            PathKind::NormalModule
+            PathKind::Normal
         }
     }
 
@@ -92,22 +110,10 @@ impl Resolver {
             || target == "worker_threads"
             || target == "zlib"
     }
-
-    fn is_relative_path(target: &str) -> bool {
-        target.starts_with('.') || target.starts_with("..")
-    }
-
-    fn is_absolute_path(target: &str) -> bool {
-        target.starts_with('/')
-    }
 }
 
 #[test]
 fn test_resolver() {
     assert!(Resolver::is_build_in_module("fs"));
-    assert!(Resolver::is_relative_path("./a"));
-    assert!(Resolver::is_relative_path("../a"));
-    assert!(Resolver::is_relative_path("../a"));
-    assert!(Resolver::is_absolute_path("/"));
-    assert!(Resolver::is_absolute_path("/a/a"));
+    assert!(!Resolver::is_build_in_module("a"));
 }
