@@ -1,5 +1,33 @@
+//! # node_resolver
+//!
+//! ## How to use?
+//!
+//! ```rust
+//! // |-- node_modules
+//! // |---- foo
+//! // |------ index.js
+//! // | src
+//! // |-- foo.ts
+//! // |-- foo.js
+//! // | tests
+//!
+//! use nodejs_resolver::Resolver;
+//!
+//! let cwd = std::env::current_dir().unwrap();
+//! let mut resolver = Resolver::default()
+//!                      .with_base_dir(&cwd.join("./src"));
+//!
+//! resolver.resolve("foo");
+//! // -> Ok(<cwd>/node_modules/foo/index.js)
+//!
+//! resolver.resolve("./foo");
+//! // -> Ok(<cwd>/src/foo.js)
+//! ```
+//!
+
 mod description;
 mod kind;
+mod map;
 mod normalize;
 mod options;
 mod parse;

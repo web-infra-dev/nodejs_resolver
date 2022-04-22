@@ -1,4 +1,4 @@
-use node_resolve::Resolver;
+use nodejs_resolver::Resolver;
 use std::path::PathBuf;
 
 macro_rules! get_cases_path {
@@ -164,6 +164,49 @@ fn simple_test() {
 }
 
 #[test]
+fn resolve_test() {
+    let fixture_path = fixture!("");
+    let mut resolver = Resolver::default().with_base_dir(&fixture_path);
+
+    should_equal!(resolver, fixture!("main1.js").to_str().unwrap(); fixture!("main1.js"));
+    should_equal!(resolver, "./main1.js"; fixture!("main1.js"));
+    should_equal!(resolver, "./main1"; fixture!("main1.js"));
+    should_equal!(resolver, "./main1.js?query"; fixture!("main1.js?query"));
+    should_equal!(resolver, "./main1.js#fragment"; fixture!("main1.js#fragment"));
+    should_equal!(resolver, "./main1.js#fragment?query"; fixture!("main1.js#fragment?query"));
+    should_equal!(resolver, "./main1.js?#fragment"; fixture!("main1.js?#fragment"));
+    should_equal!(resolver, "./a.js"; fixture!("a.js"));
+    should_equal!(resolver, "./a"; fixture!("a.js"));
+    should_equal!(resolver, "m1/a.js"; fixture!("node_modules/m1/a.js"));
+    should_equal!(resolver, "m1/a"; fixture!("node_modules/m1/a.js"));
+    should_equal!(resolver, "m1/a?query"; fixture!("node_modules/m1/a.js?query"));
+    should_equal!(resolver, "m1/a#fragment"; fixture!("node_modules/m1/a.js#fragment"));
+    should_equal!(resolver, "m1/a#fragment?query"; fixture!("node_modules/m1/a.js#fragment?query"));
+    should_equal!(resolver, "m1/a?#fragment"; fixture!("node_modules/m1/a.js?#fragment"));
+    should_equal!(resolver, "./dirOrFile"; fixture!("dirOrFile.js"));
+    should_equal!(resolver, "./dirOrFile/"; fixture!("dirOrFile/index.js"));
+    should_equal!(resolver, "./main-field-self"; fixture!("main-field-self/index.js"));
+    should_equal!(resolver, "./main-field-self2"; fixture!("main-field-self2/index.js"));
+    should_equal!(resolver, "complexm/step1"; fixture!("node_modules/complexm/step1.js"));
+    should_equal!(resolver, "m2/b.js"; fixture!("node_modules/m2/b.js"));
+    // edge case
+    // should_equal!(resolver, "./no#fragment/#/#"; fixture!("no\0#fragment/\0#.\0#.js"));
+    should_equal!(resolver, "./no#fragment/#/"; fixture!("no.js#fragment/#/"));
+
+    resolver.use_base_dir(&fixture_path.join("node_modules/complexm/web_modules/m1"));
+    should_equal!(resolver, "m2/b.js"; fixture!("node_modules/m2/b.js"));
+
+    resolver.use_base_dir(&fixture_path.join("multiple_modules"));
+    should_equal!(resolver, "m1/a.js"; fixture!("multiple_modules/node_modules/m1/a.js"));
+    should_equal!(resolver, "m1/b.js"; fixture!("node_modules/m1/b.js"));
+
+    resolver.use_base_dir(&fixture_path.join("browser-module/node_modules"));
+    should_equal!(resolver, "m1/a"; fixture!("node_modules/m1/a.js"));
+
+    // TODO: preferRelativeResolve
+}
+
+#[test]
 fn browser_filed_test() {
     let browser_module_case_path = get_cases_path!("tests/fixtures/browser-module");
     let mut resolver = Resolver::default()
@@ -281,7 +324,12 @@ fn scoped_packages_test() {
 }
 
 #[test]
-fn exports_fields_test() {}
+fn exports_fields_test() {
+    let export_cases_path = get_cases_path!("tests/fixtures/export-field");
+    let mut resolver = Resolver::default()
+        .with_alias_fields(vec!["browser"])
+        .with_base_dir(&export_cases_path);
+}
 
 #[test]
 fn imports_fields_test() {}
