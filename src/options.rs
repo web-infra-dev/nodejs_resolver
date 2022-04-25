@@ -1,10 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::Resolver;
 
 pub struct ResolverOptions {
     pub extensions: Vec<String>,
     pub alias: HashMap<String, Option<String>>,
+    pub conditions: HashSet<String>,
     pub(crate) alias_fields: Vec<String>,
     pub(crate) main_files: Vec<String>,
     pub(crate) main_fields: Vec<String>,
@@ -27,6 +28,7 @@ impl Default for ResolverOptions {
         let modules = vec![String::from("node_modules")];
         let symlinks = true;
         let alias_fields = vec![];
+        let conditions: HashSet<String> = HashSet::new();
         Self {
             extensions,
             main_files,
@@ -36,6 +38,7 @@ impl Default for ResolverOptions {
             modules,
             symlinks,
             alias_fields,
+            conditions,
         }
     }
 }

@@ -326,7 +326,7 @@ fn scoped_packages_test() {
 #[test]
 fn exports_fields_test() {
     let export_cases_path = get_cases_path!("tests/fixtures/export-field");
-    let mut resolver = Resolver::default()
+    let resolver = Resolver::default()
         .with_alias_fields(vec!["browser"])
         .with_base_dir(&export_cases_path);
 }

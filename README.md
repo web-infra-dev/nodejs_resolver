@@ -1,4 +1,4 @@
-# node_resolver
+# nodejs_resolver
 
 TodoList:
 

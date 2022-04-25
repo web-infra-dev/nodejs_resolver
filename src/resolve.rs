@@ -164,7 +164,7 @@ impl Resolver {
         kind: &PathKind,
         info: &Option<DescriptionFileInfo>,
     ) -> Option<(PathBuf, String)> {
-        match self._get_real_target(&dir, request, &kind, info.as_ref()) {
+        match self._get_real_target(dir, request, kind, info.as_ref()) {
             Some((dir, target)) => target.map(|target| (dir, target)),
             None => Some((dir.to_path_buf(), request.to_string())),
         }
