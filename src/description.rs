@@ -1,13 +1,16 @@
+use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
 use crate::{DirInfo, RResult, Resolver};
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
-#[derive(Clone)]
 pub struct DescriptionFileInfo {
+    pub name: Option<String>,
     pub abs_dir_path: PathBuf,
     pub main_fields: Vec<String>,
     pub alias_fields: HashMap<String, Option<String>>,
+    pub exports_field_tree: Option<PathTreeNode>,
+    pub imports_field_tree: Option<PathTreeNode>,
 }
 
 impl Resolver {
@@ -46,11 +49,29 @@ impl Resolver {
                 }
             }
         }
+        let exports_field_tree = if let Some(value) = json.get("exports") {
+            Some(ExportsField::build_field_path_tree(value)?)
+        } else {
+            None
+        };
+        let imports_field_tree = if let Some(value) = json.get("imports") {
+            Some(ImportsField::build_field_path_tree(value)?)
+        } else {
+            None
+        };
+
+        let name = json
+            .get("name")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
 
         Ok(DescriptionFileInfo {
+            name,
             abs_dir_path: path.parent().unwrap().to_path_buf(),
             main_fields,
             alias_fields,
+            exports_field_tree,
+            imports_field_tree,
         })
     }
 
@@ -75,10 +96,12 @@ impl Resolver {
         if !now_path.is_dir() {
             self.load_description_file(now_path.parent().unwrap())
         } else if let Some(dir) = self.cache_dir_info.get(&now_path.to_path_buf()) {
-            Ok(self
-                .cache_description_file_info
-                .get(&dir.description_file_path)
-                .map(|info| info.to_owned()))
+            unreachable!();
+            // TODO: cache
+            // Ok(self
+            //     .cache_description_file_info
+            //     .get(&dir.description_file_path)
+            //     .map(|info| info.to_owned()))
         } else {
             match Self::find_description_file_dir(now_path, &self.options.description_file) {
                 Some(target_dir) => {
@@ -92,6 +115,7 @@ impl Resolver {
 
     pub(crate) fn cache_dir_info(&mut self, now_dir: &Path, description_file_dir: &Path) {
         let mut now_dir = now_dir;
+
         while now_dir.starts_with(description_file_dir) {
             self.cache_dir_info.insert(
                 now_dir.to_path_buf(),

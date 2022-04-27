@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use crate::{parse::Part, Resolver, ResolverResult};
+use crate::{Resolver, ResolverResult};
 
 impl Resolver {
     pub fn normalize_alias(&self, target: String) -> Option<String> {
@@ -15,7 +15,12 @@ impl Resolver {
         }
     }
 
-    pub fn normalize_path(&self, path: Option<PathBuf>, part: &Part) -> ResolverResult {
+    pub fn normalize_path(
+        &self,
+        path: Option<PathBuf>,
+        query: &str,
+        fragment: &str,
+    ) -> ResolverResult {
         if let Some(path) = path {
             if self.options.symlinks {
                 Path::canonicalize(&path)
@@ -24,8 +29,8 @@ impl Resolver {
                         Some(PathBuf::from(format!(
                             "{}{}{}",
                             result.to_str().unwrap(),
-                            part.query,
-                            part.fragment
+                            query,
+                            fragment
                         )))
                     })
             } else {
@@ -46,8 +51,8 @@ impl Resolver {
                 Ok(Some(PathBuf::from(format!(
                     "{}{}{}",
                     result.to_str().unwrap(),
-                    part.query,
-                    part.fragment
+                    query,
+                    fragment
                 ))))
             }
         } else {

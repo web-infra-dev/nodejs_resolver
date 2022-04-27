@@ -1,4 +1,5 @@
 use nodejs_resolver::Resolver;
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 macro_rules! get_cases_path {
@@ -31,6 +32,12 @@ macro_rules! should_error {
             $resolver.resolve($resolve_target),
             Err(String::from($expected_err_msg))
         );
+    };
+}
+
+macro_rules! vec_to_set {
+    ($vec:expr) => {
+        HashSet::from_iter($vec.into_iter().map(String::from))
     };
 }
 
@@ -325,11 +332,82 @@ fn scoped_packages_test() {
 
 #[test]
 fn exports_fields_test() {
-    let export_cases_path = get_cases_path!("tests/fixtures/export-field");
-    let resolver = Resolver::default()
+    // TODO: [`exports_fields`](https://github.com/webpack/enhanced-resolve/blob/main/test/exportsField.js#L2280) flag
+
+    let export_cases_path = get_cases_path!("tests/fixtures/exports-field");
+    let export_cases_path2 = get_cases_path!("tests/fixtures/exports-field2");
+
+    let mut resolver = Resolver::default()
+        .with_extensions(vec![".js"])
+        .with_base_dir(&export_cases_path)
+        .with_condition_names(vec_to_set!(["webpack"]));
+    should_error!(resolver, "exports-field/dist/../../../a.js"; "Package path exports-field/dist/../../../a.js is not exported");
+
+    should_equal!(resolver, "@exports-field/core"; fixture!("exports-field/a.js"));
+    should_equal!(resolver, "exports-field/dist/main.js"; fixture!("exports-field/node_modules/exports-field/lib/lib2/main.js"));
+    should_error!(resolver, "exports-field/dist/../../../a.js"; "Package path exports-field/dist/../../../a.js is not exported");
+    should_error!(resolver, "exports-field/dist/a.js"; "Package path exports-field/dist/a.js is not exported");
+    should_equal!(resolver, "./node_modules/exports-field/lib/main.js"; fixture!("exports-field/node_modules/exports-field/lib/main.js"));
+    should_error!(resolver, "./node_modules/exports-field/dist/main"; "Not found directory");
+    should_error!(resolver, "exports-field/anything/else"; "Package path exports-field/anything/else is not exported");
+    should_error!(resolver, "exports-field/"; "Only requesting file allowed");
+    should_error!(resolver, "exports-field/dist"; "Package path exports-field/dist is not exported");
+    should_error!(resolver, "exports-field/lib"; "Package path exports-field/lib is not exported");
+    should_error!(resolver, "invalid-exports-field"; "Export field key can't mixed relative path and conditional object");
+
+    resolver.use_base_dir(&export_cases_path2);
+    // TODO: maybe we need provide `full_specified` flag.
+    should_equal!(resolver, "exports-field"; fixture!("exports-field2/node_modules/exports-field/index.js"));
+    should_equal!(resolver, "exports-field/dist/main.js"; fixture!("exports-field2/node_modules/exports-field/lib/lib2/main.js"));
+    should_equal!(resolver, "exports-field/dist/browser.js"; fixture!("exports-field2/node_modules/exports-field/lib/browser.js"));
+    should_equal!(resolver, "exports-field/dist/browser.js?foo"; fixture!("exports-field2/node_modules/exports-field/lib/browser.js?foo"));
+    should_error!(resolver, "exports-field/dist/main"; "Package path exports-field/dist/main is not exported");
+    // TODO: should `exports-field?foo is not exported`.
+    should_error!(resolver, "exports-field?foo"; "Package path exports-field is not exported");
+    should_error!(resolver, "exports-field#foo"; "Package path exports-field is not exported");
+    should_equal!(resolver, "exports-field/dist/browser.js#foo"; fixture!("exports-field2/node_modules/exports-field/lib/browser.js#foo"));
+
+    let mut resolver = Resolver::default()
+        .with_extensions(vec![".js"])
         .with_alias_fields(vec!["browser"])
-        .with_base_dir(&export_cases_path);
+        .with_base_dir(&export_cases_path)
+        .with_condition_names(vec_to_set!(["webpack"]));
+    should_equal!(resolver, "./node_modules/exports-field/lib/main.js"; fixture!("exports-field/node_modules/exports-field/lib/browser.js"));
+    should_equal!(resolver, "./node_modules/exports-field/dist/main.js"; fixture!("exports-field/node_modules/exports-field/lib/browser.js"));
+
+    let mut resolver = Resolver::default()
+        .with_extensions(vec![".js"])
+        .with_base_dir(&export_cases_path)
+        .with_condition_names(vec_to_set!(["webpack"]));
+
+    should_equal!(resolver, "exports-field"; fixture!("exports-field/node_modules/exports-field/x.js"));
+
+    let mut resolver = Resolver::default()
+        .with_extensions(vec![".js"])
+        .with_base_dir(&export_cases_path)
+        .with_alias_fields(vec!["browser"])
+        .with_condition_names(vec_to_set!(["node"]));
+
+    should_equal!(resolver, "exports-field/dist/main.js"; fixture!("exports-field/node_modules/exports-field/lib/browser.js"));
 }
 
 #[test]
-fn imports_fields_test() {}
+fn imports_fields_test() {
+    // TODO: ['imports_fields`](https://github.com/webpack/enhanced-resolve/blob/main/test/importsField.js#L1228)
+    let import_cases_path = get_cases_path!("tests/fixtures/imports-field");
+    let mut resolver = Resolver::default()
+        .with_extensions(vec![".js"])
+        .with_base_dir(&import_cases_path)
+        .with_condition_names(vec_to_set!(["webpack"]));
+    should_equal!(resolver, "#c"; fixture!("imports-field/node_modules/c/index.js"));
+
+    should_equal!(resolver, "#imports-field"; fixture!("imports-field/b.js"));
+    should_equal!(resolver, "#b"; fixture!("b.js"));
+    should_equal!(resolver, "#a/dist/main.js"; fixture!("imports-field/node_modules/a/lib/lib2/main.js"));
+    should_equal!(resolver, "#ccc/index.js"; fixture!("imports-field/node_modules/c/index.js"));
+    should_error!(resolver, "#a"; "Package path #a is not exported");
+    // should_equal!(resolver, "#c"; fixture!("imports-field/node_modules/c/index.js"));
+
+    resolver.use_base_dir(&import_cases_path.join("dir"));
+    should_equal!(resolver, "#imports-field"; fixture!("imports-field/b.js"));
+}

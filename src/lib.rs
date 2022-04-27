@@ -91,31 +91,37 @@ impl Resolver {
         };
 
         let part = Self::parse(normalized_target);
-        let request = &part.request;
-        let kind = Self::get_path_kind(request);
+        let kind = Self::get_path_kind(&part.request);
         let dir = match kind {
             PathKind::Empty => return Err(ResolverError::from("empty path")),
-            PathKind::BuildInModule => return Ok(Some(PathBuf::from(request))),
+            PathKind::BuildInModule => return Ok(Some(PathBuf::from(&part.request))),
             PathKind::AbsolutePosix | PathKind::AbsoluteWin => PathBuf::from("/"),
             _ => base_dir.to_path_buf(),
         };
-        let description_file_info = self.load_description_file(&dir.join(request))?;
-        let (base_dir, target) =
-            match self.get_real_target(&dir, request, &kind, &description_file_info) {
-                Some((dir, target)) => (dir, target),
-                None => return Ok(None),
-            };
+        let description_file_info = self.load_description_file(&dir.join(&part.request))?;
+        let (dir, target) = match self.get_real_target(
+            &dir,
+            &part.request,
+            &part.query,
+            &part.fragment,
+            &kind,
+            &description_file_info,
+            false,
+        )? {
+            Some((dir, target)) => (dir, target),
+            None => return Ok(None),
+        };
 
         (if matches!(
             Self::get_path_kind(&target),
             PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
         ) {
-            self.resolve_as_file(&base_dir, &target)
-                .or_else(|_| self.resolve_as_dir(&base_dir, &target))
+            self.resolve_as_file(&dir, &target)
+                .or_else(|_| self.resolve_as_dir(&dir, &target, &part.query, &part.fragment, false))
         } else {
-            self.resolve_as_modules(&base_dir, &target)
+            self.resolve_as_modules(&dir, &target, &part.query, &part.fragment)
         })
-        .and_then(|path| self.normalize_path(path, &part))
+        .and_then(|path| self.normalize_path(path, &part.query, &part.fragment))
     }
 
     // fn cache(&mut self) {
