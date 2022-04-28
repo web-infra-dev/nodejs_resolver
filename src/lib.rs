@@ -1,171 +1,133 @@
+//! # nodejs_resolver
+//!
+//! ## How to use?
+//!
+//! ```rust
+//! // |-- node_modules
+//! // |---- foo
+//! // |------ index.js
+//! // | src
+//! // |-- foo.ts
+//! // |-- foo.js
+//! // | tests
+//!
+//! use nodejs_resolver::Resolver;
+//!
+//! let cwd = std::env::current_dir().unwrap();
+//! let mut resolver = Resolver::default()
+//!                      .with_base_dir(&cwd.join("./src"));
+//!
+//! resolver.resolve("foo");
+//! // -> Ok(<cwd>/node_modules/foo/index.js)
+//!
+//! resolver.resolve("./foo");
+//! // -> Ok(<cwd>/src/foo.js)
+//! ```
+//!
+
+mod description;
+mod kind;
+mod map;
+mod normalize;
+mod options;
+mod parse;
+mod resolve;
+
+use description::DescriptionFileInfo;
+use kind::PathKind;
+use options::ResolverOptions;
 use std::{
-    collections::HashSet,
+    collections::HashMap,
     path::{Path, PathBuf},
 };
 
+#[derive(Default)]
 pub struct Resolver {
-    pub extensions: Vec<String>,
-    build_in_node_modules: HashSet<String>,
-    base_dir: PathBuf,
+    options: ResolverOptions,
+    base_dir: Option<PathBuf>,
+    cache_dir_info: HashMap<PathBuf, DirInfo>,
+    cache_description_file_info: HashMap<PathBuf, DescriptionFileInfo>,
+}
+
+pub struct DirInfo {
+    pub description_file_path: PathBuf,
 }
 
 type ResolverError = String;
-type ResolverResult = Result<PathBuf, ResolverError>;
+type RResult<T> = Result<T, ResolverError>;
+type ResolverResult = RResult<Option<PathBuf>>;
 
 impl Resolver {
-    pub fn new(base_dir: PathBuf) -> Self {
-        let extensions = (vec!["js", "json", "node"])
-            .iter()
-            .map(|&s| s.into())
-            .collect();
-        let build_in_node_modules = HashSet::from_iter(
-            [
-                "_http_agent",
-                "_http_client",
-                "_http_common",
-                "_http_incoming",
-                "_http_outgoing",
-                "_http_server",
-                "_stream_duplex",
-                "_stream_passthrough",
-                "_stream_readable",
-                "_stream_transform",
-                "_stream_wrap",
-                "_stream_writable",
-                "_tls_common",
-                "_tls_wrap",
-                "assert",
-                "assert/strict",
-                "async_hooks",
-                "buffer",
-                "child_process",
-                "cluster",
-                "console",
-                "constants",
-                "crypto",
-                "dgram",
-                "diagnostics_channel",
-                "dns",
-                "dns/promises",
-                "domain",
-                "events",
-                "fs",
-                "fs/promises",
-                "http",
-                "http2",
-                "https",
-                "inspector",
-                "module",
-                "net",
-                "os",
-                "path",
-                "path/posix",
-                "path/win32",
-                "perf_hooks",
-                "process",
-                "punycode",
-                "querystring",
-                "readline",
-                "repl",
-                "stream",
-                "stream/consumers",
-                "stream/promises",
-                "stream/web",
-                "string_decoder",
-                "sys",
-                "timers",
-                "timers/promises",
-                "tls",
-                "trace_events",
-                "tty",
-                "url",
-                "util",
-                "util/types",
-                "v8",
-                "vm",
-                "wasi",
-                "worker_threads",
-                "zlib",
-            ]
-            .iter()
-            .map(|&s| s.into()),
-        );
+    pub fn with_base_dir(self, base_dir: &Path) -> Self {
         Self {
-            base_dir,
-            extensions,
-            build_in_node_modules,
+            base_dir: Some(base_dir.to_path_buf()),
+            ..self
         }
     }
 
-    pub fn resolve(&self, target: &str) -> ResolverResult {
-        if self.is_absolute_path(target) {
-            let path = &Path::new("/").join(target);
-            self.resolve_as_file_path(path)
-        } else if self.is_relative_path(target) {
-            let path = &self.base_dir.join(target);
-            self.resolve_as_file_path(path)
-        } else if self.is_build_in_module(target) {
-            Ok(PathBuf::from(target))
+    pub fn use_base_dir(&mut self, base_dir: &Path) {
+        self.base_dir = Some(base_dir.to_path_buf());
+    }
+
+    fn get_base_dir(&self) -> &PathBuf {
+        self.base_dir
+            .as_ref()
+            .unwrap_or_else(|| panic!("base_dir is not set"))
+    }
+
+    pub fn resolve(&mut self, target: &str) -> ResolverResult {
+        self._resolve(self.get_base_dir(), target.to_owned())
+    }
+
+    // pub fn resolve_from(&mut self, base_dir: &Path, target: &str) -> ResolverResult {
+    //     self.resolve_inner(base_dir, target.to_owned())
+    // }
+
+    fn _resolve(&self, base_dir: &Path, target: String) -> ResolverResult {
+        let normalized_target = &if let Some(target_after_alias) = self.normalize_alias(target) {
+            target_after_alias
         } else {
-            // it should be located at node_modules
-            self.resolve_as_node_modules(target)
-        }
-    }
+            return Ok(None);
+        };
 
-    fn resolve_as_file_path(&self, path: &Path) -> ResolverResult {
-        if path.is_file() {
-            Ok(path.to_path_buf())
+        let part = Self::parse(normalized_target);
+        let kind = Self::get_path_kind(&part.request);
+        let dir = match kind {
+            PathKind::Empty => return Err(ResolverError::from("empty path")),
+            PathKind::BuildInModule => return Ok(Some(PathBuf::from(&part.request))),
+            PathKind::AbsolutePosix | PathKind::AbsoluteWin => PathBuf::from("/"),
+            _ => base_dir.to_path_buf(),
+        };
+        let description_file_info = self.load_description_file(&dir.join(&part.request))?;
+        let (dir, target) = match self.get_real_target(
+            &dir,
+            &part.request,
+            &part.query,
+            &part.fragment,
+            &kind,
+            &description_file_info,
+            false,
+        )? {
+            Some((dir, target)) => (dir, target),
+            None => return Ok(None),
+        };
+
+        (if matches!(
+            Self::get_path_kind(&target),
+            PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
+        ) {
+            self.resolve_as_file(&dir, &target)
+                .or_else(|_| self.resolve_as_dir(&dir, &target, &part.query, &part.fragment, false))
         } else {
-            let mut path = path.to_path_buf();
-            let file_name = path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .map(String::from)
-                .unwrap();
-            for extensions in &self.extensions {
-                path.set_file_name(format!("{}.{}", file_name, extensions));
-                if path.is_file() {
-                    return Ok(path);
-                }
-            }
-            Err("Not found file".to_string())
-        }
+            self.resolve_as_modules(&dir, &target, &part.query, &part.fragment)
+        })
+        .and_then(|path| self.normalize_path(path, &part.query, &part.fragment))
     }
 
-    fn resolve_as_node_modules(&self, target: &str) -> ResolverResult {
-        let node_modules = self.base_dir.join("node_modules");
-        if node_modules.is_dir() {
-            let path = node_modules.join(target);
-            let result = self.resolve_as_file_path(&path);
-            if result.is_ok() {
-                return result;
-            }
-        }
-        match self.base_dir.parent() {
-            Some(parent_dir) => Self::new(parent_dir.to_path_buf()).resolve_as_node_modules(target),
-            None => Err("Not fount".to_string()),
-        }
-    }
-
-    fn is_build_in_module(&self, target: &str) -> bool {
-        self.build_in_node_modules.contains(target)
-    }
-
-    fn is_relative_path(&self, target: &str) -> bool {
-        target.starts_with(".") || target.starts_with("..")
-    }
-
-    fn is_absolute_path(&self, target: &str) -> bool {
-        target.starts_with('/')
-    }
-}
-
-#[test]
-fn test_resolver() {
-    assert!(Resolver::new(PathBuf::new()).is_build_in_module("fs"));
-    assert!(Resolver::new(PathBuf::new()).is_relative_path("./a"));
-    assert!(Resolver::new(PathBuf::new()).is_relative_path("../a"));
-    assert!(Resolver::new(PathBuf::new()).is_relative_path("../a"));
-    assert!(Resolver::new(PathBuf::new()).is_absolute_path("/"));
-    assert!(Resolver::new(PathBuf::new()).is_absolute_path("/a/a"));
+    // fn cache(&mut self) {
+    //     if let Some(info) = description_file_info {
+    //         self.cache_dir_info(&original_base_dir, &info.abs_dir_path);
+    //         self.cache_description_file_info(info);
+    //     }
+    // }
 }
