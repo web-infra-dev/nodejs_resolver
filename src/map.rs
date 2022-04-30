@@ -95,7 +95,7 @@ pub trait Field {
                         MappingValue::Conditional(conditional) => {
                             temp.push(AvailableMapping::Conditional(conditional))
                         }
-                        _ => panic!("array mapping is not allowed nested in exports field"),
+                        _ => panic!("Array mapping is not allowed nested in exports field"),
                     }
                 }
                 MappingValue::Array(temp)
@@ -160,20 +160,17 @@ pub trait Field {
                             target,
                         )?),
                         AvailableMapping::Conditional(map) => {
-                            match conditional_mapping(map, condition_names)? {
-                                Some(mapping) => {
-                                    let inner_exports = Self::mapping(
-                                        remaining_request,
-                                        subpath_mapping,
-                                        mapping,
-                                        condition_names,
-                                    )?;
-                                    for inner_export in inner_exports {
-                                        acc.push(inner_export);
-                                    }
+                            if let Some(mapping) = conditional_mapping(map, condition_names)? {
+                                let inner_exports = Self::mapping(
+                                    remaining_request,
+                                    subpath_mapping,
+                                    mapping,
+                                    condition_names,
+                                )?;
+                                for inner_export in inner_exports {
+                                    acc.push(inner_export);
                                 }
-                                None => (),
-                            };
+                            }
                         }
                     };
                 }
@@ -193,10 +190,10 @@ pub trait Field {
 
     fn field_process<'a>(
         root: &'a PathTreeNode,
-        request: &'a str,
+        target: &'a str,
         condition_names: &'a HashSet<String>,
     ) -> RResult<Vec<String>> {
-        let request = Self::assert_request(request)?;
+        let request = Self::assert_request(target)?;
         let (mapping, remain_request_index) = match PathTreeNode::find_match(root, &request) {
             Some(result) => result,
             None => return Ok(vec![]),
@@ -309,6 +306,30 @@ impl Field for ExportsField {
     }
 }
 
+impl ExportsField {
+    pub fn check_target(relative_path: &str) -> bool {
+        let relative_path = relative_path.chars().collect::<Vec<char>>();
+        let slash_index_list = PathTreeNode::get_next_list(&relative_path, '/');
+        let mut last_non_slash_index = 2;
+        let mut cd = 0;
+        while let Some(&Some(slash_index)) = slash_index_list.get(last_non_slash_index) {
+            if slash_index == last_non_slash_index + 2
+                && relative_path[last_non_slash_index] == '.'
+                && relative_path[last_non_slash_index + 1] == '.'
+            {
+                cd -= 1;
+                if cd < 0 {
+                    return false;
+                }
+            } else {
+                cd += 1;
+            }
+            last_non_slash_index = slash_index + 1;
+        }
+        true
+    }
+}
+
 impl Field for ImportsField {
     fn assert_request(request: &str) -> RResult<Vec<char>> {
         if !request.starts_with('#') {
@@ -356,9 +377,8 @@ impl Field for ImportsField {
                 return Err(format!(
                     "Import field key should not start with #/, but got {key}"
                 ));
-            } else {
-                PathTreeNode::walk(&mut root, key[1..].chars().collect(), value);
             }
+            PathTreeNode::walk(&mut root, key[1..].chars().collect(), value);
         }
         Ok(root)
     }
@@ -634,14 +654,14 @@ fn exports_field_map_test() {
     should_equal!(json!({
         "./foo/": {
             "import": ["./dist/", "./src/"],
-            "webpack": "./wp/" 
+            "webpack": "./wp/"
         },
         ".": "./main.js"
     }), "./foo/test/file.js", ["import", "webpack"]; ["./dist/test/file.js", "./src/test/file.js"]);
     should_equal!(json!({
         "./foo/*": {
             "import": ["./dist/*", "./src/*"],
-            "webpack": "./wp/*" 
+            "webpack": "./wp/*"
         },
         ".": "./main.js"
     }), "./foo/test/file.js", ["import", "webpack"]; ["./dist/test/file.js", "./src/test/file.js"]);
@@ -877,10 +897,10 @@ fn exports_field_map_test() {
         }
     }), ".", []; ["./src/index.js"]);
     should_equal!(json!({
-        ".": "./index" 
+        ".": "./index"
     }), ".", []; ["./index"]);
     should_equal!(json!({
-        "./index": "./index.js" 
+        "./index": "./index.js"
     }), "./index", []; ["./index.js"]);
     should_equal!(json!({
         ".": [
@@ -1016,22 +1036,22 @@ fn exports_field_map_test() {
         }
     }), "./utils/index.mjs", ["browser", "webpack"]; ["./wpk/index.mjs"]);
     should_equal!(json!({
-        "./utils/index": "./a/index.js" 
+        "./utils/index": "./a/index.js"
       }), "./utils/index.mjs", []; []);
     should_equal!(json!({
-        "./utils/index.mjs": "./a/index.js" 
+        "./utils/index.mjs": "./a/index.js"
       }), "./utils/index", []; []);
     should_equal!(json!({
         "./utils/index": {
             "browser": "./a/index.js",
             "default": "./b/index.js",
-        } 
+        }
       }), "./utils/index.mjs", ["browser"]; []);
     should_equal!(json!({
         "./utils/index.mjs": {
             "browser": "./a/index.js",
             "default": "./b/index.js",
-        } 
+        }
       }), "./utils/index", ["browser"]; []);
     should_equal!(json!({
         "./../../utils/": "./dist/"
@@ -1283,13 +1303,13 @@ fn exports_field_map_test() {
         "./node": "./node.js"
       }), ".", ["browser"]; "Export field key can't mixed relative path and conditional object");
     should_error!(json!({
-        "/utils/": "./a/" 
+        "/utils/": "./a/"
       }), "./utils/index.mjs", []; "Export field key should be relative path and start with \"./\", but got /utils/");
     should_error!(json!({
-        "./utils/": "/a/" 
+        "./utils/": "/a/"
       }), "./utils/index.mjs", []; "Export should be relative path and start with \"./\", but got /a/");
     should_error!(json!({
-        "./utils/": "./a/" 
+        "./utils/": "./a/"
       }), "/utils/index.mjs", []; "Request should be relative path and start with '.', but got /utils/index.mjs");
     should_error!(json!({
         "./utils/": {
@@ -1796,7 +1816,7 @@ fn imports_field_map_test() {
         },
     }), "#a/index.mjs", []; "Imports field key should start with #, but got /utils/");
     should_error!(json!({
-        "#a": { 
+        "#a": {
             "default": "./src/index.js",
             "browser": "./index.js",
             "node": "./src/node/index.js"

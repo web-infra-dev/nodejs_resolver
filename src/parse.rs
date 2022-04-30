@@ -1,7 +1,8 @@
 use crate::Resolver;
 
-pub struct Part {
-    pub request: String,
+#[derive(Clone, Debug)]
+pub struct Request {
+    pub target: String,
     pub query: String,
     pub fragment: String,
 }
@@ -16,7 +17,7 @@ enum ParseStats {
 impl Resolver {
     fn parse_identifier(ident: &str) -> (String, String, String) {
         // maybe we should use regexp: https://github.com/webpack/enhanced-resolve/blob/main/lib/util/identifier.js#L8
-        let mut request = String::new();
+        let mut target = String::new();
         let mut query = String::new();
         let mut fragment = String::new();
         let mut stats = ParseStats::Start;
@@ -42,19 +43,19 @@ impl Resolver {
                 }
             };
             match stats {
-                ParseStats::Request => request.push(c),
+                ParseStats::Request => target.push(c),
                 ParseStats::Query => query.push(c),
                 ParseStats::Fragment => fragment.push(c),
                 _ => unreachable!(),
             };
         }
-        (request, query, fragment)
+        (target, query, fragment)
     }
 
-    pub fn parse(target: &str) -> Part {
-        let (request, query, fragment) = Self::parse_identifier(target);
-        Part {
-            request,
+    pub fn parse(target: &str) -> Request {
+        let (target, query, fragment) = Self::parse_identifier(target);
+        Request {
+            target,
             query,
             fragment,
         }

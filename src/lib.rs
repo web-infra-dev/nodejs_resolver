@@ -36,6 +36,7 @@ mod resolve;
 use description::DescriptionFileInfo;
 use kind::PathKind;
 use options::ResolverOptions;
+use parse::Request;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -53,8 +54,44 @@ pub struct DirInfo {
     pub description_file_path: PathBuf,
 }
 
+// TODO: should remove `Clone`
+#[derive(Clone, Debug)]
+pub struct Stats {
+    pub dir: PathBuf,
+    pub request: Request,
+}
+
+impl Stats {
+    pub fn from(dir: PathBuf, request: Request) -> Self {
+        Self { dir, request }
+    }
+
+    pub fn get_path(&self) -> PathBuf {
+        if self.request.target.is_empty() {
+            self.dir.to_path_buf()
+        } else {
+            self.dir.join(&self.request.target)
+        }
+    }
+
+    pub fn with_dir(self, dir: PathBuf) -> Self {
+        Self { dir, ..self }
+    }
+
+    pub fn with_target(self, target: String) -> Self {
+        Self {
+            request: Request {
+                target,
+                ..self.request
+            },
+            ..self
+        }
+    }
+}
+
 type ResolverError = String;
 type RResult<T> = Result<T, ResolverError>;
+type ResolverStats = RResult<Option<Stats>>;
 type ResolverResult = RResult<Option<PathBuf>>;
 
 impl Resolver {
@@ -65,10 +102,6 @@ impl Resolver {
         }
     }
 
-    pub fn use_base_dir(&mut self, base_dir: &Path) {
-        self.base_dir = Some(base_dir.to_path_buf());
-    }
-
     fn get_base_dir(&self) -> &PathBuf {
         self.base_dir
             .as_ref()
@@ -76,7 +109,7 @@ impl Resolver {
     }
 
     pub fn resolve(&mut self, target: &str) -> ResolverResult {
-        self._resolve(self.get_base_dir(), target.to_owned())
+        self._resolve(self.get_base_dir(), target.to_string())
     }
 
     // pub fn resolve_from(&mut self, base_dir: &Path, target: &str) -> ResolverResult {
@@ -89,39 +122,41 @@ impl Resolver {
         } else {
             return Ok(None);
         };
+        let stats = Stats::from(base_dir.to_path_buf(), Self::parse(normalized_target));
+        let init_query = stats.request.query.clone();
+        let init_fragment = stats.request.fragment.clone();
 
-        let part = Self::parse(normalized_target);
-        let kind = Self::get_path_kind(&part.request);
+        let kind = Self::get_target_kind(&stats.request.target);
         let dir = match kind {
-            PathKind::Empty => return Err(ResolverError::from("empty path")),
-            PathKind::BuildInModule => return Ok(Some(PathBuf::from(&part.request))),
+            PathKind::Empty => return Err(format!("Can't resolve '' in {}", base_dir.display())),
+            PathKind::BuildInModule => return Ok(Some(PathBuf::from(&stats.request.target))),
             PathKind::AbsolutePosix | PathKind::AbsoluteWin => PathBuf::from("/"),
             _ => base_dir.to_path_buf(),
         };
-        let description_file_info = self.load_description_file(&dir.join(&part.request))?;
-        let (dir, target) = match self.get_real_target(
-            &dir,
-            &part.request,
-            &part.query,
-            &part.fragment,
-            &kind,
-            &description_file_info,
-            false,
-        )? {
-            Some((dir, target)) => (dir, target),
+        let stats = stats.with_dir(dir);
+
+        let description_file_info =
+            self.load_description_file(&stats.dir.join(&stats.request.target))?;
+        let stats = match self.get_real_target(stats, &kind, &description_file_info, false)? {
+            Some(stats) => stats,
             None => return Ok(None),
         };
-
-        (if matches!(
-            Self::get_path_kind(&target),
+        if matches!(
+            Self::get_target_kind(&stats.request.target),
             PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
         ) {
-            self.resolve_as_file(&dir, &target)
-                .or_else(|_| self.resolve_as_dir(&dir, &target, &part.query, &part.fragment, false))
+            self.resolve_as_file(&stats)
+                .or_else(|_| match self.resolve_as_dir(stats, false)? {
+                    Some(stats) => Ok(Some(stats.get_path())),
+                    None => Ok(None),
+                })
         } else {
-            self.resolve_as_modules(&dir, &target, &part.query, &part.fragment)
-        })
-        .and_then(|path| self.normalize_path(path, &part.query, &part.fragment))
+            match self.resolve_as_modules(stats)? {
+                Some(stats) => Ok(Some(stats.get_path())),
+                None => Ok(None),
+            }
+        }
+        .and_then(|path| self.normalize_path(path, &init_query, &init_fragment))
     }
 
     // fn cache(&mut self) {
