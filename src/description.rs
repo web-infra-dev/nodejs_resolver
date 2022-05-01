@@ -14,7 +14,8 @@ pub struct DescriptionFileInfo {
 }
 
 impl Resolver {
-    fn parse_description_file(&self, path: &Path) -> RResult<DescriptionFileInfo> {
+    fn parse_description_file(&self, dir: &Path, target: &str) -> RResult<DescriptionFileInfo> {
+        let path = dir.join(target);
         let file = File::open(&path).map_err(|_| "Open failed".to_string())?;
         let json: serde_json::Value = serde_json::from_reader(file)
             .map_err(|_| "Read description file failed".to_string())?;
@@ -54,6 +55,7 @@ impl Resolver {
         } else {
             None
         };
+
         let imports_field_tree = if let Some(value) = json.get("imports") {
             Some(ImportsField::build_field_path_tree(value)?)
         } else {
@@ -67,7 +69,7 @@ impl Resolver {
 
         Ok(DescriptionFileInfo {
             name,
-            abs_dir_path: path.parent().unwrap().to_path_buf(),
+            abs_dir_path: dir.to_path_buf(),
             main_fields,
             alias_fields,
             exports_field_tree,
@@ -104,10 +106,9 @@ impl Resolver {
             //     .map(|info| info.to_owned()))
         } else {
             match Self::find_description_file_dir(now_path, &self.options.description_file) {
-                Some(target_dir) => {
-                    let description_file_path = target_dir.join(&self.options.description_file);
-                    Ok(Some(self.parse_description_file(&description_file_path)?))
-                }
+                Some(target_dir) => Ok(Some(
+                    self.parse_description_file(&target_dir, &self.options.description_file)?,
+                )),
                 None => Ok(None),
             }
         }

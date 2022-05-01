@@ -11,7 +11,7 @@ pub enum PathKind {
 }
 
 impl Resolver {
-    pub fn get_path_kind(target: &str) -> PathKind {
+    pub fn get_target_kind(target: &str) -> PathKind {
         if target.is_empty() {
             PathKind::Empty
         } else if Self::is_build_in_module(target) {
