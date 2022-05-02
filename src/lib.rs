@@ -14,13 +14,12 @@
 //! use nodejs_resolver::Resolver;
 //!
 //! let cwd = std::env::current_dir().unwrap();
-//! let mut resolver = Resolver::default()
-//!                      .with_base_dir(&cwd.join("./src"));
+//! let mut resolver = Resolver::default();
 //!
-//! resolver.resolve("foo");
+//! resolver.resolve(&cwd.join("./src"), "foo");
 //! // -> Ok(<cwd>/node_modules/foo/index.js)
 //!
-//! resolver.resolve("./foo");
+//! resolver.resolve(&cwd.join("./src"), "./foo");
 //! // -> Ok(<cwd>/src/foo.js)
 //! ```
 //!
@@ -45,7 +44,6 @@ use std::{
 #[derive(Default)]
 pub struct Resolver {
     options: ResolverOptions,
-    base_dir: Option<PathBuf>,
     cache_dir_info: HashMap<PathBuf, DirInfo>,
     cache_description_file_info: HashMap<PathBuf, DescriptionFileInfo>,
 }
@@ -95,26 +93,9 @@ type ResolverStats = RResult<Option<Stats>>;
 type ResolverResult = RResult<Option<PathBuf>>;
 
 impl Resolver {
-    pub fn with_base_dir(self, base_dir: &Path) -> Self {
-        Self {
-            base_dir: Some(base_dir.to_path_buf()),
-            ..self
-        }
+    pub fn resolve(&mut self, base_dir: &PathBuf, target: &str) -> ResolverResult {
+        self._resolve(base_dir, target.to_string())
     }
-
-    fn get_base_dir(&self) -> &PathBuf {
-        self.base_dir
-            .as_ref()
-            .unwrap_or_else(|| panic!("base_dir is not set"))
-    }
-
-    pub fn resolve(&mut self, target: &str) -> ResolverResult {
-        self._resolve(self.get_base_dir(), target.to_string())
-    }
-
-    // pub fn resolve_from(&mut self, base_dir: &Path, target: &str) -> ResolverResult {
-    //     self.resolve_inner(base_dir, target.to_owned())
-    // }
 
     fn _resolve(&self, base_dir: &Path, target: String) -> ResolverResult {
         let normalized_target = &if let Some(target_after_alias) = self.normalize_alias(target) {
