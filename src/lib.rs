@@ -17,10 +17,10 @@
 //! let mut resolver = Resolver::default();
 //!
 //! resolver.resolve(&cwd.join("./src"), "foo");
-//! // -> Ok(<cwd>/node_modules/foo/index.js)
+//! // -> ResolveResult::Path(PathBuf::from("<cwd>/node_modules/foo/index.js"))
 //!
 //! resolver.resolve(&cwd.join("./src"), "./foo");
-//! // -> Ok(<cwd>/src/foo.js)
+//! // -> ResolveResult::Path(PathBuf::from("<cwd>/src/foo.js"))
 //! ```
 //!
 
@@ -90,7 +90,13 @@ impl Stats {
 type ResolverError = String;
 type RResult<T> = Result<T, ResolverError>;
 type ResolverStats = RResult<Option<Stats>>;
-type ResolverResult = RResult<Option<PathBuf>>;
+
+#[derive(Debug, PartialEq)]
+pub enum ResolveResult {
+    Path(PathBuf),
+    Ignored,
+}
+type ResolverResult = RResult<ResolveResult>;
 
 impl Resolver {
     pub fn resolve(&mut self, base_dir: &PathBuf, target: &str) -> ResolverResult {
@@ -101,7 +107,7 @@ impl Resolver {
         let normalized_target = &if let Some(target_after_alias) = self.normalize_alias(target) {
             target_after_alias
         } else {
-            return Ok(None);
+            return Ok(ResolveResult::Ignored);
         };
         let stats = Stats::from(base_dir.to_path_buf(), Self::parse(normalized_target));
         let init_query = stats.request.query.clone();
@@ -110,7 +116,9 @@ impl Resolver {
         let kind = Self::get_target_kind(&stats.request.target);
         let dir = match kind {
             PathKind::Empty => return Err(format!("Can't resolve '' in {}", base_dir.display())),
-            PathKind::BuildInModule => return Ok(Some(PathBuf::from(&stats.request.target))),
+            PathKind::BuildInModule => {
+                return Ok(ResolveResult::Path(PathBuf::from(&stats.request.target)))
+            }
             PathKind::AbsolutePosix | PathKind::AbsoluteWin => PathBuf::from("/"),
             _ => base_dir.to_path_buf(),
         };
@@ -120,24 +128,25 @@ impl Resolver {
             self.load_description_file(&stats.dir.join(&stats.request.target))?;
         let stats = match self.get_real_target(stats, &kind, &description_file_info, false)? {
             Some(stats) => stats,
-            None => return Ok(None),
+            None => return Ok(ResolveResult::Ignored),
         };
+
         if matches!(
             Self::get_target_kind(&stats.request.target),
             PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
         ) {
             self.resolve_as_file(&stats)
                 .or_else(|_| match self.resolve_as_dir(stats, false)? {
-                    Some(stats) => Ok(Some(stats.get_path())),
-                    None => Ok(None),
+                    Some(stats) => Ok(ResolveResult::Path(stats.get_path())),
+                    None => Ok(ResolveResult::Ignored),
                 })
         } else {
             match self.resolve_as_modules(stats)? {
-                Some(stats) => Ok(Some(stats.get_path())),
-                None => Ok(None),
+                Some(stats) => Ok(ResolveResult::Path(stats.get_path())),
+                None => Ok(ResolveResult::Ignored),
             }
         }
-        .and_then(|path| self.normalize_path(path, &init_query, &init_fragment))
+        .and_then(|result| self.normalize_path(result, &init_query, &init_fragment))
     }
 
     // fn cache(&mut self) {

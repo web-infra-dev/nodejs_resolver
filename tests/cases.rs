@@ -1,4 +1,4 @@
-use nodejs_resolver::Resolver;
+use nodejs_resolver::{ResolveResult, Resolver};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -18,13 +18,19 @@ fn p(paths: Vec<&str>) -> PathBuf {
 
 macro_rules! should_equal {
     ($resolver: expr, $base_dir: expr, $target: expr; $result: expr) => {
-        assert_eq!($resolver.resolve($base_dir, $target), Ok(Some($result)));
+        assert_eq!(
+            $resolver.resolve($base_dir, $target),
+            Ok(ResolveResult::Path($result))
+        );
     };
 }
 
 macro_rules! should_ignore {
     ($resolver: expr, $base_dir: expr, $target: expr) => {
-        assert_eq!($resolver.resolve($base_dir, $target), Ok(None));
+        assert_eq!(
+            $resolver.resolve($base_dir, $target),
+            Ok(ResolveResult::Ignored)
+        );
     };
 }
 

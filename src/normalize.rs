@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use crate::{Resolver, ResolverResult};
+use crate::{ResolveResult, Resolver, ResolverResult};
 
 impl Resolver {
     pub fn normalize_alias(&self, target: String) -> Option<String> {
@@ -35,46 +35,47 @@ impl Resolver {
 
     pub fn normalize_path(
         &self,
-        path: Option<PathBuf>,
+        result: ResolveResult,
         query: &str,
         fragment: &str,
     ) -> ResolverResult {
-        if let Some(path) = path {
-            if self.options.symlinks {
-                Path::canonicalize(&path)
-                    .map_err(|_| "Path normalized failed".to_string())
-                    .map(|result| {
-                        Some(PathBuf::from(format!(
-                            "{}{}{}",
-                            Self::adjust(result),
-                            query,
-                            fragment
-                        )))
-                    })
-            } else {
-                let result = path
-                    .components()
-                    .fold(PathBuf::new(), |mut acc, path_component| {
-                        match path_component {
-                            Component::Prefix(prefix) => acc.push(prefix.as_os_str()),
-                            Component::Normal(name) => acc.push(name),
-                            Component::RootDir => acc.push("/"),
-                            Component::CurDir => {}
-                            Component::ParentDir => {
-                                acc.pop();
-                            }
-                        }
-                        acc
-                    });
-                Ok(Some(PathBuf::from(format!(
-                    "{}{}{}",
-                    result.to_str().unwrap(),
-                    query,
-                    fragment
-                ))))
+        match result {
+            ResolveResult::Path(path) => {
+                if self.options.symlinks {
+                    Path::canonicalize(&path)
+                        .map_err(|_| "Path normalized failed".to_string())
+                        .map(|result| {
+                            ResolveResult::Path(PathBuf::from(format!(
+                                "{}{}{}",
+                                Self::adjust(result),
+                                query,
+                                fragment
+                            )))
+                        })
+                } else {
+                    let result =
+                        path.components()
+                            .fold(PathBuf::new(), |mut acc, path_component| {
+                                match path_component {
+                                    Component::Prefix(prefix) => acc.push(prefix.as_os_str()),
+                                    Component::Normal(name) => acc.push(name),
+                                    Component::RootDir => acc.push("/"),
+                                    Component::CurDir => {}
+                                    Component::ParentDir => {
+                                        acc.pop();
+                                    }
+                                }
+                                acc
+                            });
+                    Ok(ResolveResult::Path(PathBuf::from(format!(
+                        "{}{}{}",
+                        result.to_str().unwrap(),
+                        query,
+                        fragment
+                    ))))
+                }
             }
-        } else {
-            Ok(None)
+            ResolveResult::Ignored => Ok(ResolveResult::Ignored),
         }
     }
 }

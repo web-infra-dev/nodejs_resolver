@@ -2,21 +2,21 @@ use crate::{
     description::DescriptionFileInfo,
     kind::PathKind,
     map::{ExportsField, Field, ImportsField},
-    RResult, Resolver, ResolverResult, ResolverStats, Stats,
+    RResult, ResolveResult, Resolver, ResolverResult, ResolverStats, Stats,
 };
 
 impl Resolver {
     pub(crate) fn resolve_as_file(&self, stats: &Stats) -> ResolverResult {
         let path = stats.get_path();
         if path.is_file() {
-            Ok(Some(path))
+            Ok(ResolveResult::Path(path))
         } else {
             for extension in &self.options.extensions {
                 let path = stats
                     .dir
                     .join(format!("{}.{}", stats.request.target, extension));
                 if path.is_file() {
-                    return Ok(Some(path));
+                    return Ok(ResolveResult::Path(path));
                 }
             }
 
@@ -54,9 +54,9 @@ impl Resolver {
                 let file = self.resolve_as_file(&stats);
                 let stats = if file.is_err() && !stats.dir.eq(&original_dir) {
                     self.resolve_as_dir(stats.clone(), is_in_module)
-                } else if let Ok(Some(path)) = file {
+                } else if let Ok(ResolveResult::Path(path)) = file {
                     return Ok(Some(stats.with_dir(path).with_target(String::new())));
-                } else if let Ok(None) = file {
+                } else if let Ok(ResolveResult::Ignored) = file {
                     return Ok(None);
                 } else {
                     Err("".to_string())
@@ -87,9 +87,10 @@ impl Resolver {
                 None => return Ok(None),
             };
             let file = self.resolve_as_file(&stats);
-            if let Ok(Some(path)) = file {
+
+            if let Ok(ResolveResult::Path(path)) = file {
                 return Ok(Some(stats.with_dir(path).with_target(String::new())));
-            } else if let Ok(None) = file {
+            } else if let Ok(ResolveResult::Ignored) = file {
                 return Ok(None);
             }
         }
@@ -116,7 +117,7 @@ impl Resolver {
                 let file = self.resolve_as_file(&stats);
                 let result = if file.is_err() && !stats.dir.eq(&original_dir) {
                     self.resolve_as_dir(stats.clone(), true)
-                } else if let Ok(Some(path)) = file {
+                } else if let Ok(ResolveResult::Path(path)) = file {
                     return Ok(Some(stats.with_dir(path).with_target(String::new())));
                 } else {
                     return Ok(None);
