@@ -3,9 +3,11 @@ name = "nodejs-resolver"
 version = "0.0.2"
 edition = "2021"
 license = "MIT"
-description = "node resolve"
+description = "nodejs resolve"
+repository = "https://github.com/bvanjoi/nodejs_resolver"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 serde_json = {version = "1.0.79", features = ["preserve_order"] }
 indexmap = "1.8.1"
+dashmap = "5.3.3"

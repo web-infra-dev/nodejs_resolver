@@ -14,7 +14,7 @@
 //! use nodejs_resolver::Resolver;
 //!
 //! let cwd = std::env::current_dir().unwrap();
-//! let mut resolver = Resolver::default();
+//! let resolver = Resolver::default();
 //!
 //! resolver.resolve(&cwd.join("./src"), "foo");
 //! // -> ResolveResult::Path(PathBuf::from("<cwd>/node_modules/foo/index.js"))
@@ -32,20 +32,23 @@ mod options;
 mod parse;
 mod resolve;
 
+use dashmap::DashMap;
 use description::DescriptionFileInfo;
 use kind::PathKind;
 use options::ResolverOptions;
 use parse::Request;
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 #[derive(Default)]
 pub struct Resolver {
     options: ResolverOptions,
-    cache_dir_info: HashMap<PathBuf, DirInfo>,
-    cache_description_file_info: HashMap<PathBuf, DescriptionFileInfo>,
+    cache: ResolverCache,
+}
+
+#[derive(Default)]
+pub struct ResolverCache {
+    dir_info: DashMap<PathBuf, DirInfo>,
+    description_file_info: DashMap<PathBuf, DescriptionFileInfo>,
 }
 
 pub struct DirInfo {
@@ -53,7 +56,7 @@ pub struct DirInfo {
 }
 
 // TODO: should remove `Clone`
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Stats {
     pub dir: PathBuf,
     pub request: Request,
@@ -99,7 +102,7 @@ pub enum ResolveResult {
 type ResolverResult = RResult<ResolveResult>;
 
 impl Resolver {
-    pub fn resolve(&mut self, base_dir: &PathBuf, target: &str) -> ResolverResult {
+    pub fn resolve(&self, base_dir: &PathBuf, target: &str) -> ResolverResult {
         self._resolve(base_dir, target.to_string())
     }
 
@@ -148,11 +151,4 @@ impl Resolver {
         }
         .and_then(|result| self.normalize_path(result, &init_query, &init_fragment))
     }
-
-    // fn cache(&mut self) {
-    //     if let Some(info) = description_file_info {
-    //         self.cache_dir_info(&original_base_dir, &info.abs_dir_path);
-    //         self.cache_description_file_info(info);
-    //     }
-    // }
 }
