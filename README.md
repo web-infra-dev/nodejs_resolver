@@ -2,4 +2,4 @@
 
 TodoList:
 
-- [ ] cache for package.json
+- [ ] optimized code structure.

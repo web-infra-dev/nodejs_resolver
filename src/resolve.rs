@@ -56,8 +56,6 @@ impl Resolver {
                     self.resolve_as_dir(stats.clone(), is_in_module)
                 } else if let Ok(ResolveResult::Path(path)) = file {
                     return Ok(Some(stats.with_dir(path).with_target(String::new())));
-                } else if let Ok(ResolveResult::Ignored) = file {
-                    return Ok(None);
                 } else {
                     Err("".to_string())
                 };
@@ -70,9 +68,8 @@ impl Resolver {
         for main_file in &self.options.main_files {
             let is_in_module = if let Some(info) = &info_wrap {
                 info.abs_dir_path
-                    .as_os_str()
-                    .to_str()
-                    .unwrap()
+                    .display()
+                    .to_string()
                     .contains("node_modules")
             } else {
                 false
@@ -87,7 +84,6 @@ impl Resolver {
                 None => return Ok(None),
             };
             let file = self.resolve_as_file(&stats);
-
             if let Ok(ResolveResult::Path(path)) = file {
                 return Ok(Some(stats.with_dir(path).with_target(String::new())));
             } else if let Ok(ResolveResult::Ignored) = file {
@@ -144,7 +140,7 @@ impl Resolver {
         target: &Option<String>,
         info: &DescriptionFileInfo,
     ) -> Option<String> {
-        if let Some(target) = target {
+        target.as_ref().and_then(|target| {
             if info.alias_fields.contains_key(target) {
                 info.alias_fields
                     .get(target)
@@ -152,9 +148,7 @@ impl Resolver {
             } else {
                 Some(target.clone())
             }
-        } else {
-            None
-        }
+        })
     }
 
     fn deal_with_imports_exports_field_in_info(
@@ -163,7 +157,6 @@ impl Resolver {
         info: &DescriptionFileInfo,
     ) -> RResult<Option<Stats>> {
         let target = &stats.request.target;
-
         let is_imports_field = target.starts_with('#');
 
         let list = if is_imports_field {
@@ -225,9 +218,8 @@ impl Resolver {
                     if let Some(info) = &info {
                         if !info
                             .abs_dir_path
-                            .as_os_str()
-                            .to_str()
-                            .unwrap()
+                            .display()
+                            .to_string()
                             .contains("node_modules")
                         {
                             return Ok(Some(stats));
@@ -274,14 +266,13 @@ impl Resolver {
             for (relative_path, converted_target) in &info.alias_fields {
                 if matches!(kind, PathKind::Normal | PathKind::Internal) && target.eq(relative_path)
                 {
-                    return match self.deal_with_alias_fields_in_info(converted_target, info) {
-                        Some(converted) => Ok(Some(
+                    return Ok(self
+                        .deal_with_alias_fields_in_info(converted_target, info)
+                        .map(|converted| {
                             stats
                                 .with_dir(description_file_dir.to_path_buf())
-                                .with_target(converted),
-                        )),
-                        None => Ok(None),
-                    };
+                                .with_target(converted)
+                        }));
                 }
 
                 let should_converted_path = description_file_dir.join(relative_path);
@@ -293,14 +284,13 @@ impl Resolver {
                         .iter()
                         .any(|ext| should_converted_path.eq(&path.with_extension(ext)))
                 {
-                    return match self.deal_with_alias_fields_in_info(converted_target, info) {
-                        Some(converted) => Ok(Some(
+                    return Ok(self
+                        .deal_with_alias_fields_in_info(converted_target, info)
+                        .map(|converted| {
                             stats
                                 .with_dir(description_file_dir.to_path_buf())
-                                .with_target(converted),
-                        )),
-                        None => Ok(None),
-                    };
+                                .with_target(converted)
+                        }));
                 }
                 // TODO: when trigger main filed
             }

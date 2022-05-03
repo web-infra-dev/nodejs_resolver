@@ -31,6 +31,8 @@ jobs:
           override: true
       - name: Rust Cache
         uses: Swatinem/rust-cache@v1.3.0
+        with:
+          key: "a"
       - if: ${{ matrix.os == 'ubuntu-latest' }}
         name: Clippy
         uses: actions-rs/clippy-check@v1

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
+#[derive(Clone)]
 pub struct DescriptionFileInfo {
     pub name: Option<String>,
     pub abs_dir_path: PathBuf,
@@ -17,6 +18,7 @@ impl Resolver {
     fn parse_description_file(&self, dir: &Path, target: &str) -> RResult<DescriptionFileInfo> {
         let path = dir.join(target);
         let file = File::open(&path).map_err(|_| "Open failed".to_string())?;
+
         let json: serde_json::Value = serde_json::from_reader(file)
             .map_err(|_| "Read description file failed".to_string())?;
 
@@ -93,47 +95,36 @@ impl Resolver {
 
     pub(crate) fn load_description_file(
         &self,
-        now_path: &Path,
+        now_dir: &Path,
     ) -> RResult<Option<DescriptionFileInfo>> {
-        if !now_path.is_dir() {
-            self.load_description_file(now_path.parent().unwrap())
-        } else if let Some(dir) = self.cache_dir_info.get(&now_path.to_path_buf()) {
-            unreachable!();
-            // TODO: cache
-            // Ok(self
-            //     .cache_description_file_info
-            //     .get(&dir.description_file_path)
-            //     .map(|info| info.to_owned()))
+        if !now_dir.is_dir() {
+            return self.load_description_file(now_dir.parent().unwrap());
+        }
+
+        let description_file = if let Some(dir) = self.cache.dir_info.get(&now_dir.to_path_buf()) {
+            self.cache
+                .description_file_info
+                .get(&dir.description_file_path)
+                .map(|r#ref| r#ref.clone())
         } else {
-            match Self::find_description_file_dir(now_path, &self.options.description_file) {
-                Some(target_dir) => Ok(Some(
-                    self.parse_description_file(&target_dir, &self.options.description_file)?,
-                )),
-                None => Ok(None),
+            match Self::find_description_file_dir(now_dir, &self.options.description_file) {
+                Some(target_dir) => {
+                    let parsed =
+                        self.parse_description_file(&target_dir, &self.options.description_file)?;
+                    self.cache.dir_info.insert(
+                        now_dir.to_path_buf(),
+                        DirInfo {
+                            description_file_path: target_dir.to_path_buf(),
+                        },
+                    );
+                    self.cache
+                        .description_file_info
+                        .insert(target_dir, parsed.clone());
+                    Some(parsed)
+                }
+                None => None,
             }
-        }
-    }
-
-    pub(crate) fn cache_dir_info(&mut self, now_dir: &Path, description_file_dir: &Path) {
-        let mut now_dir = now_dir;
-
-        while now_dir.starts_with(description_file_dir) {
-            self.cache_dir_info.insert(
-                now_dir.to_path_buf(),
-                DirInfo {
-                    description_file_path: description_file_dir.to_path_buf(),
-                },
-            );
-            now_dir = now_dir.parent().unwrap();
-        }
-    }
-
-    pub(crate) fn cache_description_file_info(
-        &mut self,
-        description_file_info: DescriptionFileInfo,
-    ) {
-        let abs_dir_path = description_file_info.abs_dir_path.clone();
-        self.cache_description_file_info
-            .insert(abs_dir_path, description_file_info);
+        };
+        Ok(description_file)
     }
 }

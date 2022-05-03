@@ -52,7 +52,7 @@ macro_rules! vec_to_set {
 #[test]
 fn extensions_test() {
     let extensions_cases_path = get_cases_path!("tests/fixtures/extensions");
-    let mut resolver = Resolver::default().with_extensions(vec!["ts", "js"]);
+    let resolver = Resolver::default().with_extensions(vec!["ts", "js"]);
 
     should_equal!(resolver, &extensions_cases_path, "./a"; p(vec!["extensions", "a.ts"]));
     should_equal!(resolver, &extensions_cases_path, "./a.js"; p(vec!["extensions", "a.js"]));
@@ -69,7 +69,7 @@ fn extensions_test() {
 #[test]
 fn alias_test() {
     let alias_cases_path = get_cases_path!("tests/fixtures/alias");
-    let mut resolver = Resolver::default().with_alias(vec![
+    let resolver = Resolver::default().with_alias(vec![
         ("aliasA", Some("./a")),
         ("./b$", Some("./a/index")), // TODO: should we use trailing?
         ("recursive", Some("./recursive/dir")),
@@ -110,7 +110,7 @@ fn alias_test() {
 #[test]
 fn symlink_test() {
     let symlink_cases_path = get_cases_path!("tests/fixtures/symlink");
-    let mut resolver = Resolver::default();
+    let resolver = Resolver::default();
 
     should_equal!(resolver, &symlink_cases_path.join("linked"), "./index.js"; p(vec!["symlink", "lib", "index.js"]));
     should_equal!(resolver, &symlink_cases_path.join("linked"), "./node.relative.js"; p(vec!["symlink", "lib", "index.js"]));
@@ -145,7 +145,7 @@ fn symlink_test() {
     should_equal!(resolver, &symlink_cases_path.join("linked/that/outer/linked"), "./lib/index.js"; p(vec!["symlink", "lib", "index.js"]));
 
     let linked_path = symlink_cases_path.join("linked");
-    let mut resolver = Resolver::default().with_symlinks(false);
+    let resolver = Resolver::default().with_symlinks(false);
 
     should_equal!(resolver, &linked_path, "./index.js"; p(vec!["symlink", "linked", "index.js"]));
     should_equal!(resolver, &linked_path, "./this/this/index.js"; p(vec!["symlink", "linked", "this", "this", "index.js"]));
@@ -154,7 +154,7 @@ fn symlink_test() {
 #[test]
 fn simple_test() {
     let simple_case_path = get_cases_path!("tests/fixtures/simple");
-    let mut resolver = Resolver::default();
+    let resolver = Resolver::default();
     // directly
     should_equal!(resolver, &simple_case_path, "./lib/index"; p(vec!["simple", "lib", "index.js"]));
     // as directory
@@ -167,7 +167,7 @@ fn simple_test() {
 #[test]
 fn resolve_test() {
     let fixture_path = p(vec![]);
-    let mut resolver = Resolver::default();
+    let resolver = Resolver::default();
 
     should_equal!(resolver, &fixture_path, p(vec!["main1.js"]).to_str().unwrap(); p(vec!["main1.js"]));
     should_equal!(resolver, &fixture_path, "./main1.js"; p(vec!["main1.js"]));
@@ -209,7 +209,7 @@ fn resolve_test() {
 #[test]
 fn browser_filed_test() {
     let browser_module_case_path = get_cases_path!("tests/fixtures/browser-module");
-    let mut resolver = Resolver::default().with_alias_fields(vec!["browser"]);
+    let resolver = Resolver::default().with_alias_fields(vec!["browser"]);
 
     should_ignore!(resolver, &browser_module_case_path, "./lib/ignore");
     should_ignore!(resolver, &browser_module_case_path, "./lib/ignore.js");
@@ -241,7 +241,7 @@ fn browser_filed_test() {
 #[test]
 fn dependencies_test() {
     let dep_case_path = get_cases_path!("tests/fixtures/dependencies");
-    let mut resolver = Resolver::default()
+    let resolver = Resolver::default()
         .with_modules(vec!["modules", "node_modules"])
         .with_extensions(vec![".json", ".js"]);
 
@@ -256,7 +256,7 @@ fn dependencies_test() {
 fn full_specified_test() {
     // TODO: should I need add `fullSpecified` flag?
     let full_cases_path = get_cases_path!("tests/fixtures/full/a");
-    let mut resolver = Resolver::default()
+    let resolver = Resolver::default()
         .with_alias(vec![("alias1", Some("./abc")), ("alias2", Some("./"))])
         .with_alias_fields(vec!["browser"]);
 
@@ -280,7 +280,7 @@ fn full_specified_test() {
 #[test]
 fn missing_test() {
     let fixture_path = get_cases_path!("tests/fixtures/");
-    let mut resolver = Resolver::default();
+    let resolver = Resolver::default();
     // TODO: optimize error
     // TODO: path
     should_error!(resolver, &fixture_path, "./missing-file"; "Not found directory");
@@ -295,7 +295,7 @@ fn missing_test() {
 #[test]
 fn incorrect_package_test() {
     let incorrect_package_path = get_cases_path!("tests/fixtures/incorrect-package");
-    let mut resolver = Resolver::default();
+    let resolver = Resolver::default();
 
     should_error!(resolver, &incorrect_package_path.join("pack1"), "."; "Read description file failed");
     should_error!(resolver, &incorrect_package_path.join("pack2"), "."; "Read description file failed");
@@ -304,7 +304,7 @@ fn incorrect_package_test() {
 #[test]
 fn scoped_packages_test() {
     let scoped_path = get_cases_path!("tests/fixtures/scoped");
-    let mut resolver = Resolver::default().with_alias_fields(vec!["browser"]);
+    let resolver = Resolver::default().with_alias_fields(vec!["browser"]);
 
     should_equal!(resolver, &scoped_path, "@scope/pack1"; p(vec!["scoped", "node_modules", "@scope", "pack1", "main.js"]));
     should_equal!(resolver, &scoped_path, "@scope/pack1/main"; p(vec!["scoped", "node_modules", "@scope", "pack1", "main.js"]));
@@ -318,7 +318,7 @@ fn exports_fields_test() {
     // TODO: [`exports_fields`](https://github.com/webpack/enhanced-resolve/blob/main/test/exportsField.js#L2280) flag
 
     let export_cases_path = get_cases_path!("tests/fixtures/exports-field");
-    let mut resolver = Resolver::default()
+    let resolver = Resolver::default()
         .with_extensions(vec![".js"])
         .with_condition_names(vec_to_set!(["webpack"]));
 
@@ -346,7 +346,7 @@ fn exports_fields_test() {
     should_error!(resolver, &export_cases_path2, "exports-field#foo"; "Package path exports-field is not exported");
     should_equal!(resolver, &export_cases_path2, "exports-field/dist/browser.js#foo"; p(vec!["exports-field2", "node_modules", "exports-field", "lib", "browser.js#foo"]));
 
-    let mut resolver = Resolver::default()
+    let resolver = Resolver::default()
         .with_extensions(vec![".js"])
         .with_alias_fields(vec!["browser"])
         .with_condition_names(vec_to_set!(["webpack"]));
@@ -354,13 +354,13 @@ fn exports_fields_test() {
     should_equal!(resolver, &export_cases_path, "./node_modules/exports-field/lib/main.js"; p(vec!["exports-field", "node_modules", "exports-field", "lib", "browser.js"]));
     should_equal!(resolver, &export_cases_path, "./node_modules/exports-field/dist/main.js"; p(vec!["exports-field", "node_modules", "exports-field", "lib", "browser.js"]));
 
-    let mut resolver = Resolver::default()
+    let resolver = Resolver::default()
         .with_extensions(vec![".js"])
         .with_condition_names(vec_to_set!(["webpack"]));
 
     should_equal!(resolver, &export_cases_path, "exports-field"; p(vec!["exports-field", "node_modules", "exports-field", "x.js"]));
 
-    let mut resolver = Resolver::default()
+    let resolver = Resolver::default()
         .with_extensions(vec![".js"])
         .with_alias_fields(vec!["browser"])
         .with_condition_names(vec_to_set!(["node"]));
@@ -372,7 +372,7 @@ fn exports_fields_test() {
 fn imports_fields_test() {
     // TODO: ['imports_fields`](https://github.com/webpack/enhanced-resolve/blob/main/test/importsField.js#L1228)
     let import_cases_path = get_cases_path!("tests/fixtures/imports-field");
-    let mut resolver = Resolver::default()
+    let resolver = Resolver::default()
         .with_extensions(vec![".js"])
         .with_condition_names(vec_to_set!(["webpack"]));
 
@@ -384,4 +384,5 @@ fn imports_fields_test() {
     should_error!(resolver, &import_cases_path, "#a"; "Package path #a is not exported");
     should_equal!(resolver, &import_cases_path, "#c"; p(vec!["imports-field/node_modules/c/index.js"]));
     should_equal!(resolver, &import_cases_path.join("dir"), "#imports-field"; p(vec!["imports-field", "b.js"]));
+    println!("a");
 }

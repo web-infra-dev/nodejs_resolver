@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- (fixture): change `resolver.with_base_dir(xxxx).resolve(target)` to `resolver.resolve(xxxx, target)`
+- (fixture): use `dashmap` to implement cache.
+- (fixture): change `resolver.with_base_dir(xxxx).resolve(target)` to `resolver.resolve(xxxx, target)`.
 - (chore): add `Windows` and `MacOS` ci environment.
 - (refactor): Add coverage test.
 
