@@ -102,7 +102,7 @@ pub enum ResolveResult {
 type ResolverResult = RResult<ResolveResult>;
 
 impl Resolver {
-    pub fn resolve(&self, base_dir: &PathBuf, target: &str) -> ResolverResult {
+    pub fn resolve(&self, base_dir: &Path, target: &str) -> ResolverResult {
         self._resolve(base_dir, target.to_string())
     }
 
