@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DescriptionFileInfo {
     pub name: Option<String>,
     pub abs_dir_path: PathBuf,
