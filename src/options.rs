@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::Resolver;
 
+#[derive(Debug)]
 pub struct ResolverOptions {
     pub extensions: Vec<String>,
     pub alias: HashMap<String, Option<String>>,

@@ -5,14 +5,14 @@ use std::collections::HashSet;
 type DirectMapping = String;
 type ConditionalMapping = IndexMap<String, MappingValue>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum AvailableMapping {
     Direct(DirectMapping),
     Conditional(ConditionalMapping),
 }
 type ArrayMapping = Vec<AvailableMapping>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum MappingValue {
     Direct(DirectMapping),
     Conditional(ConditionalMapping),
@@ -69,7 +69,7 @@ fn conditional_mapping<'a>(
     Ok(None)
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct PathTreeNode {
     pub children: Option<IndexMap<String, PathTreeNode>>,
     pub folder: Option<MappingValue>,

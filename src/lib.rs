@@ -39,18 +39,19 @@ use options::ResolverOptions;
 use parse::Request;
 use std::path::{Path, PathBuf};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Resolver {
     options: ResolverOptions,
     cache: ResolverCache,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ResolverCache {
     dir_info: DashMap<PathBuf, DirInfo>,
     description_file_info: DashMap<PathBuf, DescriptionFileInfo>,
 }
 
+#[derive(Debug)]
 pub struct DirInfo {
     pub description_file_path: PathBuf,
 }

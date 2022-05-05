@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.0.4
+
+- support `Debug` trait. According to [Debuggability](https://rust-lang.github.io/api-guidelines/debuggability.html#debuggability), all public API types should be implements `Debug`.
+
+## 0.0.3
 
 - (fixture): use `dashmap` to implement cache.
 - (fixture): change `resolver.with_base_dir(xxxx).resolve(target)` to `resolver.resolve(xxxx, target)`.
