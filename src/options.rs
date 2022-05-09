@@ -7,12 +7,12 @@ pub struct ResolverOptions {
     pub extensions: Vec<String>,
     pub alias: HashMap<String, Option<String>>,
     pub condition_names: HashSet<String>,
+    pub symlinks: bool,
     pub(crate) alias_fields: Vec<String>,
     pub(crate) main_files: Vec<String>,
     pub(crate) main_fields: Vec<String>,
     pub(crate) description_file: String,
     pub(crate) modules: Vec<String>,
-    pub(crate) symlinks: bool,
 }
 
 impl Default for ResolverOptions {

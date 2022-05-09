@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.5
+
+- expose `ResolverOptions`.
+ 
 ## 0.0.4
 
 - support `Debug` trait. According to [Debuggability](https://rust-lang.github.io/api-guidelines/debuggability.html#debuggability), all public API types should be implements `Debug`.
