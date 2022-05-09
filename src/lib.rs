@@ -35,7 +35,7 @@ mod resolve;
 use dashmap::DashMap;
 use description::DescriptionFileInfo;
 use kind::PathKind;
-use options::ResolverOptions;
+pub use options::ResolverOptions;
 use parse::Request;
 use std::path::{Path, PathBuf};
 

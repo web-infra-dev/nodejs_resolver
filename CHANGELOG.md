@@ -1,8 +1,12 @@
 # Changelog
 
-## 0.0.5
+## 0.0.6
 
 - expose `ResolverOptions`.
+
+## 0.0.5
+
+yanked
  
 ## 0.0.4
 
