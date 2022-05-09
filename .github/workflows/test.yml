@@ -29,10 +29,16 @@ jobs:
           toolchain: nightly
           components: clippy
           override: true
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v1.3.0
+      - name: Configure cache
+        uses: actions/cache@v2
         with:
-          key: "a"
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: test-${{ runner.os }}-cargo-gcc-${{ matrix.gcc }}-clang-${{ matrix.clang }}-${{ hashFiles('**/Cargo.lock') }}
       - if: ${{ matrix.os == 'ubuntu-latest' }}
         name: Clippy
         uses: actions-rs/clippy-check@v1
