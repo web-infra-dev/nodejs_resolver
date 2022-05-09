@@ -23,7 +23,6 @@ jobs:
         with:
           profile: minimal
           toolchain: nightly
-          components: clippy
           override: true
       - name: Configure cache
         uses: actions/cache@v2
@@ -35,11 +34,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: test-${{ runner.os }}-cargo-gcc-${{ matrix.gcc }}-clang-${{ matrix.clang }}-${{ hashFiles('**/Cargo.lock') }}
-      - name: Clippy
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
       - name: Test and coverage
         uses: actions-rs/cargo@v1
         with:
