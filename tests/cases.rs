@@ -382,7 +382,17 @@ fn imports_fields_test() {
     should_equal!(resolver, &import_cases_path, "#a/dist/main.js"; p(vec!["imports-field", "node_modules", "a", "lib", "lib2", "main.js"]));
     should_equal!(resolver, &import_cases_path, "#ccc/index.js"; p(vec!["imports-field", "node_modules", "c", "index.js"]));
     should_error!(resolver, &import_cases_path, "#a"; "Package path #a is not exported");
-    should_equal!(resolver, &import_cases_path, "#c"; p(vec!["imports-field/node_modules/c/index.js"]));
+    should_equal!(resolver, &import_cases_path, "#c"; p(vec!["imports-field", "node_modules", "c", "index.js"]));
     should_equal!(resolver, &import_cases_path.join("dir"), "#imports-field"; p(vec!["imports-field", "b.js"]));
-    println!("a");
+}
+
+#[test]
+fn without_description_file() {
+    let fixture_path = p(vec![]);
+    let resolver = Resolver::default()
+        .with_extensions(vec![".js"])
+        .with_description_file(None);
+    should_equal!(resolver, &fixture_path, "./a"; p(vec!["a.js"]));
+    let export_cases_path = get_cases_path!("tests/fixtures/exports-field");
+    should_equal!(resolver, &export_cases_path, "exports-field/lib"; p(vec!["exports-field", "node_modules","exports-field", "lib", "index.js"]));
 }
