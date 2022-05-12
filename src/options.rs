@@ -8,11 +8,11 @@ pub struct ResolverOptions {
     pub alias: HashMap<String, Option<String>>,
     pub condition_names: HashSet<String>,
     pub symlinks: bool,
-    pub(crate) alias_fields: Vec<String>,
-    pub(crate) main_files: Vec<String>,
-    pub(crate) main_fields: Vec<String>,
-    pub(crate) description_file: String,
-    pub(crate) modules: Vec<String>,
+    pub description_file: Option<String>,
+    pub alias_fields: Vec<String>,
+    pub main_files: Vec<String>,
+    pub main_fields: Vec<String>,
+    pub modules: Vec<String>,
 }
 
 impl Default for ResolverOptions {
@@ -24,7 +24,7 @@ impl Default for ResolverOptions {
         ];
         let main_files = vec![String::from("index")];
         let main_fields = vec![String::from("main")];
-        let description_file = String::from("package.json");
+        let description_file = Some(String::from("package.json"));
         let alias = HashMap::new();
         let modules = vec![String::from("node_modules")];
         let symlinks = true;
@@ -107,6 +107,14 @@ impl Resolver {
     pub fn with_condition_names(self, condition_names: HashSet<String>) -> Self {
         let options = ResolverOptions {
             condition_names,
+            ..self.options
+        };
+        Self { options, ..self }
+    }
+
+    pub fn with_description_file(self, description_file: Option<String>) -> Self {
+        let options = ResolverOptions {
+            description_file,
             ..self.options
         };
         Self { options, ..self }

@@ -97,6 +97,10 @@ impl Resolver {
         &self,
         now_dir: &Path,
     ) -> RResult<Option<DescriptionFileInfo>> {
+        if self.options.description_file.is_none() {
+            return Ok(None);
+        }
+
         if !now_dir.is_dir() {
             return self.load_description_file(now_dir.parent().unwrap());
         }
@@ -107,10 +111,15 @@ impl Resolver {
                 .get(&dir.description_file_path)
                 .map(|r#ref| r#ref.clone())
         } else {
-            match Self::find_description_file_dir(now_dir, &self.options.description_file) {
+            match Self::find_description_file_dir(
+                now_dir,
+                self.options.description_file.as_ref().unwrap(),
+            ) {
                 Some(target_dir) => {
-                    let parsed =
-                        self.parse_description_file(&target_dir, &self.options.description_file)?;
+                    let parsed = self.parse_description_file(
+                        &target_dir,
+                        self.options.description_file.as_ref().unwrap(),
+                    )?;
                     self.cache.dir_info.insert(
                         now_dir.to_path_buf(),
                         DirInfo {
