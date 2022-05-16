@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.8
+
+- support `prefer_relative` feature.
+- remove `with_xxx` methods, instead of manual assignment.
+
 ## 0.0.7
 
 - public `Options`, and change it `description_file` type from `String` to `Option<String>`.

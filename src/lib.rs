@@ -35,7 +35,7 @@ mod resolve;
 use dashmap::DashMap;
 use description::DescriptionFileInfo;
 use kind::PathKind;
-use options::ResolverOptions;
+pub use options::ResolverOptions;
 use parse::Request;
 use std::path::{Path, PathBuf};
 
@@ -103,6 +103,27 @@ pub enum ResolveResult {
 type ResolverResult = RResult<ResolveResult>;
 
 impl Resolver {
+    pub fn new(options: ResolverOptions) -> Self {
+        let options = ResolverOptions {
+            extensions: options
+                .extensions
+                .into_iter()
+                .map(|s| {
+                    if s.starts_with('.') {
+                        s.chars().skip(1).collect()
+                    } else {
+                        s
+                    }
+                })
+                .collect(),
+            ..options
+        };
+        Self {
+            options,
+            cache: Default::default(),
+        }
+    }
+
     pub fn resolve(&self, base_dir: &Path, target: &str) -> ResolverResult {
         self._resolve(base_dir, target.to_string())
     }
@@ -113,6 +134,17 @@ impl Resolver {
         } else {
             return Ok(ResolveResult::Ignored);
         };
+
+        if self.options.prefer_relative
+            && !normalized_target.starts_with("../")
+            && !normalized_target.starts_with("./")
+        {
+            let result = self._resolve(base_dir, format!("./{}", normalized_target));
+            if result.is_ok() {
+                return result;
+            }
+        }
+
         let stats = Stats::from(base_dir.to_path_buf(), Self::parse(normalized_target));
         let init_query = stats.request.query.clone();
         let init_fragment = stats.request.fragment.clone();
