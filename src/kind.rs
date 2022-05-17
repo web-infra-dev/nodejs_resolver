@@ -9,7 +9,103 @@ pub enum PathKind {
     BuildInModule,
     Normal,
 }
+use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, MatchKind};
+use once_cell::sync::Lazy;
+use phf::{phf_set, Set};
 
+const BUILT_IN_MODULE_SET: Set<&'static str> = phf_set! {
+   "_http_agent",
+   "_http_client",
+   "_http_common",
+   "_http_incoming",
+   "_http_outgoing",
+   "_http_server",
+   "_stream_duplex",
+   "_stream_passthrough",
+   "_stream_readable",
+   "_stream_transform",
+   "_stream_wrap",
+   "_stream_writable",
+   "_tls_common",
+   "_tls_wrap",
+   "assert",
+   "assert/,strict",
+   "async_hooks",
+   "buffer",
+   "child_process",
+   "cluster",
+   "console",
+   "constants",
+   "crypto",
+   "dgram",
+   "diagnostics_channel",
+   "dns",
+   "dns/promises",
+   "domain",
+   "events",
+   "fs",
+   "fs/promises",
+   "http",
+   "http2",
+   "https",
+   "inspector",
+   "module",
+   "net",
+   "os",
+   "path",
+   "path/posix",
+   "path/win32",
+   "perf_hooks",
+   "process",
+   "punycode",
+   "querystring",
+   "readline",
+   "repl",
+   "stream",
+   "stream/consumers",
+   "stream/promises",
+   "stream/web",
+   "string_decoder",
+   "sys",
+   "timers",
+   "timers/promises",
+   "tls",
+   "trace_events",
+   "tty",
+   "url",
+   "util",
+   "util/types",
+   "v8",
+   "vm",
+   "wasi",
+   "worker_threads",
+   "zlib",
+};
+static ABSOLUTE_WIN_PATTERN_LENGTH_TWO: [&str; 52] = [
+    "a:", "b:", "c:", "d:", "e:", "f:", "g:", "h:", "i:", "j:", "k:", "l:", "m:", "n:", "o:", "p:",
+    "q:", "r:", "s:", "t:", "u:", "v:", "w:", "x:", "y:", "z:", "A:", "B:", "C:", "D:", "E:", "F:",
+    "G:", "H:", "I:", "J:", "K:", "L:", "M:", "N:", "O:", "P:", "Q:", "R:", "S:", "T:", "U:", "V:",
+    "W:", "X:", "Y:", "Z:",
+];
+static ABSOLUTE_WIN_PATTERN_REST: [&str; 104] = [
+    "a:\\", "b:\\", "c:\\", "d:\\", "e:\\", "f:\\", "g:\\", "h:\\", "i:\\", "j:\\", "k:\\", "l:\\",
+    "m:\\", "n:\\", "o:\\", "p:\\", "q:\\", "r:\\", "s:\\", "t:\\", "u:\\", "v:\\", "w:\\", "x:\\",
+    "y:\\", "z:\\", "A:\\", "B:\\", "C:\\", "D:\\", "E:\\", "F:\\", "G:\\", "H:\\", "I:\\", "J:\\",
+    "K:\\", "L:\\", "M:\\", "N:\\", "O:\\", "P:\\", "Q:\\", "R:\\", "S:\\", "T:\\", "U:\\", "V:\\",
+    "W:\\", "X:\\", "Y:\\", "Z:\\", "a:/", "b:/", "c:/", "d:/", "e:/", "f:/", "g:/", "h:/", "i:/",
+    "j:/", "k:/", "l:/", "m:/", "n:/", "o:/", "p:/", "q:/", "r:/", "s:/", "t:/", "u:/", "v:/",
+    "w:/", "x:/", "y:/", "z:/", "A:/", "B:/", "C:/", "D:/", "E:/", "F:/", "G:/", "H:/", "I:/",
+    "J:/", "K:/", "L:/", "M:/", "N:/", "O:/", "P:/", "Q:/", "R:/", "S:/", "T:/", "U:/", "V:/",
+    "W:/", "X:/", "Y:/", "Z:/",
+];
+static PMA: Lazy<DoubleArrayAhoCorasick> = Lazy::new(|| {
+    DoubleArrayAhoCorasickBuilder::new()
+        .match_kind(MatchKind::LeftmostLongest)
+        .build(&ABSOLUTE_WIN_PATTERN_REST)
+        .unwrap()
+});
+
+// let set = Set::from_iter(&["a", "b", "c"]).unwrap();
 impl Resolver {
     pub fn get_target_kind(target: &str) -> PathKind {
         if target.is_empty() {
@@ -23,92 +119,25 @@ impl Resolver {
         } else if target == "."
             || target.starts_with("./")
             || target.starts_with("../")
-            || (target.len() == 2 && target.starts_with(".."))
+            || target == ".."
         {
             PathKind::Relative
-        } else if (target.len() == 2
-            && (('a'..='z').any(|c| target.starts_with(&format!("{c}:")))
-                || ('A'..='Z').any(|c| target.starts_with(&format!("{c}:")))))
-            || ('a'..='z').any(|c| {
-                target.starts_with(&format!("{c}:\\")) || target.starts_with(&format!("{c}:/"))
-            })
-            || ('A'..='Z').any(|c| {
-                target.starts_with(&format!("{c}:\\")) || target.starts_with(&format!("{c}:/"))
-            })
-        {
-            PathKind::AbsoluteWin
         } else {
+            if target.len() == 2 && ABSOLUTE_WIN_PATTERN_LENGTH_TWO.contains(&target) {
+                return PathKind::AbsoluteWin;
+            }
+            let mut it = PMA.leftmost_find_iter(target);
+            if let Some(mat) = it.next() {
+                let match_pattern_len = ABSOLUTE_WIN_PATTERN_REST[mat.value()].len();
+                if mat.start() == 0 && mat.end() - mat.start() == match_pattern_len {
+                    return PathKind::AbsoluteWin;
+                }
+            }
             PathKind::Normal
         }
     }
-
     fn is_build_in_module(target: &str) -> bool {
-        target == "_http_agent"
-            || target == "_http_client"
-            || target == "_http_common"
-            || target == "_http_incoming"
-            || target == "_http_outgoing"
-            || target == "_http_server"
-            || target == "_stream_duplex"
-            || target == "_stream_passthrough"
-            || target == "_stream_readable"
-            || target == "_stream_transform"
-            || target == "_stream_wrap"
-            || target == "_stream_writable"
-            || target == "_tls_common"
-            || target == "_tls_wrap"
-            || target == "assert"
-            || target == "assert/strict"
-            || target == "async_hooks"
-            || target == "buffer"
-            || target == "child_process"
-            || target == "cluster"
-            || target == "console"
-            || target == "constants"
-            || target == "crypto"
-            || target == "dgram"
-            || target == "diagnostics_channel"
-            || target == "dns"
-            || target == "dns/promises"
-            || target == "domain"
-            || target == "events"
-            || target == "fs"
-            || target == "fs/promises"
-            || target == "http"
-            || target == "http2"
-            || target == "https"
-            || target == "inspector"
-            || target == "module"
-            || target == "net"
-            || target == "os"
-            || target == "path"
-            || target == "path/posix"
-            || target == "path/win32"
-            || target == "perf_hooks"
-            || target == "process"
-            || target == "punycode"
-            || target == "querystring"
-            || target == "readline"
-            || target == "repl"
-            || target == "stream"
-            || target == "stream/consumers"
-            || target == "stream/promises"
-            || target == "stream/web"
-            || target == "string_decoder"
-            || target == "sys"
-            || target == "timers"
-            || target == "timers/promises"
-            || target == "tls"
-            || target == "trace_events"
-            || target == "tty"
-            || target == "url"
-            || target == "util"
-            || target == "util/types"
-            || target == "v8"
-            || target == "vm"
-            || target == "wasi"
-            || target == "worker_threads"
-            || target == "zlib"
+        BUILT_IN_MODULE_SET.contains(target)
     }
 }
 
