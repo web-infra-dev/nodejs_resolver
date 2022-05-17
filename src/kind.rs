@@ -105,7 +105,6 @@ static PMA: Lazy<DoubleArrayAhoCorasick> = Lazy::new(|| {
         .unwrap()
 });
 
-// let set = Set::from_iter(&["a", "b", "c"]).unwrap();
 impl Resolver {
     pub fn get_target_kind(target: &str) -> PathKind {
         if target.is_empty() {
@@ -145,4 +144,25 @@ impl Resolver {
 fn test_resolver() {
     assert!(Resolver::is_build_in_module("fs"));
     assert!(!Resolver::is_build_in_module("a"));
+    assert!(matches!(Resolver::get_target_kind(""), PathKind::Empty));
+    assert!(matches!(
+        Resolver::get_target_kind("D:"),
+        PathKind::AbsoluteWin
+    ));
+    assert!(matches!(
+        Resolver::get_target_kind("C:path"),
+        PathKind::Normal
+    ));
+    assert!(matches!(
+        Resolver::get_target_kind("C:\\a"),
+        PathKind::AbsoluteWin
+    ));
+    assert!(matches!(
+        Resolver::get_target_kind("c:/a"),
+        PathKind::AbsoluteWin
+    ));
+    assert!(matches!(
+        Resolver::get_target_kind("cc:/a"),
+        PathKind::Normal
+    ));
 }
