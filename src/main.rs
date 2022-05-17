@@ -7,8 +7,8 @@ fn main() {
         Resolver::get_target_kind("react");
     }
 
-    for _ in 0..100 {
-        Resolver::get_target_kind("testtest");
-    }
+    // for _ in 0..100 {
+    //     Resolver::get_target_kind("testtest");
+    // }
     println!("{:?}", start.elapsed());
 }

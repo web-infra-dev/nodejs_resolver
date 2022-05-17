@@ -166,21 +166,23 @@ impl Resolver {
         } else if target == "."
             || target.starts_with("./")
             || target.starts_with("../")
-            || (target.len() == 2 && target.starts_with(".."))
+            || target == ".."
         {
             PathKind::Relative
-        } else if (target.len() == 2
-            && (('a'..='z').any(|c| target.starts_with(&format!("{c}:")))
-                || ('A'..='Z').any(|c| target.starts_with(&format!("{c}:")))))
-            || ('a'..='z').any(|c| {
-                target.starts_with(&format!("{c}:\\")) || target.starts_with(&format!("{c}:/"))
-            })
-            || ('A'..='Z').any(|c| {
-                target.starts_with(&format!("{c}:\\")) || target.starts_with(&format!("{c}:/"))
-            })
-        {
-            PathKind::AbsoluteWin
-        } else {
+        }
+        // }
+        // } else if (target.len() == 2
+        //     && (('a'..='z').any(|c| target.starts_with(&format!("{c}:")))
+        //         || ('A'..='Z').any(|c| target.starts_with(&format!("{c}:")))))
+        //     || ('a'..='z').any(|c| {
+        //         target.starts_with(&format!("{c}:\\")) || target.starts_with(&format!("{c}:/"))
+        //     })
+        //     || ('A'..='Z').any(|c| {
+        //         target.starts_with(&format!("{c}:\\")) || target.starts_with(&format!("{c}:/"))
+        //     })
+        // {
+        // PathKind::AbsoluteWin
+        else {
             PathKind::Normal
         }
     }
