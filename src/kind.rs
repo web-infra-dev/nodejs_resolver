@@ -9,7 +9,76 @@ pub enum PathKind {
     BuildInModule,
     Normal,
 }
+use daachorse::DoubleArrayAhoCorasick;
 
+static PATTERNS: [&str; 66] = [
+    "_http_agent",
+    "_http_client",
+    "_http_common",
+    "_http_incoming",
+    "_http_outgoing",
+    "_http_server",
+    "_stream_duplex",
+    "_stream_passthrough",
+    "_stream_readable",
+    "_stream_transform",
+    "_stream_wrap",
+    "_stream_writable",
+    "_tls_common",
+    "_tls_wrap",
+    "assert",
+    "assert/,strict",
+    "async_hooks",
+    "buffer",
+    "child_process",
+    "cluster",
+    "console",
+    "constants",
+    "crypto",
+    "dgram",
+    "diagnostics_channel",
+    "dns",
+    "dns/promises",
+    "domain",
+    "events",
+    "fs",
+    "fs/promises",
+    "http",
+    "http2",
+    "https",
+    "inspector",
+    "module",
+    "net",
+    "os",
+    "path",
+    "path/posix",
+    "path/win32",
+    "perf_hooks",
+    "process",
+    "punycode",
+    "querystring",
+    "readline",
+    "repl",
+    "stream",
+    "stream/consumers",
+    "stream/promises",
+    "stream/web",
+    "string_decoder",
+    "sys",
+    "timers",
+    "timers/promises",
+    "tls",
+    "trace_events",
+    "tty",
+    "url",
+    "util",
+    "util/types",
+    "v8",
+    "vm",
+    "wasi",
+    "worker_threads",
+    "zlib",
+];
 impl Resolver {
     pub fn get_target_kind(target: &str) -> PathKind {
         if target.is_empty() {
@@ -43,72 +112,13 @@ impl Resolver {
     }
 
     fn is_build_in_module(target: &str) -> bool {
-        target == "_http_agent"
-            || target == "_http_client"
-            || target == "_http_common"
-            || target == "_http_incoming"
-            || target == "_http_outgoing"
-            || target == "_http_server"
-            || target == "_stream_duplex"
-            || target == "_stream_passthrough"
-            || target == "_stream_readable"
-            || target == "_stream_transform"
-            || target == "_stream_wrap"
-            || target == "_stream_writable"
-            || target == "_tls_common"
-            || target == "_tls_wrap"
-            || target == "assert"
-            || target == "assert/strict"
-            || target == "async_hooks"
-            || target == "buffer"
-            || target == "child_process"
-            || target == "cluster"
-            || target == "console"
-            || target == "constants"
-            || target == "crypto"
-            || target == "dgram"
-            || target == "diagnostics_channel"
-            || target == "dns"
-            || target == "dns/promises"
-            || target == "domain"
-            || target == "events"
-            || target == "fs"
-            || target == "fs/promises"
-            || target == "http"
-            || target == "http2"
-            || target == "https"
-            || target == "inspector"
-            || target == "module"
-            || target == "net"
-            || target == "os"
-            || target == "path"
-            || target == "path/posix"
-            || target == "path/win32"
-            || target == "perf_hooks"
-            || target == "process"
-            || target == "punycode"
-            || target == "querystring"
-            || target == "readline"
-            || target == "repl"
-            || target == "stream"
-            || target == "stream/consumers"
-            || target == "stream/promises"
-            || target == "stream/web"
-            || target == "string_decoder"
-            || target == "sys"
-            || target == "timers"
-            || target == "timers/promises"
-            || target == "tls"
-            || target == "trace_events"
-            || target == "tty"
-            || target == "url"
-            || target == "util"
-            || target == "util/types"
-            || target == "v8"
-            || target == "vm"
-            || target == "wasi"
-            || target == "worker_threads"
-            || target == "zlib"
+        let pma = DoubleArrayAhoCorasick::new(PATTERNS).unwrap();
+        for mat in pma.find_overlapping_iter(target) {
+            if mat.start() == 0 && mat.end() == target.len() {
+                return true;
+            }
+        }
+        false
     }
 }
 
