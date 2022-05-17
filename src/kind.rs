@@ -9,6 +9,8 @@ pub enum PathKind {
     BuildInModule,
     Normal,
 }
+use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, MatchKind};
+use once_cell::sync::Lazy;
 // use daachorse::DoubleArrayAhoCorasick;
 // use fst::Set;
 // use once_cell::sync::Lazy;
@@ -150,7 +152,29 @@ const MY_SET: Set<&'static str> = phf_set! {
    "worker_threads",
    "zlib",
 };
-// static PMA: Lazy<Set<Vec<u8>>> = Lazy::new(|| Set::from_iter(PATTERNS).unwrap());
+static PATTERN_OF_LEN_TWO: [&str; 52] = [
+    "a:", "b:", "c:", "d:", "e:", "f:", "g:", "h:", "i:", "j:", "k:", "l:", "m:", "n:", "o:", "p:",
+    "q:", "r:", "s:", "t:", "u:", "v:", "w:", "x:", "y:", "z:", "A:", "B:", "C:", "D:", "E:", "F:",
+    "G:", "H:", "I:", "J:", "K:", "L:", "M:", "N:", "O:", "P:", "Q:", "R:", "S:", "T:", "U:", "V:",
+    "W:", "X:", "Y:", "Z:",
+];
+static PATTERN_OF_LEN_REST: [&str; 104] = [
+    "a:\\", "b:\\", "c:\\", "d:\\", "e:\\", "f:\\", "g:\\", "h:\\", "i:\\", "j:\\", "k:\\", "l:\\",
+    "m:\\", "n:\\", "o:\\", "p:\\", "q:\\", "r:\\", "s:\\", "t:\\", "u:\\", "v:\\", "w:\\", "x:\\",
+    "y:\\", "z:\\", "A:\\", "B:\\", "C:\\", "D:\\", "E:\\", "F:\\", "G:\\", "H:\\", "I:\\", "J:\\",
+    "K:\\", "L:\\", "M:\\", "N:\\", "O:\\", "P:\\", "Q:\\", "R:\\", "S:\\", "T:\\", "U:\\", "V:\\",
+    "W:\\", "X:\\", "Y:\\", "Z:\\", "a:/", "b:/", "c:/", "d:/", "e:/", "f:/", "g:/", "h:/", "i:/",
+    "j:/", "k:/", "l:/", "m:/", "n:/", "o:/", "p:/", "q:/", "r:/", "s:/", "t:/", "u:/", "v:/",
+    "w:/", "x:/", "y:/", "z:/", "A:/", "B:/", "C:/", "D:/", "E:/", "F:/", "G:/", "H:/", "I:/",
+    "J:/", "K:/", "L:/", "M:/", "N:/", "O:/", "P:/", "Q:/", "R:/", "S:/", "T:/", "U:/", "V:/",
+    "W:/", "X:/", "Y:/", "Z:/",
+];
+static PMA: Lazy<DoubleArrayAhoCorasick> = Lazy::new(|| {
+    DoubleArrayAhoCorasickBuilder::new()
+        .match_kind(MatchKind::LeftmostLongest)
+        .build(&PATTERN_OF_LEN_REST)
+        .unwrap()
+});
 
 // let set = Set::from_iter(&["a", "b", "c"]).unwrap();
 impl Resolver {
@@ -169,24 +193,25 @@ impl Resolver {
             || target == ".."
         {
             PathKind::Relative
+        } else {
+            if target.len() == 2 && PATTERN_OF_LEN_TWO.contains(&target) {
+                return PathKind::AbsoluteWin;
+            }
+            let mut it = PMA.leftmost_find_iter(target);
+            // get the leftMostLongest match
+            if let Some(mat) = it.next() {
+                let i = PATTERN_OF_LEN_REST[mat.value()].len();
+                if mat.end() - mat.start() == i {
+                    return PathKind::AbsoluteWin;
+                } else {
+                    PathKind::Normal
+                }
+            } else {
+                PathKind::Normal
+            }
         }
-        // }
-        // } else if (target.len() == 2
-        //     && (('a'..='z').any(|c| target.starts_with(&format!("{c}:")))
-        //         || ('A'..='Z').any(|c| target.starts_with(&format!("{c}:")))))
-        //     || ('a'..='z').any(|c| {
-        //         target.starts_with(&format!("{c}:\\")) || target.starts_with(&format!("{c}:/"))
-        //     })
-        //     || ('A'..='Z').any(|c| {
-        //         target.starts_with(&format!("{c}:\\")) || target.starts_with(&format!("{c}:/"))
-        //     })
-        // {
-        // PathKind::AbsoluteWin
-        else {
-            PathKind::Normal
-        }
+        // m.value()
     }
-
     fn is_build_in_module(target: &str) -> bool {
         // for mat in PMA.find_iter(target) {
         //     if mat.start() == 0 && mat.end() == target.len() {
