@@ -13,7 +13,7 @@ use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, MatchKind
 use once_cell::sync::Lazy;
 use phf::{phf_set, Set};
 
-const MY_SET: Set<&'static str> = phf_set! {
+const BUILT_IN_MODULE_SET: Set<&'static str> = phf_set! {
    "_http_agent",
    "_http_client",
    "_http_common",
@@ -81,13 +81,13 @@ const MY_SET: Set<&'static str> = phf_set! {
    "worker_threads",
    "zlib",
 };
-static PATTERN_OF_LEN_TWO: [&str; 52] = [
+static ABSOLUTE_WIN_PATTERN_LENGTH_TWO: [&str; 52] = [
     "a:", "b:", "c:", "d:", "e:", "f:", "g:", "h:", "i:", "j:", "k:", "l:", "m:", "n:", "o:", "p:",
     "q:", "r:", "s:", "t:", "u:", "v:", "w:", "x:", "y:", "z:", "A:", "B:", "C:", "D:", "E:", "F:",
     "G:", "H:", "I:", "J:", "K:", "L:", "M:", "N:", "O:", "P:", "Q:", "R:", "S:", "T:", "U:", "V:",
     "W:", "X:", "Y:", "Z:",
 ];
-static PATTERN_OF_LEN_REST: [&str; 104] = [
+static ABSOLUTE_WIN_PATTERN_REST: [&str; 104] = [
     "a:\\", "b:\\", "c:\\", "d:\\", "e:\\", "f:\\", "g:\\", "h:\\", "i:\\", "j:\\", "k:\\", "l:\\",
     "m:\\", "n:\\", "o:\\", "p:\\", "q:\\", "r:\\", "s:\\", "t:\\", "u:\\", "v:\\", "w:\\", "x:\\",
     "y:\\", "z:\\", "A:\\", "B:\\", "C:\\", "D:\\", "E:\\", "F:\\", "G:\\", "H:\\", "I:\\", "J:\\",
@@ -101,7 +101,7 @@ static PATTERN_OF_LEN_REST: [&str; 104] = [
 static PMA: Lazy<DoubleArrayAhoCorasick> = Lazy::new(|| {
     DoubleArrayAhoCorasickBuilder::new()
         .match_kind(MatchKind::LeftmostLongest)
-        .build(&PATTERN_OF_LEN_REST)
+        .build(&ABSOLUTE_WIN_PATTERN_REST)
         .unwrap()
 });
 
@@ -123,12 +123,12 @@ impl Resolver {
         {
             PathKind::Relative
         } else {
-            if target.len() == 2 && PATTERN_OF_LEN_TWO.contains(&target) {
+            if target.len() == 2 && ABSOLUTE_WIN_PATTERN_LENGTH_TWO.contains(&target) {
                 return PathKind::AbsoluteWin;
             }
             let mut it = PMA.leftmost_find_iter(target);
             if let Some(mat) = it.next() {
-                let match_pattern_len = PATTERN_OF_LEN_REST[mat.value()].len();
+                let match_pattern_len = ABSOLUTE_WIN_PATTERN_REST[mat.value()].len();
                 if mat.start() == 0 && mat.end() - mat.start() == match_pattern_len {
                     return PathKind::AbsoluteWin;
                 }
@@ -137,7 +137,7 @@ impl Resolver {
         }
     }
     fn is_build_in_module(target: &str) -> bool {
-        MY_SET.contains(target)
+        BUILT_IN_MODULE_SET.contains(target)
     }
 }
 
