@@ -10,6 +10,7 @@ pub enum PathKind {
     Normal,
 }
 use daachorse::DoubleArrayAhoCorasick;
+use once_cell::sync::Lazy;
 
 static PATTERNS: [&str; 66] = [
     "_http_agent",
@@ -79,6 +80,8 @@ static PATTERNS: [&str; 66] = [
     "worker_threads",
     "zlib",
 ];
+static PMA: Lazy<DoubleArrayAhoCorasick> =
+    Lazy::new(|| DoubleArrayAhoCorasick::new(PATTERNS).unwrap());
 impl Resolver {
     pub fn get_target_kind(target: &str) -> PathKind {
         if target.is_empty() {
@@ -112,13 +115,12 @@ impl Resolver {
     }
 
     fn is_build_in_module(target: &str) -> bool {
-        let pma = DoubleArrayAhoCorasick::new(PATTERNS).unwrap();
-        for mat in pma.find_overlapping_iter(target) {
-            if mat.start() == 0 && mat.end() == target.len() {
-                return true;
-            }
-        }
-        false
+        // for mat in PMA.find_iter(target) {
+        //     if mat.start() == 0 && mat.end() == target.len() {
+        //         return true;
+        //     }
+        // }
+        PATTERNS.contains(&target)
     }
 }
 
