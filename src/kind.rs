@@ -11,79 +11,8 @@ pub enum PathKind {
 }
 use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, MatchKind};
 use once_cell::sync::Lazy;
-// use daachorse::DoubleArrayAhoCorasick;
-// use fst::Set;
-// use once_cell::sync::Lazy;
 use phf::{phf_set, Set};
 
-// static PATTERNS: [&str; 66] = [
-//     "_http_agent",
-//     "_http_client",
-//     "_http_common",
-//     "_http_incoming",
-//     "_http_outgoing",
-//     "_http_server",
-//     "_stream_duplex",
-//     "_stream_passthrough",
-//     "_stream_readable",
-//     "_stream_transform",
-//     "_stream_wrap",
-//     "_stream_writable",
-//     "_tls_common",
-//     "_tls_wrap",
-//     "assert",
-//     "assert/,strict",
-//     "async_hooks",
-//     "buffer",
-//     "child_process",
-//     "cluster",
-//     "console",
-//     "constants",
-//     "crypto",
-//     "dgram",
-//     "diagnostics_channel",
-//     "dns",
-//     "dns/promises",
-//     "domain",
-//     "events",
-//     "fs",
-//     "fs/promises",
-//     "http",
-//     "http2",
-//     "https",
-//     "inspector",
-//     "module",
-//     "net",
-//     "os",
-//     "path",
-//     "path/posix",
-//     "path/win32",
-//     "perf_hooks",
-//     "process",
-//     "punycode",
-//     "querystring",
-//     "readline",
-//     "repl",
-//     "stream",
-//     "stream/consumers",
-//     "stream/promises",
-//     "stream/web",
-//     "string_decoder",
-//     "sys",
-//     "timers",
-//     "timers/promises",
-//     "tls",
-//     "trace_events",
-//     "tty",
-//     "url",
-//     "util",
-//     "util/types",
-//     "v8",
-//     "vm",
-//     "wasi",
-//     "worker_threads",
-//     "zlib",
-// ];
 const MY_SET: Set<&'static str> = phf_set! {
    "_http_agent",
    "_http_client",
@@ -198,29 +127,17 @@ impl Resolver {
                 return PathKind::AbsoluteWin;
             }
             let mut it = PMA.leftmost_find_iter(target);
-            // get the leftMostLongest match
             if let Some(mat) = it.next() {
-                let i = PATTERN_OF_LEN_REST[mat.value()].len();
-                if mat.end() - mat.start() == i {
+                let match_pattern_len = PATTERN_OF_LEN_REST[mat.value()].len();
+                if mat.start() == 0 && mat.end() - mat.start() == match_pattern_len {
                     return PathKind::AbsoluteWin;
-                } else {
-                    PathKind::Normal
                 }
-            } else {
-                PathKind::Normal
             }
+            PathKind::Normal
         }
-        // m.value()
     }
     fn is_build_in_module(target: &str) -> bool {
-        // for mat in PMA.find_iter(target) {
-        //     if mat.start() == 0 && mat.end() == target.len() {
-        //         return true;
-        //     }
-        // }
-        // PATTERNS.contains(&target)
         MY_SET.contains(target)
-        // PMA.contains(target)
     }
 }
 
