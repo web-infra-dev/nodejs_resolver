@@ -80,8 +80,8 @@ static PATTERNS: [&str; 66] = [
     "worker_threads",
     "zlib",
 ];
-static PMA: Lazy<DoubleArrayAhoCorasick> =
-    Lazy::new(|| DoubleArrayAhoCorasick::new(PATTERNS).unwrap());
+// static PMA: Lazy<DoubleArrayAhoCorasick> =
+//     Lazy::new(|| DoubleArrayAhoCorasick::new(PATTERNS).unwrap());
 impl Resolver {
     pub fn get_target_kind(target: &str) -> PathKind {
         if target.is_empty() {
