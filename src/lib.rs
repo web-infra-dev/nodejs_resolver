@@ -72,7 +72,7 @@ impl Stats {
         if self.request.target.is_empty() {
             self.dir.to_path_buf()
         } else {
-            self.dir.join(&self.request.target)
+            self.dir.join(&*self.request.target)
         }
     }
 
@@ -83,7 +83,7 @@ impl Stats {
     pub fn with_target(self, target: String) -> Self {
         Self {
             request: Request {
-                target,
+                target: target.into(),
                 ..self.request
             },
             ..self
@@ -115,7 +115,7 @@ impl Resolver {
                 .into_iter()
                 .map(|s| {
                     if s.starts_with('.') {
-                        s.chars().skip(1).collect()
+                        s[1..].to_string()
                     } else {
                         s
                     }
@@ -155,7 +155,7 @@ impl Resolver {
         let dir = match kind {
             PathKind::Empty => return Err(format!("Can't resolve '' in {}", base_dir.display())),
             PathKind::BuildInModule => {
-                return Ok(ResolveResult::Path(PathBuf::from(&stats.request.target)))
+                return Ok(ResolveResult::Path(PathBuf::from(&*stats.request.target)))
             }
             PathKind::AbsolutePosix | PathKind::AbsoluteWin => PathBuf::from("/"),
             _ => base_dir.to_path_buf(),
@@ -163,7 +163,7 @@ impl Resolver {
         let stats = stats.with_dir(dir);
 
         let description_file_info =
-            self.load_description_file(&stats.dir.join(&stats.request.target))?;
+            self.load_description_file(&stats.dir.join(&*stats.request.target))?;
         let stats = match self.get_real_target(stats, &kind, &description_file_info, false)? {
             Some(stats) => stats,
             None => return Ok(ResolveResult::Ignored),

@@ -14,6 +14,7 @@ dashmap = "5.3.3"
 daachorse = "0.4.1"
 once_cell = "1.10.0"
 phf = { version = "0.10.1", features = ["macros"] }
+smol_str = "0.1.23"
 
 [profile.bench]
 lto = true

@@ -1,10 +1,12 @@
+use smol_str::SmolStr;
+
 use crate::Resolver;
 
 #[derive(Clone, Debug)]
 pub struct Request {
-    pub target: String,
-    pub query: String,
-    pub fragment: String,
+    pub target: SmolStr,
+    pub query: SmolStr,
+    pub fragment: SmolStr,
 }
 
 enum ParseStats {
@@ -24,23 +26,29 @@ impl Resolver {
         for c in ident.chars() {
             match c {
                 '#' => {
-                    matches!(stats, ParseStats::Request | ParseStats::Query).then(|| {
-                        stats = ParseStats::Fragment;
-                    });
-                    matches!(stats, ParseStats::Start).then(|| {
-                        stats = ParseStats::Request;
-                    });
+                    match stats {
+                        ParseStats::Request | ParseStats::Query => {
+                            stats = ParseStats::Fragment;
+                        }
+                        ParseStats::Start => {
+                            stats = ParseStats::Request;
+                        }
+                        ParseStats::Fragment => {}
+                    }
+                    matches!(stats, ParseStats::Start).then(|| {});
                 }
-                '?' => {
-                    (!matches!(stats, ParseStats::Fragment)).then(|| {
+                '?' => match stats {
+                    ParseStats::Request | ParseStats::Query | ParseStats::Start => {
                         stats = ParseStats::Query;
-                    });
-                }
-                _ => {
-                    matches!(stats, ParseStats::Start).then(|| {
+                    }
+                    ParseStats::Fragment => {}
+                },
+                _ => match stats {
+                    ParseStats::Start => {
                         stats = ParseStats::Request;
-                    });
-                }
+                    }
+                    _ => {}
+                },
             };
             match stats {
                 ParseStats::Request => target.push(c),
@@ -55,9 +63,9 @@ impl Resolver {
     pub fn parse(target: &str) -> Request {
         let (target, query, fragment) = Self::parse_identifier(target);
         Request {
-            target,
-            query,
-            fragment,
+            target: target.into(),
+            query: query.into(),
+            fragment: fragment.into(),
         }
     }
 }
@@ -68,11 +76,7 @@ fn parse_identifier_test() {
         ($ident: expr; $r: expr, $q: expr, $f: expr) => {
             assert_eq!(
                 Resolver::parse_identifier(&String::from($ident)),
-                (
-                    ($r).chars().collect(),
-                    ($q).chars().collect(),
-                    ($f).chars().collect()
-                )
+                (($r).to_string(), ($q).to_string(), ($f).to_string())
             );
         };
     }
