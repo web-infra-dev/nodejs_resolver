@@ -43,7 +43,7 @@ jobs:
         name: Clippy
         uses: actions-rs/clippy-check@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PERSONAL_TOKEN }}
           args: --all-features
       - name: Test and coverage
         uses: actions-rs/cargo@v1
