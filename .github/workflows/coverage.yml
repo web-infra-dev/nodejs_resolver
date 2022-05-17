@@ -33,7 +33,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: test-${{ runner.os }}-cargo-gcc-${{ matrix.gcc }}-clang-${{ matrix.clang }}-${{ hashFiles('**/Cargo.lock') }}
+          key: coverage-${{ runner.os }}-cargo-gcc-${{ matrix.gcc }}-clang-${{ matrix.clang }}-${{ hashFiles('**/Cargo.lock') }}
       - name: Test and coverage
         uses: actions-rs/cargo@v1
         with:
@@ -52,4 +52,5 @@ jobs:
           file: ${{ steps.coverage.outputs.report }}
           functionalities: search
           fail_ci_if_error: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           verbose: true

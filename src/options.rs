@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ResolverOptions {
     pub extensions: Vec<String>,
     pub alias: HashMap<String, Option<String>>,
@@ -12,6 +12,7 @@ pub struct ResolverOptions {
     pub main_fields: Vec<String>,
     pub modules: Vec<String>,
     pub prefer_relative: bool,
+    pub enable_unsafe_cache: bool,
 }
 
 impl Default for ResolverOptions {
@@ -30,7 +31,9 @@ impl Default for ResolverOptions {
         let alias_fields = vec![];
         let condition_names: HashSet<String> = HashSet::new();
         let prefer_relative = false;
+        let enable_unsafe_cache = true;
         Self {
+            enable_unsafe_cache,
             prefer_relative,
             extensions,
             main_files,

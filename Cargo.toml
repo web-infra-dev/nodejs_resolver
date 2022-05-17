@@ -1,6 +1,6 @@
 [package]
 name = "nodejs-resolver"
-version = "0.0.8"
+version = "0.0.9"
 edition = "2021"
 license = "MIT"
 description = "nodejs resolve"
@@ -11,3 +11,6 @@ repository = "https://github.com/bvanjoi/nodejs_resolver"
 serde_json = {version = "1.0.81", features = ["preserve_order"] }
 indexmap = "1.8.1"
 dashmap = "5.3.3"
+
+[profile.bench]
+lto = true

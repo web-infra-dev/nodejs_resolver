@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "@babel/core": "7.17.10",
+    "@babel/preset-typescript": "7.16.7",
+    "@babel/plugin-proposal-decorators": "7.17.9",
+    "enhanced-resolve": "5.9.3",
+    "esbuild": "0.14.39",
+    "benchmark": "2.1.4"
+  },
+  "scripts": {
+    "gen:rs": "node ./scripts/gen-bench.js rs",
+    "gen:esbuild": "node ./scripts/gen-bench.js esbuild",
+    "gen:enhanced": "node ./scripts/gen-bench.js enhanced"
+  },
+  "packageManager": "npm@8.5.0"
+}

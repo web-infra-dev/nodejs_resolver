@@ -41,14 +41,14 @@ use std::path::{Path, PathBuf};
 
 #[derive(Default, Debug)]
 pub struct Resolver {
-    options: ResolverOptions,
-    cache: ResolverCache,
+    pub options: ResolverOptions,
+    pub cache: Option<ResolverCache>,
 }
 
 #[derive(Default, Debug)]
 pub struct ResolverCache {
-    dir_info: DashMap<PathBuf, DirInfo>,
-    description_file_info: DashMap<PathBuf, DescriptionFileInfo>,
+    pub dir_info: DashMap<PathBuf, DirInfo>,
+    pub description_file_info: DashMap<PathBuf, DescriptionFileInfo>,
 }
 
 #[derive(Debug)]
@@ -57,7 +57,7 @@ pub struct DirInfo {
 }
 
 // TODO: should remove `Clone`
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Stats {
     pub dir: PathBuf,
     pub request: Request,
@@ -104,6 +104,11 @@ type ResolverResult = RResult<ResolveResult>;
 
 impl Resolver {
     pub fn new(options: ResolverOptions) -> Self {
+        let cache = if options.enable_unsafe_cache {
+            Some(ResolverCache::default())
+        } else {
+            None
+        };
         let options = ResolverOptions {
             extensions: options
                 .extensions
@@ -118,10 +123,7 @@ impl Resolver {
                 .collect(),
             ..options
         };
-        Self {
-            options,
-            cache: Default::default(),
-        }
+        Self { options, cache }
     }
 
     pub fn resolve(&self, base_dir: &Path, target: &str) -> ResolverResult {

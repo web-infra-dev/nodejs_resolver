@@ -16,13 +16,27 @@ fn p(paths: Vec<&str>) -> PathBuf {
         })
 }
 
+macro_rules! should_equal_remove_cache {
+    ($resolver: expr, $base_dir: expr, $target: expr; $result: expr) => {{
+        let resolver = Resolver::new(ResolverOptions {
+            enable_unsafe_cache: false,
+            ..$resolver.options.clone()
+        });
+        assert_eq!(
+            resolver.resolve($base_dir, $target),
+            Ok(ResolveResult::Path($result))
+        );
+    }};
+}
+
 macro_rules! should_equal {
-    ($resolver: expr, $base_dir: expr, $target: expr; $result: expr) => {
+    ($resolver: expr, $base_dir: expr, $target: expr; $result: expr) => {{
         assert_eq!(
             $resolver.resolve($base_dir, $target),
             Ok(ResolveResult::Path($result))
         );
-    };
+        should_equal_remove_cache!($resolver, $base_dir, $target; $result);
+    }};
 }
 
 macro_rules! should_ignore {
