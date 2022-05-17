@@ -105,8 +105,14 @@ impl Resolver {
             return self.load_description_file(now_dir.parent().unwrap());
         }
 
-        let description_file = if let Some(dir) = self.cache.dir_info.get(&now_dir.to_path_buf()) {
+        let description_file = if let Some(dir) = self
+            .cache
+            .as_ref()
+            .and_then(|cache| cache.dir_info.get(&now_dir.to_path_buf()))
+        {
             self.cache
+                .as_ref()
+                .unwrap()
                 .description_file_info
                 .get(&dir.description_file_path)
                 .map(|r#ref| r#ref.clone())
@@ -120,15 +126,20 @@ impl Resolver {
                         &target_dir,
                         self.options.description_file.as_ref().unwrap(),
                     )?;
-                    self.cache.dir_info.insert(
-                        now_dir.to_path_buf(),
-                        DirInfo {
-                            description_file_path: target_dir.to_path_buf(),
-                        },
-                    );
-                    self.cache
-                        .description_file_info
-                        .insert(target_dir, parsed.clone());
+
+                    self.cache.as_ref().and_then(|cache| {
+                        cache.dir_info.insert(
+                            now_dir.to_path_buf(),
+                            DirInfo {
+                                description_file_path: target_dir.to_path_buf(),
+                            },
+                        );
+                        cache
+                            .description_file_info
+                            .insert(target_dir, parsed.clone());
+                        Some(())
+                    });
+
                     Some(parsed)
                 }
                 None => None,

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.9
+
+- add `enable_unsafe_cache` in `ResolverOptions`, because user sometimes change the `DescriptionFile`, which can lead to some potential problems in `self.cache`.
+
 ## 0.0.8
 
 - support `prefer_relative` feature.
