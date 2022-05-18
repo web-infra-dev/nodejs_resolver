@@ -114,11 +114,16 @@ impl Resolver {
                 .extensions
                 .into_iter()
                 .map(|s| {
-                    if s.starts_with('.') {
-                        s[1..].to_string()
+                    if let Some(striped) = s.strip_prefix('.') {
+                        striped.to_string()
                     } else {
                         s
                     }
+                    // if s.starts_with('.') {
+                    //     s[1..].to_string()
+                    // } else {
+                    //     s
+                    // }
                 })
                 .collect(),
             ..options

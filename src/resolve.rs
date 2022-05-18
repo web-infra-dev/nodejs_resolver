@@ -25,7 +25,7 @@ impl Resolver {
     }
 
     pub(crate) fn resolve_as_dir(&self, mut stats: Stats, is_in_module: bool) -> ResolverStats {
-        let original_dir = stats.dir.to_path_buf();
+        let original_dir = stats.dir.clone();
         let dir = original_dir.join(&*stats.request.target);
         if !dir.is_dir() {
             return Err("Not found directory".to_string());
@@ -94,7 +94,7 @@ impl Resolver {
     }
 
     pub(crate) fn resolve_as_modules(&self, mut stats: Stats) -> ResolverStats {
-        let original_dir = stats.dir.to_path_buf();
+        let original_dir = stats.dir.clone();
         for module in &self.options.modules {
             let module_path = original_dir.join(&module);
             if module_path.is_dir() {

@@ -40,12 +40,11 @@ impl Resolver {
                     }
                     ParseStats::Fragment => {}
                 },
-                _ => match stats {
-                    ParseStats::Start => {
+                _ => {
+                    if let ParseStats::Start = stats {
                         stats = ParseStats::Request;
                     }
-                    _ => {}
-                },
+                }
             };
             match stats {
                 ParseStats::Request => target.push(c),
