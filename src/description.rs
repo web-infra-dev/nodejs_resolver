@@ -126,19 +126,17 @@ impl Resolver {
                         &target_dir,
                         self.options.description_file.as_ref().unwrap(),
                     )?;
-
-                    self.cache.as_ref().and_then(|cache| {
+                    if let Some(cache) = self.cache.as_ref() {
                         cache.dir_info.insert(
                             now_dir.to_path_buf(),
                             DirInfo {
-                                description_file_path: target_dir.to_path_buf(),
+                                description_file_path: target_dir.clone(),
                             },
                         );
                         cache
                             .description_file_info
                             .insert(target_dir, parsed.clone());
-                        Some(())
-                    });
+                    }
 
                     Some(parsed)
                 }

@@ -1,10 +1,12 @@
+use smol_str::SmolStr;
+
 use crate::Resolver;
 
 #[derive(Clone, Debug)]
 pub struct Request {
-    pub target: String,
-    pub query: String,
-    pub fragment: String,
+    pub target: SmolStr,
+    pub query: SmolStr,
+    pub fragment: SmolStr,
 }
 
 enum ParseStats {
@@ -23,23 +25,25 @@ impl Resolver {
         let mut stats = ParseStats::Start;
         for c in ident.chars() {
             match c {
-                '#' => {
-                    matches!(stats, ParseStats::Request | ParseStats::Query).then(|| {
+                '#' => match stats {
+                    ParseStats::Request | ParseStats::Query => {
                         stats = ParseStats::Fragment;
-                    });
-                    matches!(stats, ParseStats::Start).then(|| {
+                    }
+                    ParseStats::Start => {
                         stats = ParseStats::Request;
-                    });
-                }
-                '?' => {
-                    (!matches!(stats, ParseStats::Fragment)).then(|| {
+                    }
+                    ParseStats::Fragment => {}
+                },
+                '?' => match stats {
+                    ParseStats::Request | ParseStats::Query | ParseStats::Start => {
                         stats = ParseStats::Query;
-                    });
-                }
+                    }
+                    ParseStats::Fragment => {}
+                },
                 _ => {
-                    matches!(stats, ParseStats::Start).then(|| {
+                    if let ParseStats::Start = stats {
                         stats = ParseStats::Request;
-                    });
+                    }
                 }
             };
             match stats {
@@ -55,9 +59,9 @@ impl Resolver {
     pub fn parse(target: &str) -> Request {
         let (target, query, fragment) = Self::parse_identifier(target);
         Request {
-            target,
-            query,
-            fragment,
+            target: target.into(),
+            query: query.into(),
+            fragment: fragment.into(),
         }
     }
 }
