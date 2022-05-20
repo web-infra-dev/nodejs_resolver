@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The property type of `Request` changed from `String` to `SmolStr`.
+
 ## 0.0.10
 
 - optimized constants in code.

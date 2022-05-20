@@ -30,7 +30,6 @@ impl Resolver {
         if !dir.is_dir() {
             return Err("Not found directory".to_string());
         }
-        // TODO: cache
         let info_wrap = self.load_description_file(&dir)?;
         let is_same_dir = if let Some(info) = &info_wrap {
             dir.eq(&info.abs_dir_path)

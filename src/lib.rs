@@ -119,11 +119,6 @@ impl Resolver {
                     } else {
                         s
                     }
-                    // if s.starts_with('.') {
-                    //     s[1..].to_string()
-                    // } else {
-                    //     s
-                    // }
                 })
                 .collect(),
             ..options
@@ -153,9 +148,9 @@ impl Resolver {
         }
 
         let stats = Stats::from(base_dir.to_path_buf(), Self::parse(normalized_target));
+        // TODO: remove `init_x`
         let init_query = stats.request.query.clone();
         let init_fragment = stats.request.fragment.clone();
-
         let kind = Self::get_target_kind(&stats.request.target);
         let dir = match kind {
             PathKind::Empty => return Err(format!("Can't resolve '' in {}", base_dir.display())),
