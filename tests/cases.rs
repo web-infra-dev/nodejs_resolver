@@ -197,6 +197,7 @@ fn simple_test() {
 fn resolve_test() {
     let fixture_path = p(vec![]);
     let resolver = Resolver::default();
+    should_equal!(resolver, &fixture_path, "./main-field-inexist"; p(vec!["main-field-inexist", "index.js"]));
 
     should_equal!(resolver, &fixture_path, p(vec!["main1.js"]).to_str().unwrap(); p(vec!["main1.js"]));
     should_equal!(resolver, &fixture_path, "./main1.js"; p(vec!["main1.js"]));
@@ -217,6 +218,8 @@ fn resolve_test() {
     should_equal!(resolver, &fixture_path, "./dirOrFile/"; p(vec!["dirOrFile", "index.js"]));
     should_equal!(resolver, &fixture_path, "./main-field-self"; p(vec!["main-field-self", "index.js"]));
     should_equal!(resolver, &fixture_path, "./main-field-self2"; p(vec!["main-field-self2", "index.js"]));
+    should_equal!(resolver, &fixture_path, "./main-field"; p(vec!["main-field", "src", "index.js"]));
+    should_equal!(resolver, &fixture_path, "./main-field-inexist"; p(vec!["main-field-inexist", "index.js"]));
     should_equal!(resolver, &fixture_path, "complexm/step1"; p(vec!["node_modules", "complexm", "step1.js"]));
     should_equal!(resolver, &fixture_path, "m2/b.js"; p(vec!["node_modules", "m2", "b.js"]));
     // edge case
@@ -243,6 +246,7 @@ fn browser_filed_test() {
         ..Default::default()
     });
 
+    should_ignore!(resolver, &browser_module_case_path, ".");
     should_ignore!(resolver, &browser_module_case_path, "./lib/ignore");
     should_ignore!(resolver, &browser_module_case_path, "./lib/ignore.js");
     should_equal!(resolver, &browser_module_case_path, "./lib/replaced"; p(vec!["browser-module", "lib", "browser.js"]));
@@ -359,16 +363,19 @@ fn scoped_packages_test() {
 fn exports_fields_test() {
     // TODO: [`exports_fields`](https://github.com/webpack/enhanced-resolve/blob/main/test/exportsField.js#L2280) flag
 
-    let export_cases_path = get_cases_path!("tests/fixtures/exports-field");
     let resolver = Resolver::new(ResolverOptions {
         extensions: vec![String::from("js")],
         condition_names: vec_to_set!(["webpack"]),
         ..Default::default()
     });
-    should_error!(resolver, &export_cases_path, "exports-field/dist/../../../a.js"; "Package path exports-field/dist/../../../a.js is not exported");
+
+    let export_cases_path = get_cases_path!("tests/fixtures/exports-field");
+    should_error!(resolver, &export_cases_path, "exports-field/x.js"; "Package path exports-field/x.js is not exported");
     should_error!(resolver, &export_cases_path, "exports-field/dist/a.js"; "Package path exports-field/dist/a.js is not exported");
+    should_error!(resolver, &export_cases_path, "exports-field/dist/../../../a.js"; "Package path exports-field/dist/../../../a.js is not exported");
     should_equal!(resolver, &export_cases_path, "exports-field/dist/main.js"; p(vec!["exports-field", "node_modules", "exports-field", "lib", "lib2", "main.js"]));
     should_equal!(resolver, &export_cases_path, "@exports-field/core"; p(vec!["exports-field", "a.js"]));
+    // `exports` only used in `Normal` target.
     should_equal!(resolver, &export_cases_path, "./node_modules/exports-field/lib/main.js"; p(vec!["exports-field", "node_modules", "exports-field", "lib", "main.js"]));
     should_error!(resolver, &export_cases_path, "./node_modules/exports-field/dist/main"; "Not found directory");
     should_error!(resolver, &export_cases_path, "exports-field/anything/else"; "Package path exports-field/anything/else is not exported");
@@ -376,6 +383,7 @@ fn exports_fields_test() {
     should_error!(resolver, &export_cases_path, "exports-field/dist"; "Package path exports-field/dist is not exported");
     should_error!(resolver, &export_cases_path, "exports-field/lib"; "Package path exports-field/lib is not exported");
     should_error!(resolver, &export_cases_path, "invalid-exports-field"; "Export field key can't mixed relative path and conditional object");
+    // `exports` filed take precedence over `main`
     should_equal!(resolver, &export_cases_path, "exports-field"; p(vec!["exports-field", "node_modules", "exports-field", "x.js"]));
 
     let export_cases_path2 = get_cases_path!("tests/fixtures/exports-field2");
