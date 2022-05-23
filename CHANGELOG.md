@@ -1,8 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.0.11
 
-- The property type of `Request` changed from `String` to `SmolStr`.
+- change the property type of `Request` from `String` to `SmolStr`.
+- optimized the `Err` report.
 
 ## 0.0.10
 

@@ -30,6 +30,7 @@ mod map;
 mod normalize;
 mod options;
 mod parse;
+mod raise;
 mod resolve;
 
 use dashmap::DashMap;
@@ -153,7 +154,7 @@ impl Resolver {
         let init_fragment = stats.request.fragment.clone();
         let kind = Self::get_target_kind(&stats.request.target);
         let dir = match kind {
-            PathKind::Empty => return Err(format!("Can't resolve '' in {}", base_dir.display())),
+            PathKind::Empty => return Resolver::raise(base_dir, ""),
             PathKind::BuildInModule => {
                 return Ok(ResolveResult::Path(PathBuf::from(&*stats.request.target)))
             }
