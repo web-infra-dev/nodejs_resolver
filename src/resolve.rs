@@ -20,7 +20,7 @@ impl Resolver {
                 }
             }
 
-            Err("Not found file".to_string())
+            Err(String::new())
         }
     }
 
@@ -28,7 +28,7 @@ impl Resolver {
         let original_dir = stats.dir.clone();
         let dir = original_dir.join(&*stats.request.target);
         if !dir.is_dir() {
-            return Err("Not found directory".to_string());
+            return Resolver::raise(&stats.dir, &stats.request.target);
         }
         let info_wrap = self.load_description_file(&dir)?;
         let is_same_dir = if let Some(info) = &info_wrap {
@@ -89,7 +89,7 @@ impl Resolver {
                 return Ok(None);
             }
         }
-        Err("Not found file".to_string())
+        Err(String::new())
     }
 
     pub(crate) fn resolve_as_modules(&self, mut stats: Stats) -> ResolverStats {
@@ -131,7 +131,7 @@ impl Resolver {
                 }
             }
         }
-        Err("Not found in modules".to_string())
+        Resolver::raise(&stats.dir, &stats.request.target)
     }
 
     fn deal_with_alias_fields_in_info(
