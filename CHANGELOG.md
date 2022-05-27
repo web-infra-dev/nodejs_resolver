@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.12
+
+- expose `is_build_in_module`.
+
 ## 0.0.11
 
 - change the property type of `Request` from `String` to `SmolStr`.
