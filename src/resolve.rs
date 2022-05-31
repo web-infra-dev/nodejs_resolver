@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     description::DescriptionFileInfo,
     kind::PathKind,
@@ -243,7 +245,7 @@ impl Resolver {
         &self,
         stats: Stats,
         kind: &PathKind,
-        description_file_info: &Option<DescriptionFileInfo>,
+        description_file_info: &Option<Arc<DescriptionFileInfo>>,
         is_in_module: bool,
     ) -> RResult<Option<Stats>> {
         Ok(if let Some(info) = description_file_info {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.13
+
+- use `Arc` in cache.
+
 ## 0.0.12
 
 - expose `is_build_in_module`.

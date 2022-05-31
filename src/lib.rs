@@ -38,7 +38,10 @@ use description::DescriptionFileInfo;
 use kind::PathKind;
 pub use options::ResolverOptions;
 use parse::Request;
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 #[derive(Default, Debug)]
 pub struct Resolver {
@@ -48,8 +51,8 @@ pub struct Resolver {
 
 #[derive(Default, Debug)]
 pub struct ResolverCache {
-    pub dir_info: DashMap<PathBuf, DirInfo>,
-    pub description_file_info: DashMap<PathBuf, DescriptionFileInfo>,
+    pub dir_info: DashMap<PathBuf, Arc<DirInfo>>,
+    pub description_file_info: DashMap<PathBuf, Arc<DescriptionFileInfo>>,
 }
 
 #[derive(Debug)]
