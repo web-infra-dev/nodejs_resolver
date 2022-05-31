@@ -113,18 +113,25 @@ impl Resolver {
         } else {
             None
         };
+        let extensions: Vec<String> = options
+            .extensions
+            .into_iter()
+            .map(|s| {
+                if let Some(striped) = s.strip_prefix('.') {
+                    striped.to_string()
+                } else {
+                    s
+                }
+            })
+            .collect();
+        let enforce_extension = if options.enforce_extension.is_none() {
+            Some(extensions.iter().any(|ext| ext.is_empty()))
+        } else {
+            options.enforce_extension
+        };
         let options = ResolverOptions {
-            extensions: options
-                .extensions
-                .into_iter()
-                .map(|s| {
-                    if let Some(striped) = s.strip_prefix('.') {
-                        striped.to_string()
-                    } else {
-                        s
-                    }
-                })
-                .collect(),
+            extensions,
+            enforce_extension,
             ..options
         };
         Self { options, cache }

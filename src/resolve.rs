@@ -10,13 +10,21 @@ use crate::{
 impl Resolver {
     pub(crate) fn resolve_as_file(&self, stats: &Stats) -> ResolverResult {
         let path = stats.get_path();
-        if path.is_file() {
+        if *self
+            .options
+            .enforce_extension
+            .as_ref()
+            .unwrap_or_else(|| &false)
+            == false
+            && path.is_file()
+        {
             Ok(ResolveResult::Path(path))
         } else {
             for extension in &self.options.extensions {
+                let str = if extension.is_empty() { "" } else { "." };
                 let path = stats
                     .dir
-                    .join(format!("{}.{}", stats.request.target, extension));
+                    .join(format!("{}{str}{extension}", stats.request.target));
                 if path.is_file() {
                     return Ok(ResolveResult::Path(path));
                 }

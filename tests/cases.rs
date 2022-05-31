@@ -81,6 +81,17 @@ fn extensions_test() {
     should_error!(resolver, &extensions_cases_path, "./a.js/"; format!("Resolve ./a.js/ failed in {}", extensions_cases_path.display()));
     should_error!(resolver, &extensions_cases_path, "m.js/"; format!("Resolve m.js/ failed in {}", p(vec!["extensions", "node_modules"]).display()));
     should_error!(resolver, &extensions_cases_path, ""; format!("Resolve '' failed in {}", extensions_cases_path.display()));
+
+    let extensions_cases_path = p(vec!["extensions2"]);
+    let resolver = Resolver::new(ResolverOptions {
+        extensions: vec![String::from(".js"), String::from(""), String::from(".ts")], // `extensions` can start with `.` or not.
+        ..Default::default()
+    });
+    should_equal!(resolver, &extensions_cases_path, "./a"; p(vec!["extensions2", "a.js"]));
+    should_equal!(resolver, &extensions_cases_path, "./a.js"; p(vec!["extensions2", "a.js"]));
+    should_equal!(resolver, &extensions_cases_path, "."; p(vec!["extensions2", "index.js"]));
+    should_equal!(resolver, &extensions_cases_path, "./index"; p(vec!["extensions2", "index.js"]));
+    should_equal!(resolver, &extensions_cases_path, "./b"; p(vec!["extensions2", "b"]));
 }
 
 #[test]
