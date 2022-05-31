@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.14
+
+- support `enforce_extension` option.
+
 ## 0.0.13
 
 - use `Arc` in cache.
