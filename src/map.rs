@@ -82,14 +82,14 @@ pub struct PathTreeNode {
 pub trait Field {
     fn assert_target(exp: &str, expect_folder: bool) -> RResult<bool>;
     fn assert_request(request: &str) -> RResult<Vec<char>>;
-    fn build_field_path_tree(json_value: &serde_json::Value) -> RResult<PathTreeNode>;
-    fn from_json(json_value: &serde_json::Value) -> RResult<MappingValue>
+    fn build_field_path_tree(json_value: &simd_json::OwnedValue) -> RResult<PathTreeNode>;
+    fn from_json(json_value: &simd_json::OwnedValue) -> RResult<MappingValue>
     where
         Self: Sized,
     {
         let result = match json_value {
-            serde_json::Value::String(str) => MappingValue::Direct(str.to_string()),
-            serde_json::Value::Array(arr) => {
+            simd_json::OwnedValue::String(str) => MappingValue::Direct(str.to_string()),
+            simd_json::OwnedValue::Array(arr) => {
                 let mut temp: ArrayMapping = vec![];
                 for item in arr {
                     match Self::from_json(item)? {
@@ -102,9 +102,9 @@ pub trait Field {
                 }
                 MappingValue::Array(temp)
             }
-            serde_json::Value::Object(obj) => {
+            simd_json::OwnedValue::Object(obj) => {
                 let mut map = IndexMap::new();
-                for (key, value) in obj {
+                for (key, value) in obj.iter() {
                     map.insert(key.to_string(), Self::from_json(value)?);
                 }
                 MappingValue::Conditional(map)
@@ -258,7 +258,7 @@ impl Field for ExportsField {
     }
 
     /// reference: https://nodejs.org/api/packages.html#exports
-    fn build_field_path_tree(exports_field_value: &serde_json::Value) -> RResult<PathTreeNode> {
+    fn build_field_path_tree(exports_field_value: &simd_json::OwnedValue) -> RResult<PathTreeNode> {
         let field = Self::from_json(exports_field_value)?;
         let mut root = PathTreeNode::default();
         match field {
@@ -359,7 +359,7 @@ impl Field for ImportsField {
     }
 
     /// reference: https://nodejs.org/api/packages.html#imports
-    fn build_field_path_tree(imports_field_value: &serde_json::Value) -> RResult<PathTreeNode> {
+    fn build_field_path_tree(imports_field_value: &simd_json::OwnedValue) -> RResult<PathTreeNode> {
         let field = match Self::from_json(imports_field_value)? {
             MappingValue::Conditional(field) => field,
             _ => unreachable!(),
@@ -548,7 +548,8 @@ impl PathTreeNode {
 
 #[test]
 fn exports_field_map_test() {
-    use serde_json::json;
+    // use serde_json::json;
+    use simd_json::json;
 
     macro_rules! process_exports_fields {
         ($exports_field: expr, $request: expr, $condition_names: expr) => {
@@ -1366,7 +1367,7 @@ fn exports_field_map_test() {
 
 #[test]
 fn imports_field_map_test() {
-    use serde_json::json;
+    use simd_json::json;
 
     macro_rules! process_imports_fields {
         ($exports_field: expr, $request: expr, $condition_names: expr) => {{

@@ -1,9 +1,11 @@
 use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
 use crate::{DirInfo, RResult, Resolver};
+use simd_json::{OwnedValue, Value};
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
+use simd_json::ValueAccess;
 #[derive(Clone, Debug)]
 pub struct DescriptionFileInfo {
     pub name: Option<String>,
@@ -19,8 +21,8 @@ impl Resolver {
         let path = dir.join(target);
         let file = File::open(&path).map_err(|_| "Open failed".to_string())?;
 
-        let json: serde_json::Value = serde_json::from_reader(file)
-            .map_err(|_| "Read description file failed".to_string())?;
+        let json: simd_json::OwnedValue =
+            simd_json::from_reader(file).map_err(|_| "Read description file failed".to_string())?;
 
         let main_fields = self
             .options
@@ -43,7 +45,7 @@ impl Resolver {
                 if let Some(map) = value.as_object() {
                     for (key, value) in map {
                         // TODO: nested
-                        if value.is_boolean() {
+                        if value.is_bool() {
                             alias_fields.insert(key.to_string(), None);
                         } else if let Some(s) = value.as_str() {
                             alias_fields.insert(key.to_string(), Some(s.to_string()));
