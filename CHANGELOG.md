@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.0.14
+
+- support `enforce_extension` option.
+
+## 0.0.13
+
+- use `Arc` in cache.
+
+## 0.0.12
+
+- expose `is_build_in_module`.
+
+## 0.0.11
+
+- change the property type of `Request` from `String` to `SmolStr`.
+- optimized the `Err` report.
+
 ## 0.0.10
 
 - optimized constants in code.

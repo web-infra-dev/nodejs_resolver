@@ -1,6 +1,6 @@
 use crate::Resolver;
 
-pub enum PathKind {
+pub(crate) enum PathKind {
     Empty,
     Relative,
     AbsoluteWin,
@@ -9,6 +9,7 @@ pub enum PathKind {
     BuildInModule,
     Normal,
 }
+
 use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, MatchKind};
 use once_cell::sync::Lazy;
 use phf::{phf_set, Set};
@@ -106,7 +107,7 @@ static PMA: Lazy<DoubleArrayAhoCorasick> = Lazy::new(|| {
 });
 
 impl Resolver {
-    pub fn get_target_kind(target: &str) -> PathKind {
+    pub(crate) fn get_target_kind(target: &str) -> PathKind {
         if target.is_empty() {
             PathKind::Empty
         } else if Self::is_build_in_module(target) {
@@ -135,7 +136,8 @@ impl Resolver {
             PathKind::Normal
         }
     }
-    fn is_build_in_module(target: &str) -> bool {
+
+    pub fn is_build_in_module(target: &str) -> bool {
         BUILT_IN_MODULE_SET.contains(target)
     }
 }

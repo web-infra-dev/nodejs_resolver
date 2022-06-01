@@ -4,6 +4,7 @@ use simd_json::{OwnedValue, Value};
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use simd_json::ValueAccess;
 #[derive(Clone, Debug)]
@@ -98,7 +99,7 @@ impl Resolver {
     pub(crate) fn load_description_file(
         &self,
         now_dir: &Path,
-    ) -> RResult<Option<DescriptionFileInfo>> {
+    ) -> RResult<Option<Arc<DescriptionFileInfo>>> {
         if self.options.description_file.is_none() {
             return Ok(None);
         }
@@ -124,23 +125,21 @@ impl Resolver {
                 self.options.description_file.as_ref().unwrap(),
             ) {
                 Some(target_dir) => {
-                    let parsed = self.parse_description_file(
+                    let parsed = Arc::new(self.parse_description_file(
                         &target_dir,
                         self.options.description_file.as_ref().unwrap(),
-                    )?;
-
-                    self.cache.as_ref().and_then(|cache| {
+                    )?);
+                    if let Some(cache) = self.cache.as_ref() {
                         cache.dir_info.insert(
                             now_dir.to_path_buf(),
-                            DirInfo {
-                                description_file_path: target_dir.to_path_buf(),
-                            },
+                            Arc::new(DirInfo {
+                                description_file_path: target_dir.clone(),
+                            }),
                         );
                         cache
                             .description_file_info
                             .insert(target_dir, parsed.clone());
-                        Some(())
-                    });
+                    }
 
                     Some(parsed)
                 }

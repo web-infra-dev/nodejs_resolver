@@ -7,8 +7,8 @@ FIXTURE='ant-design'
 if [ -d "$FIXTURE" ]; then 
   echo "Directory $FIXTURE already exists."
 else
-  echo "Cloning $FIXTURE"
-  git clone https://github.com/ant-design/ant-design/
+  echo "Cloning $FIXTURE (only cloned master branch and without commmites)"
+  git clone https://github.com/ant-design/ant-design/ -b master --single-branch --depth 1
 fi
 
 # insall deps

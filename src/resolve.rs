@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     description::DescriptionFileInfo,
     kind::PathKind,
@@ -8,29 +10,29 @@ use crate::{
 impl Resolver {
     pub(crate) fn resolve_as_file(&self, stats: &Stats) -> ResolverResult {
         let path = stats.get_path();
-        if path.is_file() {
+        if !(*self.options.enforce_extension.as_ref().unwrap_or(&false)) && path.is_file() {
             Ok(ResolveResult::Path(path))
         } else {
             for extension in &self.options.extensions {
+                let str = if extension.is_empty() { "" } else { "." };
                 let path = stats
                     .dir
-                    .join(format!("{}.{}", stats.request.target, extension));
+                    .join(format!("{}{str}{extension}", stats.request.target));
                 if path.is_file() {
                     return Ok(ResolveResult::Path(path));
                 }
             }
 
-            Err("Not found file".to_string())
+            Err(String::new())
         }
     }
 
     pub(crate) fn resolve_as_dir(&self, mut stats: Stats, is_in_module: bool) -> ResolverStats {
-        let original_dir = stats.dir.to_path_buf();
-        let dir = original_dir.join(&stats.request.target);
+        let original_dir = stats.dir.clone();
+        let dir = original_dir.join(&*stats.request.target);
         if !dir.is_dir() {
-            return Err("Not found directory".to_string());
+            return Resolver::raise(&stats.dir, &stats.request.target);
         }
-        // TODO: cache
         let info_wrap = self.load_description_file(&dir)?;
         let is_same_dir = if let Some(info) = &info_wrap {
             dir.eq(&info.abs_dir_path)
@@ -90,17 +92,17 @@ impl Resolver {
                 return Ok(None);
             }
         }
-        Err("Not found file".to_string())
+        Err(String::new())
     }
 
     pub(crate) fn resolve_as_modules(&self, mut stats: Stats) -> ResolverStats {
-        let original_dir = stats.dir.to_path_buf();
+        let original_dir = stats.dir.clone();
         for module in &self.options.modules {
             let module_path = original_dir.join(&module);
             if module_path.is_dir() {
                 let target = &stats.request.target;
                 // TODO: cache
-                let info = self.load_description_file(&module_path.join(target))?;
+                let info = self.load_description_file(&module_path.join(&**target))?;
                 let kind = Self::get_target_kind(target);
 
                 stats =
@@ -132,7 +134,7 @@ impl Resolver {
                 }
             }
         }
-        Err("Not found in modules".to_string())
+        Resolver::raise(&stats.dir, &stats.request.target)
     }
 
     fn deal_with_alias_fields_in_info(
@@ -210,7 +212,7 @@ impl Resolver {
                 request,
             );
 
-            let path = stats.dir.join(&stats.request.target);
+            let path = stats.dir.join(&*stats.request.target);
             if is_imports_field {
                 return Ok(Some(if is_normal_kind {
                     // TODO: cache
@@ -244,7 +246,7 @@ impl Resolver {
         &self,
         stats: Stats,
         kind: &PathKind,
-        description_file_info: &Option<DescriptionFileInfo>,
+        description_file_info: &Option<Arc<DescriptionFileInfo>>,
         is_in_module: bool,
     ) -> RResult<Option<Stats>> {
         Ok(if let Some(info) = description_file_info {
@@ -261,7 +263,7 @@ impl Resolver {
             };
 
             let target = &stats.request.target;
-            let path = stats.dir.join(target);
+            let path = stats.dir.join(&**target);
             // Then `alias_fields`
             for (relative_path, converted_target) in &info.alias_fields {
                 if matches!(kind, PathKind::Normal | PathKind::Internal) && target.eq(relative_path)

@@ -310,6 +310,7 @@ impl Field for ExportsField {
 
 impl ExportsField {
     pub fn check_target(relative_path: &str) -> bool {
+        // TODO: Does the same treatment need to be applied to `ImportsField`?
         let relative_path = relative_path.chars().collect::<Vec<char>>();
         let slash_index_list = PathTreeNode::get_next_list(&relative_path, '/');
         let mut last_non_slash_index = 2;

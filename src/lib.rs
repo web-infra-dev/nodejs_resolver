@@ -30,6 +30,7 @@ mod map;
 mod normalize;
 mod options;
 mod parse;
+mod raise;
 mod resolve;
 
 use dashmap::DashMap;
@@ -37,7 +38,10 @@ use description::DescriptionFileInfo;
 use kind::PathKind;
 pub use options::ResolverOptions;
 use parse::Request;
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 #[derive(Default, Debug)]
 pub struct Resolver {
@@ -47,8 +51,8 @@ pub struct Resolver {
 
 #[derive(Default, Debug)]
 pub struct ResolverCache {
-    pub dir_info: DashMap<PathBuf, DirInfo>,
-    pub description_file_info: DashMap<PathBuf, DescriptionFileInfo>,
+    pub dir_info: DashMap<PathBuf, Arc<DirInfo>>,
+    pub description_file_info: DashMap<PathBuf, Arc<DescriptionFileInfo>>,
 }
 
 #[derive(Debug)]
@@ -72,7 +76,7 @@ impl Stats {
         if self.request.target.is_empty() {
             self.dir.to_path_buf()
         } else {
-            self.dir.join(&self.request.target)
+            self.dir.join(&*self.request.target)
         }
     }
 
@@ -83,7 +87,7 @@ impl Stats {
     pub fn with_target(self, target: String) -> Self {
         Self {
             request: Request {
-                target,
+                target: target.into(),
                 ..self.request
             },
             ..self
@@ -109,18 +113,25 @@ impl Resolver {
         } else {
             None
         };
+        let extensions: Vec<String> = options
+            .extensions
+            .into_iter()
+            .map(|s| {
+                if let Some(striped) = s.strip_prefix('.') {
+                    striped.to_string()
+                } else {
+                    s
+                }
+            })
+            .collect();
+        let enforce_extension = if options.enforce_extension.is_none() {
+            Some(extensions.iter().any(|ext| ext.is_empty()))
+        } else {
+            options.enforce_extension
+        };
         let options = ResolverOptions {
-            extensions: options
-                .extensions
-                .into_iter()
-                .map(|s| {
-                    if s.starts_with('.') {
-                        s.chars().skip(1).collect()
-                    } else {
-                        s
-                    }
-                })
-                .collect(),
+            extensions,
+            enforce_extension,
             ..options
         };
         Self { options, cache }
@@ -148,14 +159,14 @@ impl Resolver {
         }
 
         let stats = Stats::from(base_dir.to_path_buf(), Self::parse(normalized_target));
+        // TODO: remove `init_x`
         let init_query = stats.request.query.clone();
         let init_fragment = stats.request.fragment.clone();
-
         let kind = Self::get_target_kind(&stats.request.target);
         let dir = match kind {
-            PathKind::Empty => return Err(format!("Can't resolve '' in {}", base_dir.display())),
+            PathKind::Empty => return Resolver::raise(base_dir, ""),
             PathKind::BuildInModule => {
-                return Ok(ResolveResult::Path(PathBuf::from(&stats.request.target)))
+                return Ok(ResolveResult::Path(PathBuf::from(&*stats.request.target)))
             }
             PathKind::AbsolutePosix | PathKind::AbsoluteWin => PathBuf::from("/"),
             _ => base_dir.to_path_buf(),
@@ -163,7 +174,7 @@ impl Resolver {
         let stats = stats.with_dir(dir);
 
         let description_file_info =
-            self.load_description_file(&stats.dir.join(&stats.request.target))?;
+            self.load_description_file(&stats.dir.join(&*stats.request.target))?;
         let stats = match self.get_real_target(stats, &kind, &description_file_info, false)? {
             Some(stats) => stats,
             None => return Ok(ResolveResult::Ignored),

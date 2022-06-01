@@ -3,8 +3,11 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug, Clone)]
 pub struct ResolverOptions {
     /// Tried detect file with this extension.
-    /// Default is ["js", "json", "node"]
+    /// Default is `["js", "json", "node"]`
     pub extensions: Vec<String>,
+    /// Enforce that a extension from extensions must be used.
+    /// Default is `None`
+    pub enforce_extension: Option<bool>,
     /// Maps key to value.
     /// `None` means that the value is `false`.
     /// Default is `HashMap::new()`.
@@ -65,6 +68,7 @@ impl Default for ResolverOptions {
             HashSet::from_iter(["node"].into_iter().map(String::from));
         let prefer_relative = false;
         let enable_unsafe_cache = true;
+        let enforce_extension = None;
         Self {
             enable_unsafe_cache,
             prefer_relative,
@@ -77,6 +81,7 @@ impl Default for ResolverOptions {
             symlinks,
             alias_fields,
             condition_names,
+            enforce_extension,
         }
     }
 }
