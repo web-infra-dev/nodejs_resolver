@@ -1,15 +1,25 @@
-name: Publish Crate
+name: test
+
 on:
   push:
     branches:
       - main
-    paths:
-      - 'crates/node-binding/package.json'
+    tags-ignore:
+      - "**"
+    paths-ignore:
+      - "**/*.md"
+      - LICENSE
+      - "**/*.gitignore"
+      - .editorconfig
+  pull_request: null
 
 jobs:
-  publish:
-    name: Publish to npm
-    runs-on: ubuntu-latest
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
       - name: Install minimal nightly
@@ -29,20 +39,14 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: test-${{ runner.os }}-cargo-gcc-${{ matrix.gcc }}-clang-${{ matrix.clang }}-${{ hashFiles('**/Cargo.lock') }}
-      - uses: actions/setup-node@v3
+      - if: ${{ matrix.os == 'ubuntu-latest' }}
+        name: Clippy
+        uses: actions-rs/clippy-check@v1
         with:
-          node-version: 16
-          cache: 'npm'
-          cache-dependency-path: crates/node-binding/package-lock.json
-      - name: Install and build and test
-        run: |
-          cd ./crates/node-binding
-          npm install
-          npm run build
-          npm run test
-      - name: NPM Publish
-        uses: JS-DevTools/npm-publish@v1
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features
+      - name: Test and coverage
+        uses: actions-rs/cargo@v1
         with:
-          token: ${{ secrets.NPM_PUBLISH_ACTION }}
-          package: './crates/node-binding/package.json'
-          greater-version-only: true
+          command: test
+          args: --all-features --no-fail-fast
