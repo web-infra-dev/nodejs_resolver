@@ -1,0 +1,3 @@
+tests/bench.rs
+bench/esbuildResolve.js
+bench/enhanceResolve.js

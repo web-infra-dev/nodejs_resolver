@@ -6,7 +6,3 @@
 /coverage
 *.profraw
 *.profdata
-
-tests/bench.rs
-bench/esbuildResolve.js
-bench/enhanceResolve.js
