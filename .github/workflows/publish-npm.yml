@@ -45,4 +45,4 @@ jobs:
         with:
           token: ${{ secrets.NPM_PUBLISH_ACTION }}
           package: './crates/node-binding/package.json'
-          greater-version-only: true
+          access: "public"
