@@ -1,4 +1,4 @@
-name: test rust
+name: test
 
 on:
   push:
@@ -45,7 +45,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
-      - name: Test 
+      - name: Test and coverage
         uses: actions-rs/cargo@v1
         with:
           command: test

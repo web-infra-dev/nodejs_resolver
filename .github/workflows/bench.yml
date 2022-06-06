@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 16
           cache: 'npm'
-          cache-dependency-path: crates/nodejs-resolver/bench/package-lock.json
+          cache-dependency-path: bench/package-lock.json
       - name: Configure Rust cache
         uses: actions/cache@v2
         with:
@@ -45,7 +45,7 @@ jobs:
           command: build
       - name: Generate bench case and run
         run: |
-          cd ./crates/nodejs-resolver/bench
+          cd ./bench
           sh ./scripts/run.sh
           cd ..
       - name: Download previous benchmark data
@@ -57,7 +57,7 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1
         with:
           tool: 'cargo'
-          output-file-path: ./crates/nodejs-resolver/bench/rs_bench.txt
+          output-file-path: ./bench/rs_bench.txt
           external-data-json-path: ./cache/benchmark-data.json
           fail-on-alert: true
           comment-always: true
