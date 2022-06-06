@@ -1,0 +1,11 @@
+
+{
+  "name": "nodejs-resolver",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "cd node && npm run build:release && cd -",
+    "test": "cd node && npm run test && cd -",
+    "artifacts": "cd node && npm run artifacts && cd -"
+  }
+}

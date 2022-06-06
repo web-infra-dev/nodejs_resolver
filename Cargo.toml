@@ -1,7 +1,7 @@
 [workspace]
 members = [
-  'crates/nodejs-resolver',
-  'crates/node-binding',
+  'nodejs-resolver',
+  'node',
 ]
 
 [profile.bench]

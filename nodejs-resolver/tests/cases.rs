@@ -70,7 +70,7 @@ fn extensions_test() {
         extensions: vec![String::from("ts"), String::from(".js")], // `extensions` can start with `.` or not.
         ..Default::default()
     });
-
+    dbg!(&std::env::current_dir().unwrap());
     should_equal!(resolver, &extensions_cases_path, "./a"; p(vec!["extensions", "a.ts"]));
     should_equal!(resolver, &extensions_cases_path, "./a.js"; p(vec!["extensions", "a.js"]));
     should_equal!(resolver, &extensions_cases_path, "./dir"; p(vec!["extensions", "dir", "index.ts"]));

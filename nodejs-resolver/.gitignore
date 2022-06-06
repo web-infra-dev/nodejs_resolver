@@ -1,3 +1,5 @@
 tests/bench.rs
 bench/esbuildResolve.js
 bench/enhanceResolve.js
+
+!tests/fixtures/**

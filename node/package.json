@@ -8,8 +8,10 @@
     "access": "public"
   },
   "scripts": {
-    "build": "napi build --release --platform --dts index.d.ts",
-    "test": "node tests/index.js"
+    "artifacts": "napi artifacts",
+    "build": "napi build --platform --dts index.d.ts",
+    "build:release": "napi build --release --platform --dts index.d.ts",
+    "test": "node test.js"
   },
   "author": "bohan-zhang@foxmail.com",
   "license": "MIT",

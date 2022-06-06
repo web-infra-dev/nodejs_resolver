@@ -1,6 +1,6 @@
 const path = require('path');
 const { equal } = require('assert');
-const factory = require("../index")
+const factory = require("./index")
 
 const resolver = factory.create(JSON.stringify({}))
 

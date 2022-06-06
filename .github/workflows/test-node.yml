@@ -42,11 +42,10 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16
-          cache: 'npm'
-          cache-dependency-path: crates/node-binding/package-lock.json
+      - name: Install Pnpm
+        run: npm install -g pnpm
       - name: Install and build and test
         run: |
-          cd ./crates/node-binding
-          npm install
-          npm run build
-          npm run test
+          pnpm i
+          pnpm build
+          pnpm test

@@ -6,3 +6,5 @@
 /coverage
 *.profraw
 *.profdata
+
+node_modules/
