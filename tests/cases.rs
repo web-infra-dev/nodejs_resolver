@@ -294,6 +294,8 @@ fn browser_filed_test() {
     should_ignore!(resolver, &browser_module_case_path, ".");
     should_ignore!(resolver, &browser_module_case_path, "./lib/ignore");
     should_ignore!(resolver, &browser_module_case_path, "./lib/ignore.js");
+    should_ignore!(resolver, &browser_module_case_path, "./util.inspect");
+    should_ignore!(resolver, &browser_module_case_path, "./util.inspect.js");
     should_equal!(resolver, &browser_module_case_path, "./lib/replaced"; p(vec!["browser-module", "lib", "browser.js"]));
     should_equal!(resolver, &browser_module_case_path, "./lib/replaced.js"; p(vec!["browser-module", "lib", "browser.js"]));
     should_equal!(resolver, &browser_module_case_path, "module-a"; p(vec!["browser-module", "browser", "module-a.js"]));

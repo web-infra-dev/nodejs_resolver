@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.16
+
+- fix a bug caused by `Path::with_extension`.
+
+  `Path::with_extension` will replace the last string by dot sign, for example, `'a.b'.with_extension('c')` will return `'a.c'`, but we expected `'a.b.c'`.
+
 ## 0.0.15
 
 - `forEachBail` for alias.

@@ -9,7 +9,8 @@
     "module-b": "module-c",
     "module-d": "module-b",
     "./toString": "./lib/toString.js",
-    ".": false
+    ".": false,
+    "./util.inspect.js": false
   },
   "innerBrowser1": {
     "field": {
