@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::{
@@ -9,16 +9,21 @@ use crate::{
 };
 
 impl Resolver {
+    pub(crate) fn append_ext_for_path(path: &Path, ext: &str) -> PathBuf {
+        let str = if ext.is_empty() { "" } else { "." };
+        PathBuf::from(&format!("{}{str}{ext}", path.display()))
+    }
+
     pub(crate) fn resolve_as_file(&self, stats: &Stats) -> ResolverResult {
         let path = stats.get_path();
         if !(*self.options.enforce_extension.as_ref().unwrap_or(&false)) && path.is_file() {
             Ok(ResolveResult::Path(path))
         } else {
             for extension in &self.options.extensions {
-                let str = if extension.is_empty() { "" } else { "." };
                 let path = if stats.request.target.is_empty() {
-                    PathBuf::from(&format!("{}{str}{extension}", stats.dir.display()))
+                    Resolver::append_ext_for_path(&stats.dir, extension)
                 } else {
+                    let str = if extension.is_empty() { "" } else { "." };
                     stats
                         .dir
                         .join(format!("{}{str}{extension}", stats.request.target))
@@ -283,11 +288,10 @@ impl Resolver {
                 let should_converted_path = description_file_dir.join(relative_path);
 
                 if should_converted_path.eq(&path)
-                    || self
-                        .options
-                        .extensions
-                        .iter()
-                        .any(|ext| should_converted_path.eq(&path.with_extension(ext)))
+                    || self.options.extensions.iter().any(|ext| {
+                        let path_with_extension = Resolver::append_ext_for_path(&path, ext);
+                        should_converted_path.eq(&path_with_extension)
+                    })
                 {
                     return Ok(self
                         .deal_with_alias_fields_in_info(converted_target, info)
