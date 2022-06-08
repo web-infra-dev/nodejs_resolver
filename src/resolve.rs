@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::{
@@ -15,9 +16,13 @@ impl Resolver {
         } else {
             for extension in &self.options.extensions {
                 let str = if extension.is_empty() { "" } else { "." };
-                let path = stats
-                    .dir
-                    .join(format!("{}{str}{extension}", stats.request.target));
+                let path = if stats.request.target.is_empty() {
+                    PathBuf::from(&format!("{}{str}{extension}", stats.dir.display()))
+                } else {
+                    stats
+                        .dir
+                        .join(format!("{}{str}{extension}", stats.request.target))
+                };
                 if path.is_file() {
                     return Ok(ResolveResult::Path(path));
                 }
@@ -101,7 +106,6 @@ impl Resolver {
             let module_path = original_dir.join(&module);
             if module_path.is_dir() {
                 let target = &stats.request.target;
-                // TODO: cache
                 let info = self.load_description_file(&module_path.join(&**target))?;
                 let kind = Self::get_target_kind(target);
 
@@ -215,7 +219,6 @@ impl Resolver {
             let path = stats.dir.join(&*stats.request.target);
             if is_imports_field {
                 return Ok(Some(if is_normal_kind {
-                    // TODO: cache
                     let info = self.load_description_file(&path)?;
                     if let Some(info) = &info {
                         if !info

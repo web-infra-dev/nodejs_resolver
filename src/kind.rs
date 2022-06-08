@@ -1,7 +1,6 @@
 use crate::Resolver;
 
 pub(crate) enum PathKind {
-    Empty,
     Relative,
     AbsoluteWin,
     AbsolutePosix,
@@ -109,7 +108,7 @@ static PMA: Lazy<DoubleArrayAhoCorasick> = Lazy::new(|| {
 impl Resolver {
     pub(crate) fn get_target_kind(target: &str) -> PathKind {
         if target.is_empty() {
-            PathKind::Empty
+            PathKind::Relative
         } else if Self::is_build_in_module(target) {
             PathKind::BuildInModule
         } else if target.starts_with('#') {
@@ -146,7 +145,7 @@ impl Resolver {
 fn test_resolver() {
     assert!(Resolver::is_build_in_module("fs"));
     assert!(!Resolver::is_build_in_module("a"));
-    assert!(matches!(Resolver::get_target_kind(""), PathKind::Empty));
+    assert!(matches!(Resolver::get_target_kind(""), PathKind::Relative));
     assert!(matches!(
         Resolver::get_target_kind("D:"),
         PathKind::AbsoluteWin

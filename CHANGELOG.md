@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.15
+
+- `forEachBail` for alias.
+- fallback when `base_dir.join(target)` is not a valid path.
+
 ## 0.0.14
 
 - support `enforce_extension` option.

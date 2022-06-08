@@ -142,29 +142,35 @@ impl Resolver {
     }
 
     fn _resolve(&self, base_dir: &Path, target: String) -> ResolverResult {
-        let normalized_target = &if let Some(target_after_alias) = self.normalize_alias(target) {
-            target_after_alias
-        } else {
-            return Ok(ResolveResult::Ignored);
-        };
+        // try to alias
+        for (from, to) in &self.options.alias {
+            if target.starts_with(from) {
+                match to {
+                    Some(to) => {
+                        let normalized_target = target.replacen(from, to, 1);
+                        let result = self._resolve(base_dir, normalized_target);
+                        if result.is_ok() {
+                            return result;
+                        }
+                    }
+                    None => return Ok(ResolveResult::Ignored),
+                }
+            }
+        }
 
-        if self.options.prefer_relative
-            && !normalized_target.starts_with("../")
-            && !normalized_target.starts_with("./")
-        {
-            let result = self._resolve(base_dir, format!("./{}", normalized_target));
+        if self.options.prefer_relative && !target.starts_with("../") && !target.starts_with("./") {
+            let result = self._resolve(base_dir, format!("./{}", target));
             if result.is_ok() {
                 return result;
             }
         }
 
-        let stats = Stats::from(base_dir.to_path_buf(), Self::parse(normalized_target));
+        let stats = Stats::from(base_dir.to_path_buf(), Self::parse(&target));
         // TODO: remove `init_x`
         let init_query = stats.request.query.clone();
         let init_fragment = stats.request.fragment.clone();
         let kind = Self::get_target_kind(&stats.request.target);
         let dir = match kind {
-            PathKind::Empty => return Resolver::raise(base_dir, ""),
             PathKind::BuildInModule => {
                 return Ok(ResolveResult::Path(PathBuf::from(&*stats.request.target)))
             }
@@ -173,8 +179,18 @@ impl Resolver {
         };
         let stats = stats.with_dir(dir);
 
-        let description_file_info =
-            self.load_description_file(&stats.dir.join(&*stats.request.target))?;
+        let maybe_description_file_dir = stats.dir.join(&*stats.request.target);
+
+        let maybe_description_file_dir = if !maybe_description_file_dir.is_dir() {
+            match maybe_description_file_dir.parent() {
+                Some(dir) => dir,
+                None => return self._resolve(Path::new(&*stats.request.target), String::new()),
+            }
+        } else {
+            &maybe_description_file_dir
+        };
+
+        let description_file_info = self.load_description_file(maybe_description_file_dir)?;
         let stats = match self.get_real_target(stats, &kind, &description_file_info, false)? {
             Some(stats) => stats,
             None => return Ok(ResolveResult::Ignored),
@@ -195,6 +211,6 @@ impl Resolver {
                 None => Ok(ResolveResult::Ignored),
             }
         }
-        .and_then(|result| self.normalize_path(result, &init_query, &init_fragment))
+        .and_then(|result| self.normalize_result(result, &init_query, &init_fragment))
     }
 }
