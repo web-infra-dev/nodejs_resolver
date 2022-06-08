@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 #[derive(Debug, Clone)]
 pub struct ResolverOptions {
@@ -10,8 +10,9 @@ pub struct ResolverOptions {
     pub enforce_extension: Option<bool>,
     /// Maps key to value.
     /// `None` means that the value is `false`.
-    /// Default is `HashMap::new()`.
-    pub alias: HashMap<String, Option<String>>,
+    /// Default is `vec![]`.
+    /// The reason for using `Vec` instead `HashMap` to keep the order.
+    pub alias: Vec<(String, Option<String>)>,
     /// The list of alias fields in description files.
     /// TODO: currently only support one alias field.
     /// Default is `[]`
@@ -60,7 +61,7 @@ impl Default for ResolverOptions {
         let main_files = vec![String::from("index")];
         let main_fields = vec![String::from("main")];
         let description_file = Some(String::from("package.json"));
-        let alias = HashMap::new();
+        let alias = vec![];
         let modules = vec![String::from("node_modules")];
         let symlinks = true;
         let alias_fields = vec![];

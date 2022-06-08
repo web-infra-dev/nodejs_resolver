@@ -21,7 +21,7 @@ impl Resolver {
         let file = File::open(&path).map_err(|_| "Open failed".to_string())?;
 
         let json: serde_json::Value = serde_json::from_reader(file)
-            .map_err(|_| "Read description file failed".to_string())?;
+            .map_err(|_| format!("Parse {} failed", path.display()))?;
 
         let main_fields = self
             .options
@@ -100,10 +100,6 @@ impl Resolver {
     ) -> RResult<Option<Arc<DescriptionFileInfo>>> {
         if self.options.description_file.is_none() {
             return Ok(None);
-        }
-
-        if !now_dir.is_dir() {
-            return self.load_description_file(now_dir.parent().unwrap());
         }
 
         let description_file = if let Some(dir) = self
