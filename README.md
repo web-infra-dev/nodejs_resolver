@@ -3,8 +3,9 @@
 TodoList:
 
 - [ ] optimized code structure.
-- [ ] `module` filed in package.json
-- [ ] change args, such as `base_dir` to `path`, `target` to `request`.
+- [ ] test cases of `main_fields` and `main_files`.
+- [ ] error message stack.
+- [ ] test cases for cache.
 
 ## Benchmark
 

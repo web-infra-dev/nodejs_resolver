@@ -1,3 +1,4 @@
 {
-  "main": "./src/index"
+  "main": "./src/index",
+  "module": "./module.js"
 }

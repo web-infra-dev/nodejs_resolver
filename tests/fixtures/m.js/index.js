@@ -1,0 +1,1 @@
+// just for test `resolve('extensions', 'm.js/)`

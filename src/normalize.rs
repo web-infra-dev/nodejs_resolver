@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use crate::{RResult, ResolveResult, Resolver, ResolverResult};
+use crate::{RResult, Resolver, ResolverResult};
 
 impl Resolver {
     #[cfg(not(target_os = "windows"))]
@@ -21,15 +21,13 @@ impl Resolver {
         }
     }
 
-    pub fn normalize_path(&self, path: &Path, query: &str, fragment: &str) -> RResult<PathBuf> {
+    pub fn normalize_path(&self, path: &Path) -> RResult<PathBuf> {
         if self.options.symlinks {
             Path::canonicalize(path)
                 .map_err(|_| "Path normalized failed".to_string())
-                .map(|result| {
-                    PathBuf::from(format!("{}{}{}", Self::adjust(result), query, fragment))
-                })
+                .map(|result| PathBuf::from(Self::adjust(result)))
         } else {
-            let result = path
+            Ok(path
                 .components()
                 .fold(PathBuf::new(), |mut acc, path_component| {
                     match path_component {
@@ -42,27 +40,18 @@ impl Resolver {
                         }
                     }
                     acc
-                });
-            Ok(PathBuf::from(format!(
-                "{}{}{}",
-                result.to_str().unwrap(),
-                query,
-                fragment
-            )))
+                }))
         }
     }
 
-    pub fn normalize_result(
-        &self,
-        result: ResolveResult,
-        query: &str,
-        fragment: &str,
-    ) -> ResolverResult {
+    pub(super) fn normalize_result(&self, result: ResolverResult) -> RResult<ResolverResult> {
         match result {
-            ResolveResult::Path(path) => self
-                .normalize_path(&path, query, fragment)
-                .map(ResolveResult::Path),
-            ResolveResult::Ignored => Ok(ResolveResult::Ignored),
+            ResolverResult::Info(info) => {
+                assert!(info.request.target.is_empty());
+                let result = self.normalize_path(&info.path)?;
+                Ok(ResolverResult::Info(info.with_path(result)))
+            }
+            ResolverResult::Ignored => Ok(ResolverResult::Ignored),
         }
     }
 }

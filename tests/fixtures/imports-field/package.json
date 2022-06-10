@@ -7,7 +7,8 @@
     "#b": "../b.js",
     "#ccc/": "c/",
     "#c": "c",
-    "#a/": "a/"
+    "#a/": "a/",
+    "#c-redirect/": "#ccc/"
   },
   "other": {
     "imports": {
