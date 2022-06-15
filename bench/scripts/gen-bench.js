@@ -211,6 +211,7 @@ mod bench_test {
 
 function generatorEnhanceResolveBenchmark() {
   let content = HEADER + `
+console.time('bench');
 const path = require('path');
 const resolver = require('enhanced-resolve');
 const Benchmark = require('benchmark'); 
@@ -233,7 +234,6 @@ const resolve = resolver.create.sync({
   },
 })
 
-const suite = new Benchmark.Suite();
 
 function run() {
 
@@ -245,12 +245,17 @@ function run() {
   content += `
 };
 
-suite
-  .add("EnhancedResolve", run)
-  .on('cycle', function(event) {
-    console.log(String(event.target));
-  })
-  .run();
+// const suite = new Benchmark.Suite();
+// suite
+//   .add("EnhancedResolve", run)
+//   .on('cycle', function(event) {
+//     console.log(String(event.target));
+//   })
+//   .run();
+
+run();
+
+console.timeEnd('bench');
 `
   console.log('length', content.length);
   const jsFileStoredPath = path.resolve(__dirname, '../enhanceResolve.js');

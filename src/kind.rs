@@ -1,11 +1,11 @@
 use crate::Resolver;
 
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum PathKind {
     Relative,
     AbsoluteWin,
     AbsolutePosix,
     Internal,
-    BuildInModule,
     Normal,
 }
 
@@ -81,12 +81,14 @@ const BUILT_IN_MODULE_SET: Set<&'static str> = phf_set! {
    "worker_threads",
    "zlib",
 };
+
 static ABSOLUTE_WIN_PATTERN_LENGTH_TWO: [&str; 52] = [
     "a:", "b:", "c:", "d:", "e:", "f:", "g:", "h:", "i:", "j:", "k:", "l:", "m:", "n:", "o:", "p:",
     "q:", "r:", "s:", "t:", "u:", "v:", "w:", "x:", "y:", "z:", "A:", "B:", "C:", "D:", "E:", "F:",
     "G:", "H:", "I:", "J:", "K:", "L:", "M:", "N:", "O:", "P:", "Q:", "R:", "S:", "T:", "U:", "V:",
     "W:", "X:", "Y:", "Z:",
 ];
+
 static ABSOLUTE_WIN_PATTERN_REST: [&str; 104] = [
     "a:\\", "b:\\", "c:\\", "d:\\", "e:\\", "f:\\", "g:\\", "h:\\", "i:\\", "j:\\", "k:\\", "l:\\",
     "m:\\", "n:\\", "o:\\", "p:\\", "q:\\", "r:\\", "s:\\", "t:\\", "u:\\", "v:\\", "w:\\", "x:\\",
@@ -98,6 +100,7 @@ static ABSOLUTE_WIN_PATTERN_REST: [&str; 104] = [
     "J:/", "K:/", "L:/", "M:/", "N:/", "O:/", "P:/", "Q:/", "R:/", "S:/", "T:/", "U:/", "V:/",
     "W:/", "X:/", "Y:/", "Z:/",
 ];
+
 static PMA: Lazy<DoubleArrayAhoCorasick> = Lazy::new(|| {
     DoubleArrayAhoCorasickBuilder::new()
         .match_kind(MatchKind::LeftmostLongest)
@@ -106,12 +109,14 @@ static PMA: Lazy<DoubleArrayAhoCorasick> = Lazy::new(|| {
 });
 
 impl Resolver {
-    pub(crate) fn get_target_kind(target: &str) -> PathKind {
+    pub(crate) fn get_target_kind(&self, target: &str) -> PathKind {
         if target.is_empty() {
-            PathKind::Relative
-        } else if Self::is_build_in_module(target) {
-            PathKind::BuildInModule
-        } else if target.starts_with('#') {
+            return PathKind::Relative;
+        }
+        if let Some(result) = self.safe_cache.target_kind.get(target) {
+            return result.clone();
+        }
+        let path_kind = if target.starts_with('#') {
             PathKind::Internal
         } else if target.starts_with('/') {
             PathKind::AbsolutePosix
@@ -125,15 +130,19 @@ impl Resolver {
             if target.len() == 2 && ABSOLUTE_WIN_PATTERN_LENGTH_TWO.contains(&target) {
                 return PathKind::AbsoluteWin;
             }
-            let mut it = PMA.leftmost_find_iter(target);
-            if let Some(mat) = it.next() {
+            let mut iter = PMA.leftmost_find_iter(target);
+            if let Some(mat) = iter.next() {
                 let match_pattern_len = ABSOLUTE_WIN_PATTERN_REST[mat.value()].len();
                 if mat.start() == 0 && mat.end() - mat.start() == match_pattern_len {
                     return PathKind::AbsoluteWin;
                 }
             }
             PathKind::Normal
-        }
+        };
+        self.safe_cache
+            .target_kind
+            .insert(target.to_string(), path_kind.clone());
+        path_kind
     }
 
     pub fn is_build_in_module(target: &str) -> bool {
@@ -145,25 +154,37 @@ impl Resolver {
 fn test_resolver() {
     assert!(Resolver::is_build_in_module("fs"));
     assert!(!Resolver::is_build_in_module("a"));
-    assert!(matches!(Resolver::get_target_kind(""), PathKind::Relative));
+    let resolver = Resolver::new(Default::default());
+    assert!(matches!(resolver.get_target_kind(""), PathKind::Relative));
+    assert!(matches!(resolver.get_target_kind("."), PathKind::Relative));
+    assert!(matches!(resolver.get_target_kind(".."), PathKind::Relative));
     assert!(matches!(
-        Resolver::get_target_kind("D:"),
+        resolver.get_target_kind("../a.js"),
+        PathKind::Relative
+    ));
+    assert!(matches!(
+        resolver.get_target_kind("./a.js"),
+        PathKind::Relative
+    ));
+    assert!(matches!(
+        resolver.get_target_kind("D:"),
         PathKind::AbsoluteWin
     ));
     assert!(matches!(
-        Resolver::get_target_kind("C:path"),
+        resolver.get_target_kind("C:path"),
         PathKind::Normal
     ));
     assert!(matches!(
-        Resolver::get_target_kind("C:\\a"),
+        resolver.get_target_kind("C:\\a"),
         PathKind::AbsoluteWin
     ));
     assert!(matches!(
-        Resolver::get_target_kind("c:/a"),
+        resolver.get_target_kind("c:/a"),
         PathKind::AbsoluteWin
     ));
     assert!(matches!(
-        Resolver::get_target_kind("cc:/a"),
+        resolver.get_target_kind("cc:/a"),
         PathKind::Normal
     ));
+    assert!(matches!(resolver.get_target_kind("fs"), PathKind::Normal));
 }

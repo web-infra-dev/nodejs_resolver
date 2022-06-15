@@ -1,12 +1,17 @@
-use std::path::Path;
+use crate::{Resolver, ResolverInfo};
 
-use crate::{RResult, Resolver};
+pub static RAISE_RESOLVE_ERROR_TAG: &str = "T0";
 
 impl Resolver {
-    pub(super) fn raise<T>(base_dir: &Path, target: &str) -> RResult<T> {
-        Err(format!(
-            "Resolve '{target}' failed in '{}'",
-            base_dir.display()
-        ))
+    pub(super) fn raise_tag() -> String {
+        RAISE_RESOLVE_ERROR_TAG.to_string()
+    }
+
+    pub(super) fn raise_resolve_failed_message(info: &ResolverInfo) -> String {
+        format!(
+            "Resolve '{}' failed in '{}'",
+            info.request,
+            info.path.display()
+        )
     }
 }

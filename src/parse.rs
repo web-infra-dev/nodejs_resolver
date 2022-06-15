@@ -1,5 +1,6 @@
 use smol_str::SmolStr;
 
+use crate::kind::PathKind;
 use crate::Resolver;
 
 #[derive(Clone, Debug)]
@@ -7,17 +8,17 @@ pub struct Request {
     pub target: SmolStr,
     pub query: SmolStr,
     pub fragment: SmolStr,
+    pub(crate) kind: PathKind,
 }
 
-enum ParseStats {
-    Request,
-    Query,
-    Fragment,
-    Start,
+impl std::fmt::Display for Request {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}{}", self.target, self.query, self.fragment)
+    }
 }
 
-impl Resolver {
-    fn parse_identifier(ident: &str) -> (String, String, String) {
+impl Request {
+    pub(crate) fn parse_identifier(ident: &str) -> (String, String, String) {
         // maybe we should use regexp: https://github.com/webpack/enhanced-resolve/blob/main/lib/util/identifier.js#L8
         let mut target = String::new();
         let mut query = String::new();
@@ -32,13 +33,13 @@ impl Resolver {
                     ParseStats::Start => {
                         stats = ParseStats::Request;
                     }
-                    ParseStats::Fragment => {}
+                    ParseStats::Fragment => (),
                 },
                 '?' => match stats {
                     ParseStats::Request | ParseStats::Query | ParseStats::Start => {
                         stats = ParseStats::Query;
                     }
-                    ParseStats::Fragment => {}
+                    ParseStats::Fragment => (),
                 },
                 _ => {
                     if let ParseStats::Start = stats {
@@ -56,9 +57,20 @@ impl Resolver {
         (target, query, fragment)
     }
 
-    pub fn parse(target: &str) -> Request {
-        let (target, query, fragment) = Self::parse_identifier(target);
+    pub(crate) fn with_target(self, resolver: &Resolver, target: &str) -> Self {
+        Self {
+            kind: resolver.get_target_kind(target),
+            target: target.into(),
+            ..self
+        }
+    }
+}
+
+impl Resolver {
+    pub(crate) fn parse(&self, request: &str) -> Request {
+        let (target, query, fragment) = Request::parse_identifier(request);
         Request {
+            kind: self.get_target_kind(&target),
             target: target.into(),
             query: query.into(),
             fragment: fragment.into(),
@@ -66,14 +78,21 @@ impl Resolver {
     }
 }
 
+enum ParseStats {
+    Request,
+    Query,
+    Fragment,
+    Start,
+}
+
 #[test]
 fn parse_identifier_test() {
     macro_rules! should_parsed {
-        ($ident: expr; $r: expr, $q: expr, $f: expr) => {
+        ($ident: expr; $t: expr, $q: expr, $f: expr) => {
             assert_eq!(
-                Resolver::parse_identifier(&String::from($ident)),
+                Request::parse_identifier(&String::from($ident)),
                 (
-                    ($r).chars().collect(),
+                    ($t).chars().collect(),
                     ($q).chars().collect(),
                     ($f).chars().collect()
                 )

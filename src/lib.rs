@@ -17,10 +17,26 @@
 //! let resolver = Resolver::default();
 //!
 //! resolver.resolve(&cwd.join("./src"), "foo");
-//! // -> ResolveResult::Path(PathBuf::from("<cwd>/node_modules/foo/index.js"))
+//! // -> ResolveResult::Info(ResolverInfo {
+//! //    path: PathBuf::from("<cwd>/node_modules/foo/index.js")
+//! //    request: Request {
+//! //       target: "",
+//! //       fragment: "",
+//! //       query: ""
+//! //    }
+//! //  })
+//! //
 //!
 //! resolver.resolve(&cwd.join("./src"), "./foo");
-//! // -> ResolveResult::Path(PathBuf::from("<cwd>/src/foo.js"))
+//! // -> ResolveResult::Info(ResolverInfo {
+//! //    path: PathBuf::from("<cwd>/src/foo.js")
+//! //    request: Request {
+//! //       target: "",
+//! //       fragment: "",
+//! //       query: ""
+//! //    }
+//! //  })
+//! //
 //! ```
 //!
 
@@ -30,89 +46,132 @@ mod map;
 mod normalize;
 mod options;
 mod parse;
+mod plugin;
 mod raise;
 mod resolve;
 
 use dashmap::DashMap;
-use description::DescriptionFileInfo;
+use description::PkgFileInfo;
 use kind::PathKind;
-pub use options::ResolverOptions;
+pub use options::{AliasMap, ResolverOptions};
+use plugin::{AliasFieldPlugin, AliasPlugin, Plugin, PreferRelativePlugin};
+
 use parse::Request;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
 
+use crate::raise::RAISE_RESOLVE_ERROR_TAG;
+
 #[derive(Default, Debug)]
 pub struct Resolver {
     pub options: ResolverOptions,
-    pub cache: Option<ResolverCache>,
+    pub unsafe_cache: Option<ResolverUnsafeCache>,
+    pub safe_cache: ResolverSafeCache,
+    pub input_path: Option<PathBuf>,
+    pub input_request: Option<String>,
 }
 
 #[derive(Default, Debug)]
-pub struct ResolverCache {
-    pub dir_info: DashMap<PathBuf, Arc<DirInfo>>,
-    pub description_file_info: DashMap<PathBuf, Arc<DescriptionFileInfo>>,
+pub struct ResolverUnsafeCache {
+    pub pkg_info: DashMap<PathBuf, Option<Arc<PkgFileInfo>>>,
 }
 
-#[derive(Debug)]
-pub struct DirInfo {
-    pub description_file_path: PathBuf,
+#[derive(Default, Debug)]
+pub struct ResolverSafeCache {
+    pub(crate) target_kind: DashMap<String, PathKind>,
 }
 
-// TODO: should remove `Clone`
-#[derive(Clone, Debug)]
-pub struct Stats {
-    pub dir: PathBuf,
+pub type ResolverError = String;
+
+#[derive(Debug, Clone)]
+pub struct ResolverInfo {
+    pub path: PathBuf,
     pub request: Request,
 }
 
-impl Stats {
-    pub fn from(dir: PathBuf, request: Request) -> Self {
-        Self { dir, request }
+impl ResolverInfo {
+    pub fn from(path: PathBuf, request: Request) -> Self {
+        Self { path, request }
     }
 
     pub fn get_path(&self) -> PathBuf {
-        if self.request.target.is_empty() {
-            self.dir.to_path_buf()
-        } else {
-            self.dir.join(&*self.request.target)
-        }
+        // TODO: should changed to following:
+        // if self.request.kind.eq(&PathKind::Normal) {
+        //     self.path.join(MODULE).join(&*self.request.target)
+        // } else {
+        //     self.path.join(&*self.request.target)
+        // }
+        self.path.join(&*self.request.target)
     }
 
-    pub fn with_dir(self, dir: PathBuf) -> Self {
-        Self { dir, ..self }
+    pub fn with_path(self, path: PathBuf) -> Self {
+        Self { path, ..self }
     }
 
-    pub fn with_target(self, target: String) -> Self {
-        Self {
-            request: Request {
-                target: target.into(),
-                ..self.request
-            },
-            ..self
-        }
+    pub fn with_target(self, resolver: &Resolver, target: &str) -> Self {
+        let request = self.request.with_target(resolver, target);
+        Self { request, ..self }
+    }
+
+    pub fn join(&self) -> PathBuf {
+        let buf = format!(
+            "{}{}{}",
+            self.path.display(),
+            self.request.query,
+            self.request.fragment,
+        );
+        PathBuf::from(buf)
     }
 }
 
-type ResolverError = String;
-type RResult<T> = Result<T, ResolverError>;
-type ResolverStats = RResult<Option<Stats>>;
-
-#[derive(Debug, PartialEq)]
-pub enum ResolveResult {
-    Path(PathBuf),
+#[derive(Debug)]
+pub enum ResolverResult {
+    Info(ResolverInfo),
     Ignored,
 }
-type ResolverResult = RResult<ResolveResult>;
+
+#[derive(Debug)]
+pub(crate) enum ResolverStats {
+    Success(ResolverResult),
+    Resolving(ResolverInfo),
+    Error((ResolverError, ResolverInfo)),
+}
+
+impl ResolverStats {
+    pub fn and_then<F: FnOnce(ResolverInfo) -> ResolverStats>(self, op: F) -> ResolverStats {
+        match self {
+            ResolverStats::Resolving(info) => op(info),
+            _ => self,
+        }
+    }
+
+    pub fn is_success(&self) -> bool {
+        matches!(self, ResolverStats::Success(_))
+    }
+
+    pub fn extract_info(self) -> ResolverInfo {
+        match self {
+            ResolverStats::Resolving(info) => info,
+            ResolverStats::Error((_, info)) => info,
+            _ => unreachable!(),
+        }
+    }
+}
+
+pub(crate) static MODULE: &str = "node_modules";
+
+pub(crate) type RResult<T> = Result<T, ResolverError>;
 
 impl Resolver {
     pub fn new(options: ResolverOptions) -> Self {
-        let cache = if options.enable_unsafe_cache {
-            Some(ResolverCache::default())
+        let unsafe_cache = if options.enable_unsafe_cache {
+            Some(ResolverUnsafeCache::default())
         } else {
             None
         };
+        let safe_cache = ResolverSafeCache::default();
         let extensions: Vec<String> = options
             .extensions
             .into_iter()
@@ -134,83 +193,65 @@ impl Resolver {
             enforce_extension,
             ..options
         };
-        Self { options, cache }
+        Self {
+            options,
+            unsafe_cache,
+            safe_cache,
+            input_path: None,
+            input_request: None,
+        }
     }
 
-    pub fn resolve(&self, base_dir: &Path, target: &str) -> ResolverResult {
-        self._resolve(base_dir, target.to_string())
+    pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolverResult> {
+        let info = ResolverInfo::from(path.to_path_buf(), self.parse(request));
+        match self._resolve(info) {
+            ResolverStats::Success(result) => self.normalize_result(result),
+            ResolverStats::Error((err_msg, _)) => Err(err_msg),
+            _ => unreachable!(),
+        }
     }
 
-    fn _resolve(&self, base_dir: &Path, target: String) -> ResolverResult {
-        // try to alias
-        for (from, to) in &self.options.alias {
-            if target.starts_with(from) {
-                match to {
-                    Some(to) => {
-                        let normalized_target = target.replacen(from, to, 1);
-                        let result = self._resolve(base_dir, normalized_target);
-                        if result.is_ok() {
-                            return result;
-                        }
-                    }
-                    None => return Ok(ResolveResult::Ignored),
+    fn _resolve(&self, info: ResolverInfo) -> ResolverStats {
+        let resolve_err_msg = Self::raise_resolve_failed_message(&info);
+        let stats = AliasPlugin::default()
+            .apply(self, info)
+            .and_then(|info| PreferRelativePlugin::default().apply(self, info))
+            .and_then(|info| {
+                let pkg_info_wrap = match self.load_pkg_file(&info.get_path()) {
+                    Ok(pkg_info_wrap) => pkg_info_wrap,
+                    Err(error) => return ResolverStats::Error((error, info)),
+                };
+
+                if let Some(pkg_info) = pkg_info_wrap {
+                    self.deal_imports_exports_field_plugin(info, &pkg_info)
+                        .and_then(|info| AliasFieldPlugin::new(&pkg_info).apply(self, info))
+                } else {
+                    ResolverStats::Resolving(info)
                 }
+            })
+            .and_then(|info| {
+                if matches!(
+                    info.request.kind,
+                    PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
+                ) {
+                    self.resolve_as_file(info)
+                        .and_then(|info| self.resolve_as_dir(info))
+                } else {
+                    self.resolve_as_modules(info)
+                }
+            });
+
+        match stats {
+            ResolverStats::Success(result) => ResolverStats::Success(result),
+            ResolverStats::Error((err_msg, info)) => {
+                let err_msg = if err_msg.eq(RAISE_RESOLVE_ERROR_TAG) {
+                    resolve_err_msg
+                } else {
+                    err_msg
+                };
+                ResolverStats::Error((err_msg, info))
             }
+            _ => unreachable!(),
         }
-
-        if self.options.prefer_relative && !target.starts_with("../") && !target.starts_with("./") {
-            let result = self._resolve(base_dir, format!("./{}", target));
-            if result.is_ok() {
-                return result;
-            }
-        }
-
-        let stats = Stats::from(base_dir.to_path_buf(), Self::parse(&target));
-        // TODO: remove `init_x`
-        let init_query = stats.request.query.clone();
-        let init_fragment = stats.request.fragment.clone();
-        let kind = Self::get_target_kind(&stats.request.target);
-        let dir = match kind {
-            PathKind::BuildInModule => {
-                return Ok(ResolveResult::Path(PathBuf::from(&*stats.request.target)))
-            }
-            PathKind::AbsolutePosix | PathKind::AbsoluteWin => PathBuf::from("/"),
-            _ => base_dir.to_path_buf(),
-        };
-        let stats = stats.with_dir(dir);
-
-        let maybe_description_file_dir = stats.dir.join(&*stats.request.target);
-
-        let maybe_description_file_dir = if !maybe_description_file_dir.is_dir() {
-            match maybe_description_file_dir.parent() {
-                Some(dir) => dir,
-                None => return self._resolve(Path::new(&*stats.request.target), String::new()),
-            }
-        } else {
-            &maybe_description_file_dir
-        };
-
-        let description_file_info = self.load_description_file(maybe_description_file_dir)?;
-        let stats = match self.get_real_target(stats, &kind, &description_file_info, false)? {
-            Some(stats) => stats,
-            None => return Ok(ResolveResult::Ignored),
-        };
-
-        if matches!(
-            Self::get_target_kind(&stats.request.target),
-            PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
-        ) {
-            self.resolve_as_file(&stats)
-                .or_else(|_| match self.resolve_as_dir(stats, false)? {
-                    Some(stats) => Ok(ResolveResult::Path(stats.get_path())),
-                    None => Ok(ResolveResult::Ignored),
-                })
-        } else {
-            match self.resolve_as_modules(stats)? {
-                Some(stats) => Ok(ResolveResult::Path(stats.get_path())),
-                None => Ok(ResolveResult::Ignored),
-            }
-        }
-        .and_then(|result| self.normalize_result(result, &init_query, &init_fragment))
     }
 }

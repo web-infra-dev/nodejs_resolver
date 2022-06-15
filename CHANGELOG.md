@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.17
+
+- code optimization.
+- remove node build_in detection.
+- no longer support `modules` filed in options.
+- no longer support node buildIn module, such as `resolve(xxx, 'fs')` will throw error when there is no `'fs'` polyfill.
+- changed `Option<String>` to `AliasMap` in `Options.alias` and `PkgFileInfo.aliasField`.
+
 ## 0.0.16
 
 - fix a bug caused by `Path::with_extension`.

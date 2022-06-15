@@ -1,27 +1,33 @@
 use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
-use crate::{DirInfo, RResult, Resolver};
+use crate::{AliasMap, RResult, Resolver};
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
-pub struct DescriptionFileInfo {
-    pub name: Option<String>,
+pub struct PkgFileInfo {
+    /// The path to the directory where the description file located.
+    /// It not a property in package.json.
     pub abs_dir_path: PathBuf,
+    pub name: Option<String>,
     pub main_fields: Vec<String>,
-    pub alias_fields: HashMap<String, Option<String>>,
+    pub alias_fields: HashMap<String, AliasMap>,
     pub exports_field_tree: Option<PathTreeNode>,
     pub imports_field_tree: Option<PathTreeNode>,
 }
 
 impl Resolver {
-    fn parse_description_file(&self, dir: &Path, target: &str) -> RResult<DescriptionFileInfo> {
-        let path = dir.join(target);
-        let file = File::open(&path).map_err(|_| "Open failed".to_string())?;
+    fn parse_description_file(
+        &self,
+        path: &Path,
+        description_file_name: &str,
+    ) -> RResult<PkgFileInfo> {
+        let location = path.join(description_file_name);
+        let file = File::open(&location).map_err(|_| "Open failed".to_string())?;
 
         let json: serde_json::Value = serde_json::from_reader(file)
-            .map_err(|_| format!("Parse {} failed", path.display()))?;
+            .map_err(|_| format!("Parse {} failed", location.display()))?;
 
         let main_fields = self
             .options
@@ -29,7 +35,7 @@ impl Resolver {
             .iter()
             .fold(vec![], |mut acc, main_filed| {
                 if let Some(value) = json.get(main_filed) {
-                    // TODO: main_filed maybe a object, array...
+                    // TODO: `main_field` maybe a object, array...
                     if let Some(s) = value.as_str() {
                         acc.push(s.to_string());
                     }
@@ -38,16 +44,16 @@ impl Resolver {
             });
 
         let mut alias_fields = HashMap::new();
-        // TODO: only support ["browser"]
-        if self.options.alias_fields.len() == 1 {
-            if let Some(value) = json.get(&self.options.alias_fields[0]) {
+        for alias_filed in &self.options.alias_fields {
+            if let Some(value) = json.get(alias_filed) {
                 if let Some(map) = value.as_object() {
                     for (key, value) in map {
                         // TODO: nested
-                        if value.is_boolean() {
-                            alias_fields.insert(key.to_string(), None);
+                        if let Some(b) = value.as_bool() {
+                            assert!(!b);
+                            alias_fields.insert(key.to_string(), AliasMap::Ignored);
                         } else if let Some(s) = value.as_str() {
-                            alias_fields.insert(key.to_string(), Some(s.to_string()));
+                            alias_fields.insert(key.to_string(), AliasMap::Target(s.to_string()));
                         }
                     }
                 }
@@ -70,9 +76,9 @@ impl Resolver {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
-        Ok(DescriptionFileInfo {
+        Ok(PkgFileInfo {
             name,
-            abs_dir_path: dir.to_path_buf(),
+            abs_dir_path: path.to_path_buf(),
             main_fields,
             alias_fields,
             exports_field_tree,
@@ -94,52 +100,47 @@ impl Resolver {
         }
     }
 
-    pub(crate) fn load_description_file(
-        &self,
-        now_dir: &Path,
-    ) -> RResult<Option<Arc<DescriptionFileInfo>>> {
+    pub(crate) fn load_pkg_file(&self, path: &Path) -> RResult<Option<Arc<PkgFileInfo>>> {
         if self.options.description_file.is_none() {
             return Ok(None);
         }
 
-        let description_file = if let Some(dir) = self
-            .cache
+        let pkg_info = if let Some(r#ref) = self
+            .unsafe_cache
             .as_ref()
-            .and_then(|cache| cache.dir_info.get(&now_dir.to_path_buf()))
+            .and_then(|cache| cache.pkg_info.get(path))
         {
-            self.cache
-                .as_ref()
-                .unwrap()
-                .description_file_info
-                .get(&dir.description_file_path)
-                .map(|r#ref| r#ref.clone())
+            r#ref.clone()
         } else {
-            match Self::find_description_file_dir(
-                now_dir,
-                self.options.description_file.as_ref().unwrap(),
-            ) {
-                Some(target_dir) => {
-                    let parsed = Arc::new(self.parse_description_file(
-                        &target_dir,
-                        self.options.description_file.as_ref().unwrap(),
-                    )?);
-                    if let Some(cache) = self.cache.as_ref() {
-                        cache.dir_info.insert(
-                            now_dir.to_path_buf(),
-                            Arc::new(DirInfo {
-                                description_file_path: target_dir.clone(),
-                            }),
-                        );
-                        cache
-                            .description_file_info
-                            .insert(target_dir, parsed.clone());
-                    }
+            let description_file_name = self.options.description_file.as_ref().unwrap();
+            let (pkg_info, target_dir) = if let Some(target_dir) =
+                Self::find_description_file_dir(path, description_file_name)
+            {
+                let parsed =
+                    Arc::new(self.parse_description_file(&target_dir, description_file_name)?);
+                (Some(parsed), Some(target_dir))
+            } else {
+                (None, None)
+            };
 
-                    Some(parsed)
+            if let Some(cache) = self.unsafe_cache.as_ref() {
+                let mut temp_dir = path.to_path_buf();
+                let target_dir = if let Some(target_dir) = target_dir {
+                    target_dir
+                } else {
+                    PathBuf::from("/")
+                };
+                loop {
+                    let info = pkg_info.clone();
+                    cache.pkg_info.insert(temp_dir.clone(), info);
+                    if temp_dir.eq(&target_dir) || !temp_dir.pop() {
+                        break;
+                    }
                 }
-                None => None,
             }
+            pkg_info
         };
-        Ok(description_file)
+
+        Ok(pkg_info)
     }
 }
