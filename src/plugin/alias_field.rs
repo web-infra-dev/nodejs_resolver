@@ -1,20 +1,20 @@
 use crate::{description::PkgFileInfo, AliasMap, Resolver};
-use std::collections::HashMap;
 use std::sync::Arc;
+use std::{collections::HashMap, path::PathBuf};
 
 use super::Plugin;
 use crate::{PathKind, ResolverInfo, ResolverResult, ResolverStats};
 
 pub struct AliasFieldPlugin<'a> {
-    pkg_info: &'a Arc<PkgFileInfo>,
+    pkg_info: &'a Option<Arc<PkgFileInfo>>,
 }
 
 impl<'a> AliasFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a Arc<PkgFileInfo>) -> Self {
+    pub fn new(pkg_info: &'a Option<Arc<PkgFileInfo>>) -> Self {
         Self { pkg_info }
     }
 
-    pub(crate) fn deal_with_alias_fields_recursive(
+    pub(super) fn deal_with_alias_fields_recursive(
         &self,
         target: &AliasMap,
         alias_fields: &HashMap<String, AliasMap>,
@@ -30,48 +30,53 @@ impl<'a> AliasFieldPlugin<'a> {
             AliasMap::Ignored => AliasMap::Ignored,
         }
     }
+
+    pub(super) fn request_target_is_module_and_equal_alias_key(
+        alias_key: &String,
+        info: &ResolverInfo,
+    ) -> bool {
+        matches!(info.request.kind, PathKind::Normal) && info.request.target.eq(alias_key)
+    }
+
+    pub(super) fn request_path_is_equal_alias_key_path(
+        alias_path: &PathBuf,
+        info: &ResolverInfo,
+        extensions: &[String],
+    ) -> bool {
+        let request_path = info.get_path();
+        alias_path.eq(&request_path)
+            || extensions.iter().any(|ext| {
+                let path_with_extension = Resolver::append_ext_for_path(&request_path, ext);
+                alias_path.eq(&path_with_extension)
+            })
+    }
 }
 
 impl<'a> Plugin for AliasFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: ResolverInfo) -> ResolverStats {
-        let description_file_dir = &self.pkg_info.abs_dir_path;
-        let path = info.get_path();
-
-        for (relative_path, converted_target) in &self.pkg_info.alias_fields {
-            // TODO: should optimized.
-            if matches!(info.request.kind, PathKind::Normal | PathKind::Internal)
-                && info.request.target.eq(relative_path)
-            {
-                return match self
-                    .deal_with_alias_fields_recursive(converted_target, &self.pkg_info.alias_fields)
+        if let Some(pkg_info) = self.pkg_info.as_ref() {
+            for (alias_key, alias_target) in &pkg_info.alias_fields {
+                if Self::request_target_is_module_and_equal_alias_key(alias_key, &info)
+                    || Self::request_path_is_equal_alias_key_path(
+                        &pkg_info.abs_dir_path.join(alias_key),
+                        &info,
+                        &resolver.options.extensions,
+                    )
                 {
-                    AliasMap::Target(converted) => ResolverStats::Resolving(
-                        info.with_path(description_file_dir.to_path_buf())
-                            .with_target(resolver, &converted),
-                    ),
-                    AliasMap::Ignored => ResolverStats::Success(ResolverResult::Ignored),
-                };
+                    return match self
+                        .deal_with_alias_fields_recursive(alias_target, &pkg_info.alias_fields)
+                    {
+                        AliasMap::Target(converted) => ResolverStats::Resolving(
+                            info.with_path(pkg_info.abs_dir_path.to_path_buf())
+                                .with_target(resolver, &converted),
+                        ),
+                        AliasMap::Ignored => ResolverStats::Success(ResolverResult::Ignored),
+                    };
+                }
             }
-
-            let should_converted_path = description_file_dir.join(relative_path);
-            // TODO: should optimized.
-            if should_converted_path.eq(&path)
-                || resolver.options.extensions.iter().any(|ext| {
-                    let path_with_extension = Resolver::append_ext_for_path(&path, ext);
-                    should_converted_path.eq(&path_with_extension)
-                })
-            {
-                return match self
-                    .deal_with_alias_fields_recursive(converted_target, &self.pkg_info.alias_fields)
-                {
-                    AliasMap::Target(converted) => ResolverStats::Resolving(
-                        info.with_path(description_file_dir.to_path_buf())
-                            .with_target(resolver, &converted),
-                    ),
-                    AliasMap::Ignored => ResolverStats::Success(ResolverResult::Ignored),
-                };
-            }
+            ResolverStats::Resolving(info)
+        } else {
+            ResolverStats::Resolving(info)
         }
-        ResolverStats::Resolving(info)
     }
 }

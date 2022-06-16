@@ -1,13 +1,10 @@
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use crate::plugin::{
     AliasFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin, MainFilePlugin,
     Plugin,
 };
-use crate::{
-    description::PkgFileInfo, Resolver, ResolverInfo, ResolverResult, ResolverStats, MODULE,
-};
+use crate::{Resolver, ResolverInfo, ResolverResult, ResolverStats, MODULE};
 
 impl Resolver {
     pub(crate) fn append_ext_for_path(path: &Path, ext: &str) -> PathBuf {
@@ -68,7 +65,10 @@ impl Resolver {
                 Err(err) => return ResolverStats::Error((err, info)),
             };
             let info = info.with_path(module_path);
-            self.get_real_target(info, &pkg_info)
+            ExportsFieldPlugin::new(&pkg_info)
+                .apply(self, info)
+                .and_then(|info| ImportsFieldPlugin::new(&pkg_info).apply(self, info))
+                .and_then(|info| AliasFieldPlugin::new(&pkg_info).apply(self, info))
                 .and_then(|info| self.resolve_as_file(info))
                 .and_then(|info| {
                     let stats = self.resolve_as_dir(info);
@@ -93,31 +93,6 @@ impl Resolver {
             ResolverStats::Success(success) => ResolverStats::Success(success),
             ResolverStats::Resolving(info) => ResolverStats::Error((Resolver::raise_tag(), info)),
             ResolverStats::Error(err) => ResolverStats::Error(err),
-        }
-    }
-
-    pub(crate) fn deal_imports_exports_field_plugin(
-        &self,
-        info: ResolverInfo,
-        pkg_info: &Arc<PkgFileInfo>,
-    ) -> ResolverStats {
-        ExportsFieldPlugin::new(pkg_info)
-            .apply(self, info)
-            .and_then(|info| ImportsFieldPlugin::new(pkg_info).apply(self, info))
-    }
-
-    /// TODO: remove this function
-    pub(crate) fn get_real_target(
-        &self,
-        info: ResolverInfo,
-        pkg_info: &Option<Arc<PkgFileInfo>>,
-    ) -> ResolverStats {
-        if let Some(pkg_info) = pkg_info {
-            // Should deal `exports` and `imports` firstly.
-            self.deal_imports_exports_field_plugin(info, pkg_info)
-                .and_then(|info| AliasFieldPlugin::new(pkg_info).apply(self, info))
-        } else {
-            ResolverStats::Resolving(info)
         }
     }
 }

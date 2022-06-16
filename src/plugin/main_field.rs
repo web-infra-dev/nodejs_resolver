@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use crate::{description::PkgFileInfo, Resolver};
 
-use super::{AliasFieldPlugin, Plugin, ResolverInfo, ResolverStats};
+use super::{
+    AliasFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, Plugin, ResolverInfo, ResolverStats,
+};
 
 pub struct MainFieldPlugin<'a> {
     pkg_info: &'a Option<Arc<PkgFileInfo>>,
@@ -28,9 +30,10 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
                     break;
                 }
                 main_field_info = main_field_info.with_target(resolver, main_field);
-                let stats = resolver
-                    .deal_imports_exports_field_plugin(main_field_info, pkg_info)
-                    .and_then(|info| AliasFieldPlugin::new(pkg_info).apply(resolver, info))
+                let stats = ExportsFieldPlugin::new(self.pkg_info)
+                    .apply(resolver, main_field_info)
+                    .and_then(|info| ImportsFieldPlugin::new(self.pkg_info).apply(resolver, info))
+                    .and_then(|info| AliasFieldPlugin::new(self.pkg_info).apply(resolver, info))
                     .and_then(|info| resolver.resolve_as_file(info))
                     .and_then(|info| resolver.resolve_as_dir(info));
 
