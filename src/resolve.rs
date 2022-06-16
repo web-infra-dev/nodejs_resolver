@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::plugin::{
-    AliasFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin, MainFilePlugin,
-    Plugin,
+    AliasFieldPlugin, ExportsFieldPlugin, ExtensionsPlugin, ImportsFieldPlugin, MainFieldPlugin,
+    MainFilePlugin, Plugin,
 };
 use crate::{Resolver, ResolverInfo, ResolverResult, ResolverStats, MODULE};
 
@@ -19,22 +19,7 @@ impl Resolver {
                 info.with_path(path).with_target(self, ""),
             ))
         } else {
-            for extension in &self.options.extensions {
-                let path = if info.request.target.is_empty() {
-                    Resolver::append_ext_for_path(&info.path, extension)
-                } else {
-                    let str = if extension.is_empty() { "" } else { "." };
-                    info.path
-                        .join(format!("{}{str}{extension}", info.request.target))
-                };
-                if path.is_file() {
-                    return ResolverStats::Success(ResolverResult::Info(
-                        info.with_path(path).with_target(self, ""),
-                    ));
-                }
-            }
-
-            ResolverStats::Resolving(info)
+            ExtensionsPlugin::default().apply(self, info)
         }
     }
 
@@ -48,7 +33,7 @@ impl Resolver {
             Err(err) => return ResolverStats::Error((err, info)),
         };
 
-        let info = info.with_path(dir).with_target(self, "");
+        let info = info.with_path(dir);
         MainFieldPlugin::new(&pkg_info_wrap)
             .apply(self, info)
             .and_then(|info| MainFilePlugin::new(&pkg_info_wrap).apply(self, info))

@@ -50,6 +50,11 @@ pub struct ResolverOptions {
     /// fields are written.
     /// Default is `Set(["node"])`.
     pub condition_names: HashSet<String>,
+    /// When this filed exists, it tries to read `baseURL`
+    /// and `paths` in the corresponding tsconfig,
+    /// and processes the mappings.
+    /// Default is `None`.
+    pub tsconfig: Option<String>,
 }
 
 impl Default for ResolverOptions {
@@ -70,6 +75,7 @@ impl Default for ResolverOptions {
         let prefer_relative = false;
         let enable_unsafe_cache = true;
         let enforce_extension = None;
+        let tsconfig = None;
         Self {
             enable_unsafe_cache,
             prefer_relative,
@@ -82,6 +88,7 @@ impl Default for ResolverOptions {
             alias_fields,
             condition_names,
             enforce_extension,
+            tsconfig
         }
     }
 }
