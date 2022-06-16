@@ -54,7 +54,10 @@ use dashmap::DashMap;
 use description::PkgFileInfo;
 use kind::PathKind;
 pub use options::{AliasMap, ResolverOptions};
-use plugin::{AliasFieldPlugin, AliasPlugin, Plugin, PreferRelativePlugin};
+use plugin::{
+    AliasFieldPlugin, AliasPlugin, ExportsFieldPlugin, ImportsFieldPlugin, Plugin,
+    PreferRelativePlugin,
+};
 
 use parse::Request;
 use std::{
@@ -222,12 +225,10 @@ impl Resolver {
                     Err(error) => return ResolverStats::Error((error, info)),
                 };
 
-                if let Some(pkg_info) = pkg_info_wrap {
-                    self.deal_imports_exports_field_plugin(info, &pkg_info)
-                        .and_then(|info| AliasFieldPlugin::new(&pkg_info).apply(self, info))
-                } else {
-                    ResolverStats::Resolving(info)
-                }
+                ExportsFieldPlugin::new(&pkg_info_wrap)
+                    .apply(self, info)
+                    .and_then(|info| ImportsFieldPlugin::new(&pkg_info_wrap).apply(self, info))
+                    .and_then(|info| AliasFieldPlugin::new(&pkg_info_wrap).apply(self, info))
             })
             .and_then(|info| {
                 if matches!(
