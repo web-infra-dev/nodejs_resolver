@@ -225,9 +225,8 @@ impl Resolver {
                     Err(error) => return ResolverStats::Error((error, info)),
                 };
 
-                ExportsFieldPlugin::new(&pkg_info_wrap)
+                ImportsFieldPlugin::new(&pkg_info_wrap)
                     .apply(self, info)
-                    .and_then(|info| ImportsFieldPlugin::new(&pkg_info_wrap).apply(self, info))
                     .and_then(|info| AliasFieldPlugin::new(&pkg_info_wrap).apply(self, info))
             })
             .and_then(|info| {
