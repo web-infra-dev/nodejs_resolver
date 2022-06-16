@@ -255,7 +255,6 @@ fn alias_test() {
         "@start/a",
         p(vec!["alias", "a", "index"]),
     );
-
     should_equal(
         &resolver,
         &alias_cases_path,

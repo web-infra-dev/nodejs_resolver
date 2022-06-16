@@ -54,10 +54,7 @@ use dashmap::DashMap;
 use description::PkgFileInfo;
 use kind::PathKind;
 pub use options::{AliasMap, ResolverOptions};
-use plugin::{
-    AliasFieldPlugin, AliasPlugin, ExportsFieldPlugin, ImportsFieldPlugin, Plugin,
-    PreferRelativePlugin,
-};
+use plugin::{AliasFieldPlugin, AliasPlugin, ImportsFieldPlugin, Plugin, PreferRelativePlugin};
 
 use parse::Request;
 use std::{
