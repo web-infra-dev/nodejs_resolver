@@ -15,6 +15,7 @@ pub struct PkgFileInfo {
     pub alias_fields: HashMap<String, AliasMap>,
     pub exports_field_tree: Option<PathTreeNode>,
     pub imports_field_tree: Option<PathTreeNode>,
+    pub side_effects: Option<bool>,
 }
 
 impl Resolver {
@@ -76,6 +77,8 @@ impl Resolver {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
+        let side_effects = json.get("sideEffects").and_then(|v| v.as_bool());
+
         Ok(PkgFileInfo {
             name,
             abs_dir_path: path.to_path_buf(),
@@ -83,6 +86,7 @@ impl Resolver {
             alias_fields,
             exports_field_tree,
             imports_field_tree,
+            side_effects,
         })
     }
 
