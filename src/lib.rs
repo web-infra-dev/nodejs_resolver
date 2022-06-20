@@ -76,7 +76,11 @@ pub struct Resolver {
 #[derive(Default, Debug)]
 pub struct ResolverUnsafeCache {
     pub pkg_info: DashMap<PathBuf, Option<Arc<PkgFileInfo>>>,
+    pub tsconfig_info: DashMap<PathBuf, Option<Arc<TsConfigInfo>>>,
 }
+
+#[derive(Default, Debug)]
+pub struct TsConfigInfo {}
 
 #[derive(Default, Debug)]
 pub struct ResolverSafeCache {
