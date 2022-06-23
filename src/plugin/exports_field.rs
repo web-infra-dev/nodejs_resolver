@@ -58,7 +58,8 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 let target = match chars.find('/').map(|index| &chars[index..]) {
                     Some(target) => format!(".{target}"),
                     None => {
-                        if pkg_info.name.eq(&Some(info.request.target.to_string())) {
+                        let target = target.to_string();
+                        if info.path.join(&target).exists() || pkg_info.name.eq(&Some(target)) {
                             ".".to_string()
                         } else {
                             return ResolverStats::Error((Resolver::raise_tag(), info));
@@ -67,7 +68,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 };
                 let remaining_target = if !query.is_empty() || !fragment.is_empty() {
                     let target = if target == "." {
-                        "./".to_string()
+                        String::from("./")
                     } else {
                         target
                     };
@@ -75,6 +76,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 } else {
                     target
                 };
+
                 match ExportsField::field_process(
                     root,
                     &remaining_target,
