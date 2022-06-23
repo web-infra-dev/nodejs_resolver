@@ -21,11 +21,12 @@ pub struct PkgFileInfo {
 impl Resolver {
     fn parse_description_file(
         &self,
-        path: &Path,
+        dir: &Path,
         description_file_name: &str,
     ) -> RResult<PkgFileInfo> {
-        let location = path.join(description_file_name);
-        let file = File::open(&location).map_err(|_| "Open failed".to_string())?;
+        let location = dir.join(description_file_name);
+        let file =
+            File::open(&location).map_err(|_| format!("Open {} failed", location.display()))?;
 
         let json: serde_json::Value = serde_json::from_reader(file)
             .map_err(|_| format!("Parse {} failed", location.display()))?;
@@ -81,27 +82,13 @@ impl Resolver {
 
         Ok(PkgFileInfo {
             name,
-            abs_dir_path: path.to_path_buf(),
+            abs_dir_path: dir.to_path_buf(),
             main_fields,
             alias_fields,
             exports_field_tree,
             imports_field_tree,
             side_effects,
         })
-    }
-
-    fn find_description_file_dir(
-        now_dir: &Path,
-        description_file_name: &String,
-    ) -> Option<PathBuf> {
-        let description_path = now_dir.join(description_file_name);
-        if description_path.is_file() {
-            Some(now_dir.to_path_buf())
-        } else {
-            now_dir
-                .parent()
-                .and_then(|parent| Self::find_description_file_dir(parent, description_file_name))
-        }
     }
 
     pub(crate) fn load_pkg_file(&self, path: &Path) -> RResult<Option<Arc<PkgFileInfo>>> {
@@ -117,16 +104,16 @@ impl Resolver {
             r#ref.clone()
         } else {
             let description_file_name = self.options.description_file.as_ref().unwrap();
-            let (pkg_info, target_dir) = if let Some(target_dir) =
-                Self::find_description_file_dir(path, description_file_name)
-            {
-                let parsed =
-                    Arc::new(self.parse_description_file(&target_dir, description_file_name)?);
-                (Some(parsed), Some(target_dir))
-            } else {
-                (None, None)
-            };
+            let (pkg_info, target_dir) =
+                if let Some(target_dir) = Self::find_up(path, description_file_name) {
+                    let parsed =
+                        Arc::new(self.parse_description_file(&target_dir, description_file_name)?);
+                    (Some(parsed), Some(target_dir))
+                } else {
+                    (None, None)
+                };
 
+            // TODO: should optimized
             if let Some(cache) = self.unsafe_cache.as_ref() {
                 let mut temp_dir = path.to_path_buf();
                 let target_dir = if let Some(target_dir) = target_dir {

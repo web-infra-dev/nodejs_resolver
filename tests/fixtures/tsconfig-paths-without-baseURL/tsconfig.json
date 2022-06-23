@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "test": [
+        ".",
+        "..",
+        "./good",
+        ".\\good",
+        "../good",
+        "..\\good",
+        "/good",
+        "\\good",
+        "c:/good",
+        "c:\\good",
+        "C:/good",
+        "C:\\good",
+
+        "bad",
+        "@bad/core",
+        ".*/bad",
+        "..*/bad",
+        "c*:\\bad",
+        "c:*\\bad",
+        "http://bad"
+      ]
+    }
+  }
+}

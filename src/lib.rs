@@ -47,8 +47,9 @@ mod normalize;
 mod options;
 mod parse;
 mod plugin;
-mod raise;
 mod resolve;
+mod tsconfig_path;
+mod utils;
 
 use dashmap::DashMap;
 use description::PkgFileInfo;
@@ -62,7 +63,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::raise::RAISE_RESOLVE_ERROR_TAG;
+use crate::utils::RAISE_RESOLVE_ERROR_TAG;
 
 #[derive(Default, Debug)]
 pub struct Resolver {
@@ -76,11 +77,7 @@ pub struct Resolver {
 #[derive(Default, Debug)]
 pub struct ResolverUnsafeCache {
     pub pkg_info: DashMap<PathBuf, Option<Arc<PkgFileInfo>>>,
-    pub tsconfig_info: DashMap<PathBuf, Option<Arc<TsConfigInfo>>>,
 }
-
-#[derive(Default, Debug)]
-pub struct TsConfigInfo {}
 
 #[derive(Default, Debug)]
 pub struct ResolverSafeCache {
@@ -101,13 +98,11 @@ impl ResolverInfo {
     }
 
     pub fn get_path(&self) -> PathBuf {
-        // TODO: should changed to following:
-        // if self.request.kind.eq(&PathKind::Normal) {
-        //     self.path.join(MODULE).join(&*self.request.target)
-        // } else {
-        //     self.path.join(&*self.request.target)
-        // }
-        self.path.join(&*self.request.target)
+        if self.request.target.is_empty() {
+            self.path.to_path_buf()
+        } else {
+            self.path.join(&*self.request.target)
+        }
     }
 
     pub fn with_path(self, path: PathBuf) -> Self {
@@ -208,7 +203,12 @@ impl Resolver {
 
     pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolverResult> {
         let info = ResolverInfo::from(path.to_path_buf(), self.parse(request));
-        match self._resolve(info) {
+        let result = if let Some(tsconfig_location) = self.options.tsconfig.as_ref() {
+            self._resolve_with_tsconfig(info, tsconfig_location)
+        } else {
+            self._resolve(info)
+        };
+        match result {
             ResolverStats::Success(result) => self.normalize_result(result),
             ResolverStats::Error((err_msg, _)) => Err(err_msg),
             _ => unreachable!(),
@@ -225,7 +225,6 @@ impl Resolver {
                     Ok(pkg_info_wrap) => pkg_info_wrap,
                     Err(error) => return ResolverStats::Error((error, info)),
                 };
-
                 ImportsFieldPlugin::new(&pkg_info_wrap)
                     .apply(self, info)
                     .and_then(|info| AliasFieldPlugin::new(&pkg_info_wrap).apply(self, info))

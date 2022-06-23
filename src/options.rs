@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 
 #[derive(Debug, Clone)]
 pub enum AliasMap {
@@ -54,7 +54,7 @@ pub struct ResolverOptions {
     /// and `paths` in the corresponding tsconfig,
     /// and processes the mappings.
     /// Default is `None`.
-    pub tsconfig: Option<String>,
+    pub tsconfig: Option<PathBuf>,
 }
 
 impl Default for ResolverOptions {
@@ -88,7 +88,7 @@ impl Default for ResolverOptions {
             alias_fields,
             condition_names,
             enforce_extension,
-            tsconfig
+            tsconfig,
         }
     }
 }
