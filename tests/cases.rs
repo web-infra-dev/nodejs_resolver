@@ -1314,14 +1314,85 @@ fn scoped_packages_test() {
 fn exports_fields_test() {
     // TODO: [`exports_fields`](https://github.com/webpack/enhanced-resolve/blob/main/test/exportsField.js#L2280) flag
 
+    let export_cases_path = p(vec!["exports-field"]);
+
+    let resolver = Resolver::new(ResolverOptions {
+        extensions: vec![String::from("js")],
+        condition_names: vec_to_set!(["import"]),
+        ..Default::default()
+    });
+
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "@scope/import-require",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "@scope",
+            "import-require",
+            "dist",
+            "esm",
+            "index.js",
+        ]),
+    );
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "@scope/import-require/a",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "@scope",
+            "import-require",
+            "dist",
+            "esm",
+            "a",
+            "index.js",
+        ]),
+    );
+
+    let resolver = Resolver::new(ResolverOptions {
+        extensions: vec![String::from("js")],
+        condition_names: vec_to_set!(["require"]),
+        ..Default::default()
+    });
+
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "@scope/import-require",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "@scope",
+            "import-require",
+            "dist",
+            "esm",
+            "index.js",
+        ]),
+    );
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "@scope/import-require/a",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "@scope",
+            "import-require",
+            "dist",
+            "cjs",
+            "a",
+            "index.js",
+        ]),
+    );
+
     let resolver = Resolver::new(ResolverOptions {
         extensions: vec![String::from("js")],
         condition_names: vec_to_set!(["webpack"]),
         ..Default::default()
     });
-
-    let export_cases_path = p(vec!["exports-field"]);
-
     should_error(
         &resolver,
         &export_cases_path,
@@ -1331,7 +1402,6 @@ fn exports_fields_test() {
             export_cases_path.display()
         ),
     );
-
     should_error(
         &resolver,
         &export_cases_path,

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.18
+
+- fix error resolve when request has scope path with exportsField.
+
 ## 0.0.17
 
 - code optimization.
