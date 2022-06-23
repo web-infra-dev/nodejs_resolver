@@ -15,6 +15,7 @@ daachorse = "0.4.1"
 once_cell = "1.10.0"
 phf = { version = "0.10.1", features = ["macros"] }
 smol_str = "0.1.23"
+tsconfig = "0.1.0"
 
 [profile.bench]
 lto = true

@@ -7,6 +7,7 @@
 - no longer support `modules` filed in options.
 - no longer support node buildIn module, such as `resolve(xxx, 'fs')` will throw error when there is no `'fs'` polyfill.
 - changed `Option<String>` to `AliasMap` in `Options.alias` and `PkgFileInfo.aliasField`.
+- support tsconfig path mapping.
 
 ## 0.0.16
 

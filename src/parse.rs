@@ -18,6 +18,15 @@ impl std::fmt::Display for Request {
 }
 
 impl Request {
+    pub(crate) fn empty() -> Self {
+        Self {
+            target: "".into(),
+            query: "".into(),
+            fragment: "".into(),
+            kind: PathKind::Relative,
+        }
+    }
+
     pub(crate) fn parse_identifier(ident: &str) -> (String, String, String) {
         // maybe we should use regexp: https://github.com/webpack/enhanced-resolve/blob/main/lib/util/identifier.js#L8
         let mut target = String::new();

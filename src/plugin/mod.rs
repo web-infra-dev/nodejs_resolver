@@ -6,7 +6,6 @@ mod imports_field;
 mod main_field;
 mod main_file;
 mod prefer_relative;
-mod tsconfig;
 
 use crate::{Resolver, ResolverInfo, ResolverStats};
 
@@ -18,7 +17,6 @@ pub use imports_field::ImportsFieldPlugin;
 pub use main_field::MainFieldPlugin;
 pub use main_file::MainFilePlugin;
 pub use prefer_relative::PreferRelativePlugin;
-pub use tsconfig::TsConfigPathPlugin;
 
 pub(crate) trait Plugin {
     fn apply(&self, resolver: &Resolver, info: ResolverInfo) -> ResolverStats;
