@@ -48,6 +48,7 @@ mod options;
 mod parse;
 mod plugin;
 mod resolve;
+mod tsconfig;
 mod tsconfig_path;
 mod utils;
 

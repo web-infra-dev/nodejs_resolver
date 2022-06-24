@@ -1,11 +1,11 @@
 // Copy from https://github.com/dividab/tsconfig-paths
 
+use super::tsconfig::TsConfig;
 use crate::{parse::Request, RResult, Resolver, ResolverInfo, ResolverStats};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
-use tsconfig::TsConfig;
 
 #[derive(Default, Debug)]
 pub struct TsConfigInfo {
@@ -38,11 +38,8 @@ impl Resolver {
             .collect()
     }
 
-    fn parse_tsconfig(location: &Path) -> RResult<TsConfigInfo> {
-        // TODO: 1. remove useless options.
-        // TODO: 2. cache
-        let tsconfig = TsConfig::parse_file(&location)
-            .map_err(|_| format!("Parse {} failed", location.display()))?;
+    fn parse_tsconfig(location: &Path, resolver: &Resolver) -> RResult<TsConfigInfo> {
+        let tsconfig = TsConfig::parse_file(location, resolver)?;
         let base_url = tsconfig
             .compiler_options
             .as_ref()
@@ -95,7 +92,7 @@ impl Resolver {
         info: ResolverInfo,
         location: &Path,
     ) -> ResolverStats {
-        let tsconfig = match Self::parse_tsconfig(location) {
+        let tsconfig = match Self::parse_tsconfig(location, self) {
             Ok(tsconfig) => tsconfig,
             Err(error) => return ResolverStats::Error((error, info)),
         };

@@ -34,7 +34,8 @@ fn should_equal(resolver: &Resolver, path: &Path, request: &str, expected: PathB
         Ok(ResolverResult::Info(info)) => {
             assert_eq!(info.join(), expected);
         }
-        _ => unreachable!(),
+        Ok(ResolverResult::Ignored) => panic!("should not ignored"),
+        Err(error) => panic!("{}", error),
     }
     should_equal_remove_cache(resolver, path, request, expected)
 }
@@ -1317,7 +1318,6 @@ fn exports_fields_test() {
     let export_cases_path = p(vec!["exports-field"]);
 
     let resolver = Resolver::new(ResolverOptions {
-        extensions: vec![String::from("js")],
         condition_names: vec_to_set!(["import"]),
         ..Default::default()
     });
@@ -2135,5 +2135,33 @@ fn tsconfig_paths_missing_base_url() {
         &case_path,
         "#/test",
         format!("Resolve '#/test' failed in '{}'", case_path.display()),
+    );
+}
+
+#[test]
+fn tsconfig_paths_extends_from_node_modules() {
+    let case_path = p(vec!["tsconfig-paths-extends-from-module"]);
+    let resolver = Resolver::new(ResolverOptions {
+        extensions: vec![".ts".to_string()],
+        tsconfig: Some(case_path.join("tsconfig.json")),
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &case_path,
+        "foo",
+        p(vec!["tsconfig-paths-extends-from-module", "src", "test.ts"]),
+    );
+
+    let resolver = Resolver::new(ResolverOptions {
+        extensions: vec![".ts".to_string()],
+        tsconfig: Some(case_path.join("tsconfig.scope.json")),
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &case_path,
+        "foo",
+        p(vec!["tsconfig-paths-extends-from-module", "src", "test.ts"]),
     );
 }
