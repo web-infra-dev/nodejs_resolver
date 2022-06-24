@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.19
+
+- use `Resolver::_resolve` for tsconfig/extends.
+
 ## 0.0.18
 
 - fix error resolve when request has scope path with exportsField.
