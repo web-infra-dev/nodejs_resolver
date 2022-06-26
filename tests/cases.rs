@@ -1780,13 +1780,17 @@ fn prefer_relative_test() {
 #[test]
 fn pkg_info_cache_test() {
     let fixture_path = p(vec![]);
+    // show tracing tree
+    tracing_span_tree::span_tree().aggregate(true).enable();
     let resolver = Resolver::new(Default::default());
     let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
 
-    assert!(resolver.unsafe_cache.is_some());
+    let full_path = p(vec!["full", "a"]);
+    let _ = resolver.resolve(&full_path, "package3");
+
     let pkg_info_cache = &resolver.unsafe_cache.as_ref().unwrap().pkg_info;
 
-    assert_eq!(pkg_info_cache.len(), 2);
+    assert_eq!(pkg_info_cache.len(), 3);
 
     assert_eq!(
         pkg_info_cache
@@ -1806,8 +1810,26 @@ fn pkg_info_cache_test() {
             .abs_dir_path,
         p(vec!["browser-module"])
     );
+    assert_eq!(
+        pkg_info_cache
+            .get(&p(vec!["full", "a", "node_modules", "package3"]))
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .abs_dir_path,
+        p(vec!["full", "a", "node_modules", "package3"])
+    );
 
-    // without cache
+    // should hit `cache.pkg_info`.
+    let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
+    let _ = resolver.resolve(&full_path, "package3");
+
+    // TODO: more cases.
+}
+
+#[test]
+fn without_pkg_info_cache_test() {
+    let fixture_path = p(vec![]);
     let resolver = Resolver::new(ResolverOptions {
         enable_unsafe_cache: false,
         ..Default::default()
@@ -1815,13 +1837,9 @@ fn pkg_info_cache_test() {
     assert!(resolver.unsafe_cache.is_none());
     let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
     assert!(resolver.unsafe_cache.is_none());
-
-    // TODO: cache after resolve node_modules
-    // TODO: more cases.
 }
 
 #[test]
-
 fn main_fields_test() {
     let fixture_path = p(vec![]);
     let resolver = Resolver::new(ResolverOptions::default());

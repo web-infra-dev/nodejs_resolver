@@ -1,8 +1,12 @@
 # Changelog
 
+## 0.0.21
+
+- optimize `pkg_info` cache.
+
 ## 0.0.20
 
-- fix cache missing.
+- fix `pkg_info` cache missing.
 - introduce `tracing`.
 
 ## 0.0.19
