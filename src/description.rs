@@ -116,6 +116,15 @@ impl Resolver {
             let description_file_name = self.options.description_file.as_ref().unwrap();
             let (pkg_info, target_dir) =
                 if let Some(target_dir) = Self::find_up(path, description_file_name) {
+                    // TODO: should optimized
+                    if let Some(r#ref) = self
+                        .unsafe_cache
+                        .as_ref()
+                        .and_then(|cache| cache.pkg_info.get(&target_dir))
+                    {
+                        return Ok(r#ref.clone());
+                    }
+
                     let parsed =
                         Arc::new(self.parse_description_file(&target_dir, description_file_name)?);
                     (Some(parsed), Some(target_dir))

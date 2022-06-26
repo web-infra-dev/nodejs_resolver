@@ -223,7 +223,12 @@ impl Resolver {
             .apply(self, info)
             .and_then(|info| PreferRelativePlugin::default().apply(self, info))
             .and_then(|info| {
-                let pkg_info_wrap = match self.load_pkg_file(&info.get_path()) {
+                let request = if info.request.kind.eq(&PathKind::Normal) {
+                    info.path.join(MODULE).join(&*info.request.target)
+                } else {
+                    info.get_path()
+                };
+                let pkg_info_wrap = match self.load_pkg_file(&request) {
                     Ok(pkg_info_wrap) => pkg_info_wrap,
                     Err(error) => return ResolverStats::Error((error, info)),
                 };
