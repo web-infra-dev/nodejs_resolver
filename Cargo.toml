@@ -1,6 +1,6 @@
 [package]
 name = "nodejs-resolver"
-version = "0.0.19"
+version = "0.0.20"
 edition = "2021"
 license = "MIT"
 description = "nodejs resolve"
@@ -17,6 +17,12 @@ phf = { version = "0.10.1", features = ["macros"] }
 smol_str = "0.1.23"
 json_comments = "0.2.1"
 regex = "1.5.6"
+tracing = "0.1.35"
+tracing-subscriber = "0.3.11"
+tracing-span-tree = "0.1.1"
 
 [profile.bench]
+lto = true
+
+[profile.release]
 lto = true

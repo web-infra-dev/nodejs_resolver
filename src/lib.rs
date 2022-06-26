@@ -216,6 +216,7 @@ impl Resolver {
         }
     }
 
+    #[tracing::instrument]
     fn _resolve(&self, info: ResolverInfo) -> ResolverStats {
         let resolve_err_msg = Self::raise_resolve_failed_message(&info);
         let stats = AliasPlugin::default()

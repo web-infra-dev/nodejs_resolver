@@ -12,6 +12,7 @@ impl Resolver {
         PathBuf::from(&format!("{}{str}{ext}", path.display()))
     }
 
+    #[tracing::instrument]
     pub(crate) fn resolve_as_file(&self, info: ResolverInfo) -> ResolverStats {
         let path = info.get_path();
         if !(*self.options.enforce_extension.as_ref().unwrap_or(&false)) && path.is_file() {
@@ -23,6 +24,7 @@ impl Resolver {
         }
     }
 
+    #[tracing::instrument]
     pub(crate) fn resolve_as_dir(&self, info: ResolverInfo) -> ResolverStats {
         let dir = info.get_path();
         if !dir.is_dir() {
@@ -39,6 +41,7 @@ impl Resolver {
             .and_then(|info| MainFilePlugin::new(&pkg_info_wrap).apply(self, info))
     }
 
+    #[tracing::instrument]
     pub(crate) fn resolve_as_modules(&self, info: ResolverInfo) -> ResolverStats {
         let original_dir = info.path.clone();
         let module_path = original_dir.join(MODULE);
