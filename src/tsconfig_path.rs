@@ -81,10 +81,10 @@ impl Resolver {
         } else {
             return vec![];
         };
-        match paths {
-            None => vec![],
-            Some(paths) => Self::get_absolute_mapping_entries(&absolute_base_url, paths),
-        }
+        paths
+            .as_ref()
+            .map(|paths| Self::get_absolute_mapping_entries(&absolute_base_url, paths))
+            .unwrap_or_default()
     }
 
     pub(super) fn _resolve_with_tsconfig(

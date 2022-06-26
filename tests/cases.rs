@@ -50,7 +50,10 @@ fn should_ignored(resolver: &Resolver, path: &Path, request: &str) {
 fn should_error(resolver: &Resolver, path: &Path, request: &str, expected_err_msg: String) {
     match resolver.resolve(path, request) {
         Err(err) => {
-            assert!(err.contains(&expected_err_msg))
+            if err.contains(&expected_err_msg) {
+            } else {
+                assert_eq!(err, expected_err_msg);
+            }
         }
         _ => unreachable!(),
     }
@@ -1782,16 +1785,9 @@ fn pkg_info_cache_test() {
 
     assert!(resolver.unsafe_cache.is_some());
     let pkg_info_cache = &resolver.unsafe_cache.as_ref().unwrap().pkg_info;
-    assert_eq!(pkg_info_cache.len(), 3);
-    assert_eq!(
-        pkg_info_cache
-            .get(&p(vec!["browser-module", "lib", "browser"]))
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .abs_dir_path,
-        p(vec!["browser-module"])
-    );
+
+    assert_eq!(pkg_info_cache.len(), 2);
+
     assert_eq!(
         pkg_info_cache
             .get(&p(vec!["browser-module", "lib"]))

@@ -19,6 +19,7 @@ pub struct PkgFileInfo {
 }
 
 impl Resolver {
+    #[tracing::instrument]
     fn parse_description_file(
         &self,
         dir: &Path,
@@ -91,9 +92,18 @@ impl Resolver {
         })
     }
 
+    #[tracing::instrument]
     pub(crate) fn load_pkg_file(&self, path: &Path) -> RResult<Option<Arc<PkgFileInfo>>> {
         if self.options.description_file.is_none() {
             return Ok(None);
+        }
+        // Because the key in `self.unsafe_cache.pkg_info` represents directory.
+        // So this step is ensure `path` pointed to directory.
+        if !path.is_dir() {
+            return match path.parent() {
+                Some(dir) => self.load_pkg_file(dir),
+                None => Err(Resolver::raise_tag()),
+            };
         }
 
         let pkg_info = if let Some(r#ref) = self

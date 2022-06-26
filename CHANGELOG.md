@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.20
+
+- fix cache missing.
+- introduce `tracing`.
+
 ## 0.0.19
 
 - use `Resolver::_resolve` for tsconfig/extends.
