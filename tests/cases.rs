@@ -673,6 +673,23 @@ fn simple_test() {
 }
 
 #[test]
+fn pnpm_structure_test() {
+    let case_path = p(vec!["pnpm-structure"]);
+    let resolver = Resolver::new(ResolverOptions::default());
+    should_equal(
+        &resolver,
+        &case_path.join("module-a"),
+        "module-b",
+        p(vec![
+            "pnpm-structure",
+            "node_modules",
+            "module-b",
+            "index.js",
+        ]),
+    )
+}
+
+#[test]
 fn resolve_test() {
     let fixture_path = p(vec![]);
     let resolver = Resolver::new(ResolverOptions::default());
