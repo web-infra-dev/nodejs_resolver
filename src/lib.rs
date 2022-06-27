@@ -73,6 +73,8 @@ pub struct Resolver {
     pub safe_cache: ResolverSafeCache,
     pub input_path: Option<PathBuf>,
     pub input_request: Option<String>,
+    // /// just use under development.
+    // dbg_map: DashMap<PathBuf, bool>,
 }
 
 #[derive(Default, Debug)]
@@ -199,6 +201,7 @@ impl Resolver {
             safe_cache,
             input_path: None,
             input_request: None,
+            // dbg_map: Default::default(),
         }
     }
 
