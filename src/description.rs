@@ -125,6 +125,17 @@ impl Resolver {
                         return Ok(r#ref.clone());
                     }
 
+                    // {
+                    //     // debug block, comment it when release.
+                    //     let location = target_dir.join(description_file_name);
+                    //     if self.unsafe_cache.is_some() && self.dbg_map.contains_key(&location) {
+                    //         dbg!(&self.unsafe_cache.as_ref().unwrap().pkg_info);
+                    //         dbg!(&self.dbg_map);
+                    //         panic!("Had try to parse same package.json, {}", location.display())
+                    //     }
+                    //     self.dbg_map.insert(location, true);
+                    // }
+
                     let parsed =
                         Arc::new(self.parse_description_file(&target_dir, description_file_name)?);
                     (Some(parsed), Some(target_dir))

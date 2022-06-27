@@ -11,5 +11,5 @@
       "/virtual-in/test": ["./actual/test"],
       "/virtual-in-star/*": ["./actual/*"],
     }
-  }
+  },
 }

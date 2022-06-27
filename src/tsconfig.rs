@@ -1,11 +1,8 @@
 // copy from https://github.com/drivasperez/tsconfig
 
 use crate::{RResult, Resolver, ResolverInfo, ResolverResult, ResolverStats};
-use json_comments::StripComments;
-use regex::Regex;
 use std::collections::HashMap;
 use std::fs::read_to_string;
-use std::io::Read;
 use std::path::Path;
 
 #[derive(Debug, Clone)]
@@ -54,15 +51,13 @@ impl TsConfig {
 }
 
 fn parse_file_to_value(location: &Path, resolver: &Resolver) -> RResult<serde_json::Value> {
-    // let file = File::open(&location).map_err(|_| format!("Open {} failed", location.display()))?;
-    let json =
+    let json_str =
         read_to_string(location).map_err(|_| format!("Open {} failed", location.display()))?;
-    let mut stripped = String::with_capacity(json.len());
-    let _ = StripComments::new(json.as_bytes()).read_to_string(&mut stripped);
-    let re = Regex::new(r",(?P<valid>\s*})").unwrap();
-    let stripped = re.replace_all(&stripped, "$valid");
-    let mut json: serde_json::Value = serde_json::from_str(&stripped)
-        .map_err(|err| format!("Parse {} failed. Error: {err}", location.display()))?;
+    let mut json: serde_json::Value = jsonc_parser::parse_to_serde_value(&json_str)
+        .map_err(|err| format!("Parse {} failed. Error: {err}", location.display()))?
+        .unwrap();
+
+    // merge `extends`.
     if let serde_json::Value::String(s) = &json["extends"] {
         // `location` pointed to `dir/tsconfig.json`
         let dir = location.parent().unwrap().to_path_buf();

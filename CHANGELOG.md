@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.23
+
+- use `jsonc_parse` to parse `tsconfig.json`.
+
 ## 0.0.22
 
 - fix a bug under pnpm.
