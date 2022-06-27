@@ -10,6 +10,6 @@
       "test5/*": ["./test5-first/*", "./test5-second/*"],
       "/virtual-in/test": ["./actual/test"],
       "/virtual-in-star/*": ["./actual/*"],
-    }
+    },
   }
 }

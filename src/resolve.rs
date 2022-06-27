@@ -4,6 +4,7 @@ use crate::plugin::{
     AliasFieldPlugin, ExportsFieldPlugin, ExtensionsPlugin, ImportsFieldPlugin, MainFieldPlugin,
     MainFilePlugin, Plugin,
 };
+use crate::utils::RAISE_RESOLVE_ERROR_TAG;
 use crate::{Resolver, ResolverInfo, ResolverResult, ResolverStats, MODULE};
 
 impl Resolver {
@@ -52,20 +53,24 @@ impl Resolver {
                 Ok(pkg_info) => pkg_info,
                 Err(err) => return ResolverStats::Error((err, info)),
             };
-            let info = info.with_path(module_path);
-            ExportsFieldPlugin::new(&pkg_info)
-                .apply(self, info)
+            let module_info = ResolverInfo::from(module_path, info.request.clone());
+            let stats = ExportsFieldPlugin::new(&pkg_info)
+                .apply(self, module_info)
                 .and_then(|info| ImportsFieldPlugin::new(&pkg_info).apply(self, info))
                 .and_then(|info| AliasFieldPlugin::new(&pkg_info).apply(self, info))
                 .and_then(|info| self.resolve_as_file(info))
-                .and_then(|info| {
-                    let stats = self.resolve_as_dir(info);
-                    if stats.is_success() {
-                        stats
+                .and_then(|info| self.resolve_as_dir(info));
+
+            match &stats {
+                ResolverStats::Error(err) => {
+                    if err.0.eq(RAISE_RESOLVE_ERROR_TAG) {
+                        ResolverStats::Resolving(info)
                     } else {
-                        ResolverStats::Resolving(stats.extract_info())
+                        stats
                     }
-                })
+                }
+                _ => stats,
+            }
         } else {
             ResolverStats::Resolving(info)
         }

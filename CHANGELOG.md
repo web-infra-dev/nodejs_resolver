@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.22
+
+- fix a bug under pnpm.
+
 ## 0.0.21
 
 - optimize `pkg_info` cache.
