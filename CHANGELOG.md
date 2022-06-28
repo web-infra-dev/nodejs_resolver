@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.24
+
+- fix a bug under pnpm which will resolve incorrect package.json and return unexpected result.
+
 ## 0.0.23
 
 - use `jsonc_parse` to parse `tsconfig.json`.

@@ -4,7 +4,6 @@ use crate::plugin::{
     AliasFieldPlugin, ExportsFieldPlugin, ExtensionsPlugin, ImportsFieldPlugin, MainFieldPlugin,
     MainFilePlugin, Plugin,
 };
-use crate::utils::RAISE_RESOLVE_ERROR_TAG;
 use crate::{Resolver, ResolverInfo, ResolverResult, ResolverStats, MODULE};
 
 impl Resolver {
@@ -44,8 +43,13 @@ impl Resolver {
 
     #[tracing::instrument]
     pub(crate) fn resolve_as_modules(&self, info: ResolverInfo) -> ResolverStats {
+        // dbg!(&info);
         let original_dir = info.path.clone();
-        let module_path = original_dir.join(MODULE);
+        let module_path = if original_dir.ends_with(MODULE) {
+            original_dir.to_path_buf()
+        } else {
+            original_dir.join(MODULE)
+        };
 
         let stats = if module_path.is_dir() {
             let target = &info.request.target;
@@ -62,13 +66,7 @@ impl Resolver {
                 .and_then(|info| self.resolve_as_dir(info));
 
             match &stats {
-                ResolverStats::Error(err) => {
-                    if err.0.eq(RAISE_RESOLVE_ERROR_TAG) {
-                        ResolverStats::Resolving(info)
-                    } else {
-                        stats
-                    }
-                }
+                ResolverStats::Error(_) => ResolverStats::Resolving(info),
                 _ => stats,
             }
         } else {
