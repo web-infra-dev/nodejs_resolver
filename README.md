@@ -2,8 +2,6 @@
 
 TodoList:
 
-- [ ] optimized code structure.
-- [ ] test cases of `main_fields` and `main_files`.
 - [ ] error message stack.
 - [ ] test cases for cache.
 
