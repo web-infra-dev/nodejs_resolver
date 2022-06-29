@@ -3,6 +3,7 @@
 ## 0.0.25
 
 - do not resolve as dir when encounter an in-exists node_modules directory.
+- fix a infinity loop in `AliasPlugin`.
 
 ## 0.0.24
 

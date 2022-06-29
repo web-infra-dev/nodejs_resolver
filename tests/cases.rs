@@ -248,10 +248,59 @@ fn alias_test() {
                 String::from("@start"),
                 AliasMap::Target(p(vec!["alias"]).display().to_string()),
             ),
+            (
+                String::from("@recursive/pointed"),
+                AliasMap::Target(String::from("@recursive/general/index.js")),
+            ),
+            (
+                String::from("@recursive/general"),
+                AliasMap::Target(String::from("@recursive/general/redirect.js")),
+            ),
+            (
+                String::from("@recursive"),
+                AliasMap::Target(String::from("@recursive/general")),
+            ),
             (String::from("ignore"), AliasMap::Ignored),
         ],
         ..Default::default()
     });
+
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "@recursive/index",
+        p(vec![
+            "alias",
+            "node_modules",
+            "@recursive",
+            "general",
+            "index.js",
+        ]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "@recursive/general",
+        p(vec![
+            "alias",
+            "node_modules",
+            "@recursive",
+            "general",
+            "redirect.js",
+        ]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "@recursive/pointed",
+        p(vec![
+            "alias",
+            "node_modules",
+            "@recursive",
+            "general",
+            "index.js",
+        ]),
+    );
 
     should_equal(
         &resolver,
