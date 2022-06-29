@@ -8,12 +8,17 @@ pub struct AliasPlugin;
 
 impl Plugin for AliasPlugin {
     fn apply(&self, resolver: &Resolver, info: ResolverInfo) -> ResolverStats {
-        let target = &info.request.target;
+        let inner_target = &info.request.target;
         for (from, to) in &resolver.options.alias {
-            if target.starts_with(from) {
+            if inner_target.starts_with(from) {
                 match to {
                     AliasMap::Target(to) => {
-                        let normalized_target = target.replacen(from, to, 1);
+                        if inner_target.eq(to) || inner_target.starts_with(to) {
+                            // skip `target.eq(to)` to reduce useless function call.
+                            // skip `target.starts_with(&format("{to}"))` to prevent infinite loop.
+                            continue;
+                        }
+                        let normalized_target = inner_target.replacen(from, to, 1);
                         let alias_info = ResolverInfo::from(
                             info.path.to_path_buf(),
                             info.request

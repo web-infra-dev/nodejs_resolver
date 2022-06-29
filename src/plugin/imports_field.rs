@@ -35,11 +35,10 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
                 return ResolverStats::Resolving(info);
             };
 
-            assert!(list.len() <= 1); // TODO: need to confirm it.
-
             if let Some(item) = list.first() {
                 let request = resolver.parse(item);
                 let is_normal_kind = matches!(request.kind, PathKind::Normal);
+                let is_internal_kind = matches!(request.kind, PathKind::Internal);
                 let info = ResolverInfo::from(
                     if is_normal_kind {
                         pkg_info.abs_dir_path.join(MODULE)
@@ -49,8 +48,8 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
                     request,
                 );
 
-                let path = info.get_path();
-                let info = if is_normal_kind {
+                if is_normal_kind {
+                    let path = info.get_path();
                     // TODO: should optimized
                     let pkg_info = match resolver.load_pkg_file(&path) {
                         Ok(info) => info,
@@ -62,19 +61,15 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
                         }
                     }
 
-                    let stats = ExportsFieldPlugin::new(&pkg_info)
+                    ExportsFieldPlugin::new(&pkg_info)
                         .apply(resolver, info)
                         .and_then(|info| ImportsFieldPlugin::new(&pkg_info).apply(resolver, info))
-                        .and_then(|info| AliasFieldPlugin::new(&pkg_info).apply(resolver, info));
-                    if let ResolverStats::Resolving(info) = stats {
-                        info
-                    } else {
-                        return stats;
-                    }
+                        .and_then(|info| AliasFieldPlugin::new(&pkg_info).apply(resolver, info))
+                } else if is_internal_kind {
+                    self.apply(resolver, info)
                 } else {
-                    info
-                };
-                ResolverStats::Resolving(info)
+                    ResolverStats::Resolving(info)
+                }
             } else {
                 ResolverStats::Error((format!("Package path {target} is not exported"), info))
             }

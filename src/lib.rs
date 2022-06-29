@@ -79,6 +79,7 @@ pub struct Resolver {
 
 #[derive(Default, Debug)]
 pub struct ResolverUnsafeCache {
+    /// key is pointed to the directory of description file.
     pub pkg_info: DashMap<PathBuf, Option<Arc<PkgFileInfo>>>,
 }
 
