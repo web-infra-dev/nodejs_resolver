@@ -21,7 +21,7 @@ impl<'a> ExportsFieldPlugin<'a> {
         pkg_info.abs_dir_path.to_string_lossy().contains(MODULE)
     }
 
-    fn is_resolve_self(&self, pkg_info: &PkgFileInfo, info: &ResolverInfo) -> bool {
+    pub(crate) fn is_resolve_self(pkg_info: &PkgFileInfo, info: &ResolverInfo) -> bool {
         pkg_info
             .name
             .as_ref()
@@ -39,7 +39,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 return ResolverStats::Resolving(info);
             }
 
-            if !self.is_in_module(pkg_info) && !self.is_resolve_self(pkg_info, &info) {
+            if !self.is_in_module(pkg_info) && !Self::is_resolve_self(pkg_info, &info) {
                 return ResolverStats::Resolving(info);
             }
 

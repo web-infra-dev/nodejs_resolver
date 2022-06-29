@@ -676,6 +676,40 @@ fn simple_test() {
 fn pnpm_structure_test() {
     let case_path = p(vec!["pnpm-structure", "node_modules"]);
     let resolver = Resolver::new(ResolverOptions::default());
+
+    should_equal(
+        &resolver,
+        &case_path.join("exports-field-c").join("lib"),
+        "exports-field-b/b",
+        p(vec![
+            "pnpm-structure",
+            "node_modules",
+            "exports-field-b",
+            "index.js",
+        ]),
+    );
+    should_error(
+        &resolver,
+        &case_path.join("exports-field-c"),
+        "./b",
+        format!(
+            "Resolve './b' failed in '{}'",
+            case_path.join("exports-field-c").display()
+        ),
+    );
+    should_equal(
+        &resolver,
+        &case_path.join("exports-field-c").join("lib"),
+        "./b",
+        p(vec![
+            "pnpm-structure",
+            "node_modules",
+            "exports-field-c",
+            "lib",
+            "b.js",
+        ]),
+    );
+
     should_equal(
         &resolver,
         &case_path.join("exports-field-a").join("lib"),
@@ -711,21 +745,11 @@ fn pnpm_structure_test() {
         ]),
     );
 
-    // TODO: error stack
-    // should_error(
-    //     &resolver,
-    //     &case_path.join("exports-field-a"),
-    //     "exports-field-b",
-    //     "Package path exports-field-b is not exported".to_string(),
-    // );
     should_error(
         &resolver,
         &case_path.join("exports-field-a"),
         "exports-field-b",
-        format!(
-            "Resolve 'exports-field-b' failed in '{}'",
-            case_path.join("exports-field-a").display()
-        ),
+        "Package path exports-field-b is not exported".to_string(),
     );
 
     should_equal(
@@ -756,6 +780,14 @@ fn pnpm_structure_test() {
 fn resolve_test() {
     let fixture_path = p(vec![]);
     let resolver = Resolver::new(ResolverOptions::default());
+
+    should_equal(
+        &resolver,
+        &fixture_path,
+        "m1/a.js",
+        p(vec!["node_modules", "m1", "a.js"]),
+    );
+
     should_equal(
         &resolver,
         &fixture_path,
@@ -888,8 +920,6 @@ fn resolve_test() {
         "m1/a",
         p(vec!["node_modules", "m1", "a.js"]),
     );
-
-    // TODO: preferRelativeResolve
 }
 
 #[test]
@@ -1486,54 +1516,29 @@ fn exports_fields_test() {
         ),
     );
     // TODO: error stack
-    // should_error(
-    //     &resolver,
-    //     &export_cases_path,
-    //     "exports-field/x.js",
-    //     "Package path exports-field/x.js is not exported".to_string(),
-    // );
     should_error(
         &resolver,
         &export_cases_path,
         "exports-field/x.js",
-        format!(
-            "Resolve 'exports-field/x.js' failed in '{}",
-            export_cases_path.display()
-        ),
+        "Package path exports-field/x.js is not exported".to_string(),
     );
 
     // TODO: error stack
-    // should_error(
-    //     &resolver,
-    //     &export_cases_path,
-    //     "exports-field/dist/a.js",
-    //     "Package path exports-field/dist/a.js is not exported".to_string(),
-    // );
     should_error(
         &resolver,
         &export_cases_path,
         "exports-field/dist/a.js",
-        format!(
-            "Resolve 'exports-field/dist/a.js' failed in '{}'",
-            export_cases_path.display()
-        ),
+        "Package path exports-field/dist/a.js is not exported".to_string(),
     );
+
     // TODO: error stack
-    // should_error(
-    //     &resolver,
-    //     &export_cases_path,
-    //     "exports-field/dist/../../../a.js",
-    //     "Package path exports-field/dist/../../../a.js is not exported".to_string(),
-    // );
     should_error(
         &resolver,
         &export_cases_path,
         "exports-field/dist/../../../a.js",
-        format!(
-            "Resolve 'exports-field/dist/../../../a.js' failed in '{}'",
-            export_cases_path.display()
-        ),
+        "Package path exports-field/dist/../../../a.js is not exported".to_string(),
     );
+
     should_equal(
         &resolver,
         &export_cases_path,
@@ -1566,22 +1571,13 @@ fn exports_fields_test() {
         p(vec!["exports-field", "a.js"]),
     );
     // TODO: error stack
-    // should_error(
-    //     &resolver,
-    //     &export_cases_path,
-    //     "@exports-field/core/a",
-    //     "Package path @exports-field/core/a is not exported".to_string(),
-    // );
-
     should_error(
         &resolver,
         &export_cases_path,
         "@exports-field/core/a",
-        format!(
-            "Resolve '@exports-field/core/a' failed in '{}'",
-            export_cases_path.display()
-        ),
+        "Package path @exports-field/core/a is not exported".to_string(),
     );
+
     // `exports` only used in `Normal` target.
     should_equal(
         &resolver,
@@ -1605,68 +1601,32 @@ fn exports_fields_test() {
         ),
     );
     // TODO: error stack
-    // should_error(
-    //     &resolver,
-    //     &export_cases_path,
-    //     "exports-field/anything/else",
-    //     "Package path exports-field/anything/else is not exported".to_string(),
-    // );
     should_error(
         &resolver,
         &export_cases_path,
         "exports-field/anything/else",
-        format!(
-            "Resolve 'exports-field/anything/else' failed in '{}'",
-            export_cases_path.display()
-        ),
+        "Package path exports-field/anything/else is not exported".to_string(),
     );
     // TODO: error stack
-    // should_error(
-    //     &resolver,
-    //     &export_cases_path,
-    //     "exports-field/",
-    //     "Only requesting file allowed".to_string(),
-    // );
     should_error(
         &resolver,
         &export_cases_path,
         "exports-field/",
-        format!(
-            "Resolve 'exports-field/' failed in '{}'",
-            export_cases_path.display()
-        ),
+        "Only requesting file allowed".to_string(),
     );
     // TODO: error stack
-    // should_error(
-    //     &resolver,
-    //     &export_cases_path,
-    //     "exports-field/dist",
-    //     "Package path exports-field/dist is not exported".to_string(),
-    // );
     should_error(
         &resolver,
         &export_cases_path,
         "exports-field/dist",
-        format!(
-            "Resolve 'exports-field/dist' failed in '{}'",
-            export_cases_path.display()
-        ),
+        "Package path exports-field/dist is not exported".to_string(),
     );
     // TODO: error stack
-    // should_error(
-    //     &resolver,
-    //     &export_cases_path,
-    //     "exports-field/lib",
-    //     "Package path exports-field/lib is not exported".to_string(),
-    // );
     should_error(
         &resolver,
         &export_cases_path,
         "exports-field/lib",
-        format!(
-            "Resolve 'exports-field/lib' failed in '{}'",
-            export_cases_path.display()
-        ),
+        "Package path exports-field/lib is not exported".to_string(),
     );
 
     should_error(
@@ -1741,53 +1701,26 @@ fn exports_fields_test() {
         ]),
     );
     // TODO: error stack
-    // should_error(
-    //     &resolver,
-    //     &export_cases_path2,
-    //     "exports-field/dist/main",
-    //     "Package path exports-field/dist/main is not exported".to_string(),
-    // );
     should_error(
         &resolver,
         &export_cases_path2,
         "exports-field/dist/main",
-        format!(
-            "Resolve 'exports-field/dist/main' failed in '{}'",
-            export_cases_path2.display()
-        ),
+        "Package path exports-field/dist/main is not exported".to_string(),
     );
     // TODO: error stack
     // TODO: should `exports-field?foo is not exported`.
-    // should_error(
-    //     &resolver,
-    //     &export_cases_path2,
-    //     "exports-field?foo",
-    //     "Package path exports-field is not exported".to_string(),
-    // );
     should_error(
         &resolver,
         &export_cases_path2,
         "exports-field?foo",
-        format!(
-            "Resolve 'exports-field?foo' failed in '{}'",
-            export_cases_path2.display()
-        ),
+        "Package path exports-field is not exported".to_string(),
     );
     // TODO: error stack
-    // should_error(
-    //     &resolver,
-    //     &export_cases_path2,
-    //     "exports-field#foo",
-    //     "Package path exports-field is not exported".to_string(),
-    // );
     should_error(
         &resolver,
         &export_cases_path2,
         "exports-field#foo",
-        format!(
-            "Resolve 'exports-field#foo' failed in '{}'",
-            export_cases_path2.display()
-        ),
+        "Package path exports-field is not exported".to_string(),
     );
     should_equal(
         &resolver,

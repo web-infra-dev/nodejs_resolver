@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.25
+
+- do not resolve as dir when encounter an in-exists node_modules directory.
+
 ## 0.0.24
 
 - fix a bug under pnpm which will resolve incorrect package.json and return unexpected result.
