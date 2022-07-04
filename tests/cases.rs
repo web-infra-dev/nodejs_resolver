@@ -1834,6 +1834,21 @@ fn exports_fields_test() {
             "browser.js",
         ]),
     );
+
+    let export_cases_path4 = p(vec!["exports-field-error"]);
+
+    let resolver = Resolver::new(ResolverOptions {
+        extensions: vec![String::from("js")],
+        condition_names: vec_to_set!(["webpack"]),
+        ..Default::default()
+    });
+
+    should_error(
+        &resolver,
+        &export_cases_path4,
+        "exports-field",
+        "Package path exports-field is not exported".to_string(),
+    );
 }
 
 #[test]
@@ -1872,8 +1887,12 @@ fn imports_fields_test() {
         "#imports-field",
         p(vec!["imports-field", "b.js"]),
     );
-    // [ERROR] should fix: https://github.com/webpack/enhanced-resolve/issues/346
-    should_equal(&resolver, &import_cases_path, "#b", p(vec!["b.js"]));
+    should_error(
+        &resolver,
+        &import_cases_path,
+        "#b",
+        "Package path #b is not exported".to_string(),
+    );
     should_equal(
         &resolver,
         &import_cases_path,

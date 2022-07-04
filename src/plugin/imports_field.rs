@@ -16,6 +16,14 @@ impl<'a> ImportsFieldPlugin<'a> {
     pub fn new(pkg_info: &'a Option<Arc<PkgFileInfo>>) -> Self {
         Self { pkg_info }
     }
+
+    fn check_target(info: ResolverInfo, target: &str) -> ResolverStats {
+        if info.get_path().is_file() && ImportsField::check_target(&info.request.target) {
+            ResolverStats::Resolving(info)
+        } else {
+            ResolverStats::Error((format!("Package path {target} is not exported"), info))
+        }
+    }
 }
 
 impl<'a> Plugin for ImportsFieldPlugin<'a> {
@@ -65,10 +73,11 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
                         .apply(resolver, info)
                         .and_then(|info| ImportsFieldPlugin::new(&pkg_info).apply(resolver, info))
                         .and_then(|info| AliasFieldPlugin::new(&pkg_info).apply(resolver, info))
+                        .and_then(|info| ImportsFieldPlugin::check_target(info, target))
                 } else if is_internal_kind {
                     self.apply(resolver, info)
                 } else {
-                    ResolverStats::Resolving(info)
+                    ImportsFieldPlugin::check_target(info, target)
                 }
             } else {
                 ResolverStats::Error((format!("Package path {target} is not exported"), info))
