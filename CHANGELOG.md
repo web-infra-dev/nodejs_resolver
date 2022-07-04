@@ -1,5 +1,9 @@
 # Changelog
 
+## unreleased
+
+- fix imports field redirect scope range.
+
 ## 0.0.25
 
 - do not resolve as dir when encounter an in-exists node_modules directory.

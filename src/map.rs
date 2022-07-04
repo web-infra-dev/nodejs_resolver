@@ -80,6 +80,28 @@ pub struct PathTreeNode {
 /// TODO: should seal all functions except
 ///  `build_field_path_tree` and `field_process`.
 pub trait Field {
+    fn check_target(relative_path: &str) -> bool {
+        let relative_path = relative_path.chars().collect::<Vec<char>>();
+        let slash_index_list = PathTreeNode::get_next_list(&relative_path, '/');
+        let mut last_non_slash_index = 0;
+        let mut cd = 0;
+        while let Some(&Some(slash_index)) = slash_index_list.get(last_non_slash_index) {
+            if relative_path[last_non_slash_index] == '.'
+                && relative_path[last_non_slash_index + 1] == '.'
+            {
+                cd -= 1;
+                if cd < 0 {
+                    return false;
+                }
+            } else if relative_path[last_non_slash_index] == '.' {
+            } else {
+                cd += 1;
+            }
+            last_non_slash_index = slash_index + 1;
+        }
+        true
+    }
+
     fn assert_target(exp: &str, expect_folder: bool) -> RResult<bool>;
     fn assert_request(request: &str) -> RResult<Vec<char>>;
     fn build_field_path_tree(json_value: &serde_json::Value) -> RResult<PathTreeNode>;
@@ -305,31 +327,6 @@ impl Field for ExportsField {
             }
         }
         Ok(root)
-    }
-}
-
-impl ExportsField {
-    pub fn check_target(relative_path: &str) -> bool {
-        // TODO: Does the same treatment need to be applied to `ImportsField`?
-        let relative_path = relative_path.chars().collect::<Vec<char>>();
-        let slash_index_list = PathTreeNode::get_next_list(&relative_path, '/');
-        let mut last_non_slash_index = 2;
-        let mut cd = 0;
-        while let Some(&Some(slash_index)) = slash_index_list.get(last_non_slash_index) {
-            if slash_index == last_non_slash_index + 2
-                && relative_path[last_non_slash_index] == '.'
-                && relative_path[last_non_slash_index + 1] == '.'
-            {
-                cd -= 1;
-                if cd < 0 {
-                    return false;
-                }
-            } else {
-                cd += 1;
-            }
-            last_non_slash_index = slash_index + 1;
-        }
-        true
     }
 }
 
@@ -1855,4 +1852,17 @@ fn imports_field_map_test() {
             "default": "./b/"
         }
     }), "#a/", ["browser"]; "Only requesting file allowed");
+}
+
+#[test]
+fn check_target_test() {
+    assert!(!ExportsField::check_target("../a.js"));
+    assert!(!ExportsField::check_target("../"));
+    assert!(!ExportsField::check_target("./a/b/../../../c.js"));
+    assert!(!ExportsField::check_target("./a/b/../../../"));
+    assert!(!ExportsField::check_target("./../../c.js"));
+    assert!(!ExportsField::check_target("./../../"));
+    assert!(!ExportsField::check_target("./a/../b/../../c.js"));
+    assert!(!ExportsField::check_target("./a/../b/../../"));
+    assert!(!ExportsField::check_target("./././../"));
 }
