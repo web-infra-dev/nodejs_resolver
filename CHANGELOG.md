@@ -1,8 +1,9 @@
 # Changelog
 
-## unreleased
+## 0.0.26
 
 - fix imports field redirect scope range.
+- support external unsafe cache.
 
 ## 0.0.25
 
