@@ -1,6 +1,7 @@
-use nodejs_resolver::{AliasMap, Resolver, ResolverOptions, ResolverResult};
+use nodejs_resolver::{AliasMap, Resolver, ResolverOptions, ResolverResult, ResolverUnsafeCache};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 macro_rules! get_cases_path {
     ($path: expr) => {
@@ -18,7 +19,7 @@ fn p(paths: Vec<&str>) -> PathBuf {
 
 fn should_equal_remove_cache(resolver: &Resolver, path: &Path, request: &str, expected: PathBuf) {
     let resolver = Resolver::new(ResolverOptions {
-        enable_unsafe_cache: false,
+        disable_unsafe_cache: true,
         ..resolver.options.clone()
     });
     match resolver.resolve(path, request) {
@@ -2023,10 +2024,34 @@ fn pkg_info_cache_test() {
 }
 
 #[test]
+fn external_unsafe_cache_test() {
+    let unsafe_cache = Arc::new(ResolverUnsafeCache::default());
+    let fixture_path = p(vec![]);
+
+    let resolver = Resolver::new(ResolverOptions {
+        unsafe_cache: Some(unsafe_cache.clone()),
+        ..Default::default()
+    });
+    let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
+    assert_eq!(unsafe_cache.pkg_info.len(), 2);
+    assert_eq!(resolver.unsafe_cache.as_ref().unwrap().pkg_info.len(), 2);
+
+    let resolver = Resolver::new(ResolverOptions {
+        unsafe_cache: Some(unsafe_cache.clone()),
+        ..Default::default()
+    });
+
+    let full_path = p(vec!["full", "a"]);
+    let _ = resolver.resolve(&full_path, "package3");
+    assert_eq!(unsafe_cache.pkg_info.len(), 3);
+    assert_eq!(resolver.unsafe_cache.as_ref().unwrap().pkg_info.len(), 3);
+}
+
+#[test]
 fn without_pkg_info_cache_test() {
     let fixture_path = p(vec![]);
     let resolver = Resolver::new(ResolverOptions {
-        enable_unsafe_cache: false,
+        disable_unsafe_cache: true,
         ..Default::default()
     });
     assert!(resolver.unsafe_cache.is_none());

@@ -69,7 +69,7 @@ use crate::utils::RAISE_RESOLVE_ERROR_TAG;
 #[derive(Default, Debug)]
 pub struct Resolver {
     pub options: ResolverOptions,
-    pub unsafe_cache: Option<ResolverUnsafeCache>,
+    pub unsafe_cache: Option<Arc<ResolverUnsafeCache>>,
     pub safe_cache: ResolverSafeCache,
     pub input_path: Option<PathBuf>,
     pub input_request: Option<String>,
@@ -77,7 +77,7 @@ pub struct Resolver {
     // dbg_map: DashMap<PathBuf, bool>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct ResolverUnsafeCache {
     /// key is pointed to the directory of description file.
     pub pkg_info: DashMap<PathBuf, Option<Arc<PkgFileInfo>>>,
@@ -169,10 +169,12 @@ pub(crate) type RResult<T> = Result<T, ResolverError>;
 
 impl Resolver {
     pub fn new(options: ResolverOptions) -> Self {
-        let unsafe_cache = if options.enable_unsafe_cache {
-            Some(ResolverUnsafeCache::default())
-        } else {
+        let unsafe_cache = if options.disable_unsafe_cache {
             None
+        } else if let Some(external_unsafe_cache) = options.unsafe_cache.as_ref() {
+            Some(external_unsafe_cache.clone())
+        } else {
+            Some(Arc::new(ResolverUnsafeCache::default()))
         };
         let safe_cache = ResolverSafeCache::default();
         let extensions: Vec<String> = options

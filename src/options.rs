@@ -1,4 +1,6 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::{collections::HashSet, path::PathBuf, sync::Arc};
+
+use crate::ResolverUnsafeCache;
 
 #[derive(Debug, Clone)]
 pub enum AliasMap {
@@ -26,8 +28,19 @@ pub struct ResolverOptions {
     /// Cache had stored the processed `description_file` parsing information by default,
     /// but the action is not secure, and when you try to modify a `description_file`,
     /// they will still use the data before the modification.
-    /// Default is `true`.
-    pub enable_unsafe_cache: bool,
+    /// Default is `false`.
+    pub disable_unsafe_cache: bool,
+    /// Use of cache defined external, it designed to shared the info of `description_file`
+    /// in different.
+    ///
+    /// - If `disable_unsafe_cache` is `true`, do not use any cache.
+    /// - If `disable_unsafe_cache` is `false`,
+    /// and `unsafe_cache` is `None`, use default cache in resolver.
+    /// - If `disable_unsafe_cache` is `false`,
+    /// and `unsafe_cache.is_some()` is true, use this cache.
+    ///
+    /// Default is `None`.
+    pub unsafe_cache: Option<Arc<ResolverUnsafeCache>>,
     /// Whether to resolve the real path when the result
     /// is a symlink.
     /// Default is `true`.
@@ -73,11 +86,12 @@ impl Default for ResolverOptions {
         let condition_names: HashSet<String> =
             HashSet::from_iter(["node"].into_iter().map(String::from));
         let prefer_relative = false;
-        let enable_unsafe_cache = true;
+        let disable_unsafe_cache = false;
         let enforce_extension = None;
         let tsconfig = None;
+        let unsafe_cache = None;
         Self {
-            enable_unsafe_cache,
+            disable_unsafe_cache,
             prefer_relative,
             extensions,
             main_files,
@@ -89,6 +103,7 @@ impl Default for ResolverOptions {
             condition_names,
             enforce_extension,
             tsconfig,
+            unsafe_cache,
         }
     }
 }
