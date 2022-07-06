@@ -79,6 +79,7 @@ impl Resolver {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
+        // TODO: `bool` or `string array`.
         let side_effects = json.get("sideEffects").and_then(|v| v.as_bool());
 
         Ok(PkgFileInfo {
