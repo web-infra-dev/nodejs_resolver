@@ -10,5 +10,8 @@
 tests/bench.rs
 bench/esbuildResolve.js
 bench/enhanceResolve.js
+bench/esbuildResolve_native.go
+bench/go.mod
+bench/go.sum
 
 *.log
