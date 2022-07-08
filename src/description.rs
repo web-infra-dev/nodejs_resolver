@@ -51,7 +51,6 @@ impl Resolver {
             if let Some(value) = json.get(alias_filed) {
                 if let Some(map) = value.as_object() {
                     for (key, value) in map {
-                        // TODO: nested
                         if let Some(b) = value.as_bool() {
                             assert!(!b);
                             alias_fields.insert(key.to_string(), AliasMap::Ignored);

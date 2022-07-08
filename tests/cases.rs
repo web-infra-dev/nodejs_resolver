@@ -17,19 +17,6 @@ fn p(paths: Vec<&str>) -> PathBuf {
         })
 }
 
-fn should_equal_remove_cache(resolver: &Resolver, path: &Path, request: &str, expected: PathBuf) {
-    let resolver = Resolver::new(ResolverOptions {
-        disable_unsafe_cache: true,
-        ..resolver.options.clone()
-    });
-    match resolver.resolve(path, request) {
-        Ok(ResolverResult::Info(info)) => {
-            assert_eq!(info.join(), expected);
-        }
-        _ => unreachable!(),
-    }
-}
-
 fn should_equal(resolver: &Resolver, path: &Path, request: &str, expected: PathBuf) {
     match resolver.resolve(path, request) {
         Ok(ResolverResult::Info(info)) => {
@@ -38,7 +25,6 @@ fn should_equal(resolver: &Resolver, path: &Path, request: &str, expected: PathB
         Ok(ResolverResult::Ignored) => panic!("should not ignored"),
         Err(error) => panic!("{}", error),
     }
-    should_equal_remove_cache(resolver, path, request, expected)
 }
 
 fn should_ignored(resolver: &Resolver, path: &Path, request: &str) {
@@ -2048,15 +2034,12 @@ fn external_unsafe_cache_test() {
 }
 
 #[test]
-fn without_pkg_info_cache_test() {
+fn cache_fs() {
     let fixture_path = p(vec![]);
-    let resolver = Resolver::new(ResolverOptions {
-        disable_unsafe_cache: true,
-        ..Default::default()
-    });
-    assert!(resolver.unsafe_cache.is_none());
-    let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
-    assert!(resolver.unsafe_cache.is_none());
+    let resolver = Resolver::new(ResolverOptions::default());
+    // assert!(resolver.unsafe_cache.is_none());·
+    // let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
+    // assert!(resolver.unsafe_cache.is_none());
 }
 
 #[test]

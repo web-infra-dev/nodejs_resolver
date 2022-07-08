@@ -1,4 +1,4 @@
-use crate::{options::AliasMap, Resolver};
+use crate::{options::AliasMap, Resolver, MODULE};
 
 use super::Plugin;
 use crate::{ResolverInfo, ResolverResult, ResolverStats};
@@ -9,6 +9,9 @@ pub struct AliasPlugin;
 impl Plugin for AliasPlugin {
     fn apply(&self, resolver: &Resolver, info: ResolverInfo) -> ResolverStats {
         let inner_target = &info.request.target;
+        if info.path.display().to_string().contains(MODULE) {
+            return ResolverStats::Resolving(info);
+        }
         for (from, to) in &resolver.options.alias {
             if inner_target.starts_with(from) {
                 match to {

@@ -3,6 +3,8 @@ const path = require("path");
 const fs = require("fs");
 const resolver = require("enhanced-resolve");
 
+const root = path.resolve(__dirname, "../ant-design");
+
 // copy from `/ant-design/node_modules/@ant-design/tools/lib/`
 const resolve = resolver.create.sync({
   extensions: [
@@ -92,13 +94,14 @@ function dfs(dir, file, set, callback) {
     highlightCode: false,
     comments: false,
   });
+
   if (!nodeHadRemoveTS.ast) {
     return;
   }
+
   babel.traverse(nodeHadRemoveTS.ast, {
     enter(p) {
       let value = "";
-      // console.log(p.node.type);
 
       if (p.isImportDeclaration()) {
         value = p.node.source.value;
@@ -122,26 +125,24 @@ function dfs(dir, file, set, callback) {
       } else {
         return;
       }
-      if (dir.endsWith("version") && value == "./version") {
+      if (value === "") {
         return;
       }
-      callback(dir, value);
-      // if (dir.includes('component')) {
-      //   resolver.resolve({}, dir, `${value}/style`, {}, (err, next) => {
-      //     if (err) {
-      //       console.log(err);
-      //       return ;
-      //     };
-      //     dfs(getDirFromAbsolutePath(next), getFileFromAbsolutePath(next), set, callback);
-      //   });
-      // }
-      let next = resolve(dir, value);
-      dfs(
-        getDirFromAbsolutePath(next),
-        getFileFromAbsolutePath(next),
-        set,
-        callback
-      );
+
+      try {
+        const next = resolve(dir, value);
+        callback(dir, value);
+        dfs(
+          getDirFromAbsolutePath(next),
+          getFileFromAbsolutePath(next),
+          set,
+          callback
+        );
+      } catch (err) {
+        console.log(
+          `[IGNORED FAILED] resolve ${value} in ${dir} failed, and ignored it.`
+        );
+      }
     },
   });
 }
@@ -151,7 +152,7 @@ function dfs(dir, file, set, callback) {
  * @param {(dir: string, file: string) => void} callback
  */
 function run(callback) {
-  const entryDir = path.resolve(__dirname, "../ant-design/components");
+  const entryDir = path.resolve(root, "./components");
   const entryFile = "index.tsx";
   dfs(entryDir, entryFile, new Set(), callback);
 }
@@ -187,7 +188,6 @@ mod bench_test {
 
     #[bench]
     fn ant_design_bench(b: &mut Bencher) {
-
         b.iter(|| {
           let resolver = Resolver::new(ResolverOptions {
             extensions: vec![
@@ -233,6 +233,8 @@ console.time('bench');
 const path = require('path');
 const resolver = require('enhanced-resolve');
 const Benchmark = require('benchmark'); 
+
+const root = path.resolve(__dirname, "./ant-design");
 
 const resolve = resolver.create.sync({
   extensions: [
@@ -380,7 +382,7 @@ function generatorESBuildNativeResolveBenchMark() {
   func main() {
   `;
   run(function (dir, file) {
-    content += `resolve("${dir}", "${file}");\n`;
+    content += `resolve("${dir}", "${file}")\n`;
   });
 
   content += `}
@@ -393,7 +395,6 @@ function generatorESBuildNativeResolveBenchMark() {
   fs.writeFileSync(goFileStoredPath, content);
 }
 
-
 // -------------------------------------------------
 
 if (process.argv[2] === "rs") {
@@ -403,8 +404,7 @@ if (process.argv[2] === "rs") {
 } else if (process.argv[2] === "enhanced") {
   generatorEnhanceResolveBenchmark();
 } else if (process.argv[2] === "esbuild_native") {
-  generatorkESBuildNativeResolveBenchMark();
-  
+  generatorESBuildNativeResolveBenchMark();
 } else {
   throw Error("Input the correct argument");
 }
