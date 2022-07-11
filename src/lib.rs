@@ -166,7 +166,7 @@ impl ResolverStats {
 
 pub(crate) static MODULE: &str = "node_modules";
 
-pub(crate) type RResult<T> = Result<T, ResolverError>;
+pub type RResult<T> = Result<T, ResolverError>;
 
 impl Resolver {
     pub fn new(options: ResolverOptions) -> Self {
@@ -208,6 +208,7 @@ impl Resolver {
     }
 
     pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolverResult> {
+        // let start = std::time::Instant::now();
         let info = ResolverInfo::from(path.to_path_buf(), self.parse(request));
 
         let result = if let Some(tsconfig_location) = self.options.tsconfig.as_ref() {
@@ -215,6 +216,8 @@ impl Resolver {
         } else {
             self._resolve(info)
         };
+        // println!("time cost: {:?} ms", start.elapsed().as_millis()); // ms
+
         match result {
             ResolverStats::Success(result) => self.normalize_result(result),
             ResolverStats::Error((err_msg, _)) => Err(err_msg),
