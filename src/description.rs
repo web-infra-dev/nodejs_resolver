@@ -1,9 +1,15 @@
 use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
 use crate::{AliasMap, RResult, Resolver};
 use std::collections::HashMap;
-use std::fs::{read_to_string, File};
+use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+#[derive(Clone, Debug)]
+pub enum SideEffects {
+    Bool(bool),
+    Array(Vec<String>),
+}
 
 #[derive(Clone, Debug)]
 pub struct PkgFileInfo {
@@ -15,7 +21,7 @@ pub struct PkgFileInfo {
     pub alias_fields: HashMap<String, AliasMap>,
     pub exports_field_tree: Option<PathTreeNode>,
     pub imports_field_tree: Option<PathTreeNode>,
-    pub side_effects: Option<bool>,
+    pub side_effects: Option<SideEffects>,
 }
 
 impl Resolver {
@@ -82,8 +88,32 @@ impl Resolver {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
-        // TODO: `bool` or `string array`.
-        let side_effects = json.get("sideEffects").and_then(|v| v.as_bool());
+        let side_effects: Option<SideEffects> =
+            json.get("sideEffects").map_or(Ok(None), |value| {
+                if let Some(b) = value.as_bool() {
+                    Ok(Some(SideEffects::Bool(b)))
+                } else if let Some(vec) = value.as_array() {
+                    let mut ans = vec![];
+                    for value in vec {
+                        if let Some(str) = value.as_str() {
+                            ans.push(str.to_string());
+                        } else {
+                            return Err(format!(
+                                "sideEffects in {} had unexpected value {}",
+                                location.display(),
+                                value
+                            ));
+                        }
+                    }
+                    Ok(Some(SideEffects::Array(ans)))
+                } else {
+                    Err(format!(
+                        "sideEffects in {} had unexpected value {}",
+                        location.display(),
+                        value
+                    ))
+                }
+            })?;
 
         Ok(PkgFileInfo {
             name,
@@ -94,6 +124,17 @@ impl Resolver {
             imports_field_tree,
             side_effects,
         })
+    }
+
+    pub fn load_sideeffects(&self, path: &Path) -> RResult<Option<(PathBuf, Option<SideEffects>)>> {
+        Ok(self.load_pkg_file(path)?.map(|pkg_info| {
+            (
+                pkg_info
+                    .abs_dir_path
+                    .join(self.options.description_file.as_ref().unwrap()),
+                pkg_info.side_effects.clone(),
+            )
+        }))
     }
 
     #[tracing::instrument]

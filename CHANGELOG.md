@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.28
+
+- support `sideEffects` in package.json, and export `load_sideeffects`.
+
 ## 0.0.27
 
 - use `serde_json::from_str` instead of `serde_json::from_reader`.
