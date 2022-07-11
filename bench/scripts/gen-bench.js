@@ -3,6 +3,8 @@ const path = require("path");
 const fs = require("fs");
 const resolver = require("enhanced-resolve");
 
+const root = path.resolve(__dirname, "../ant-design");
+
 // copy from `/ant-design/node_modules/@ant-design/tools/lib/`
 const resolve = resolver.create.sync({
   extensions: [
@@ -92,13 +94,14 @@ function dfs(dir, file, set, callback) {
     highlightCode: false,
     comments: false,
   });
+
   if (!nodeHadRemoveTS.ast) {
     return;
   }
+
   babel.traverse(nodeHadRemoveTS.ast, {
     enter(p) {
       let value = "";
-      // console.log(p.node.type);
 
       if (p.isImportDeclaration()) {
         value = p.node.source.value;
@@ -122,26 +125,24 @@ function dfs(dir, file, set, callback) {
       } else {
         return;
       }
-      if (dir.endsWith("version") && value == "./version") {
+      if (value === "") {
         return;
       }
-      callback(dir, value);
-      // if (dir.includes('component')) {
-      //   resolver.resolve({}, dir, `${value}/style`, {}, (err, next) => {
-      //     if (err) {
-      //       console.log(err);
-      //       return ;
-      //     };
-      //     dfs(getDirFromAbsolutePath(next), getFileFromAbsolutePath(next), set, callback);
-      //   });
-      // }
-      let next = resolve(dir, value);
-      dfs(
-        getDirFromAbsolutePath(next),
-        getFileFromAbsolutePath(next),
-        set,
-        callback
-      );
+
+      try {
+        const next = resolve(dir, value);
+        callback(dir, value);
+        dfs(
+          getDirFromAbsolutePath(next),
+          getFileFromAbsolutePath(next),
+          set,
+          callback
+        );
+      } catch (err) {
+        console.log(
+          `[IGNORED FAILED] resolve ${value} in ${dir} failed, and ignored it.`
+        );
+      }
     },
   });
 }
@@ -151,7 +152,7 @@ function dfs(dir, file, set, callback) {
  * @param {(dir: string, file: string) => void} callback
  */
 function run(callback) {
-  const entryDir = path.resolve(__dirname, "../ant-design/components");
+  const entryDir = path.resolve(root, "./components");
   const entryFile = "index.tsx";
   dfs(entryDir, entryFile, new Set(), callback);
 }
@@ -170,24 +171,21 @@ function generatorRsBenchmark() {
 #![feature(test)]
 extern crate test;
 
-macro_rules! is_ok {
-    ($result: expr) => {
-        assert!($result.is_ok())
-    };
-}
-
 #[cfg(test)] 
 mod bench_test {
 
-    use nodejs_resolver::{Resolver, ResolverOptions};
+    use nodejs_resolver::{Resolver, ResolverOptions, ResolverResult, RResult};
     use std::env::current_dir;
     use std::path::PathBuf;
     use test::Bencher;
     use std::time::Instant;
 
+    fn is_ok(result: RResult<ResolverResult>) {
+      assert!(result.is_ok())
+    }
+
     #[bench]
     fn ant_design_bench(b: &mut Bencher) {
-
         b.iter(|| {
           let resolver = Resolver::new(ResolverOptions {
             extensions: vec![
@@ -209,7 +207,7 @@ mod bench_test {
   run(function (dir, file) {
     const relativePath = path.relative(base, dir);
     content += `
-            is_ok!(resolver.resolve(
+            is_ok(resolver.resolve(
                 &PathBuf::from(current_dir().unwrap().join("${relativePath}")), 
                 "${file}",
             ));
@@ -233,6 +231,8 @@ console.time('bench');
 const path = require('path');
 const resolver = require('enhanced-resolve');
 const Benchmark = require('benchmark'); 
+
+const root = path.resolve(__dirname, "./ant-design");
 
 const resolve = resolver.create.sync({
   extensions: [
@@ -284,18 +284,16 @@ function generatorESBuildResolveBenchMark() {
   let content =
     HEADER +
     `
-
 const path = require('path');
 const { build } = require('esbuild');
 const Benchmark = require('benchmark'); 
 
-async function resolve(dir, id) {
-  let result
+const suite = new Benchmark.Suite();
 
+async function run() {
   await build({
     stdin: {
-      contents: \`import \$\{JSON.stringify(id)\}\`,
-      resolveDir: dir,
+      contents: '',
     },
     write: false,
     bundle: true,
@@ -304,33 +302,30 @@ async function resolve(dir, id) {
     platform: 'node',
     plugins: [{
       name: 'resolve',
-      setup({ onLoad }) {
-        onLoad({ filter: /.*/ }, (args) => {
-          result = args.path
-          return { contents: '' }
+      setup(build) {
+        build.onStart(async () => {
+          console.time('bench')
+`;
+  run(function (dir, file) {
+    content += `await build.resolve('${file}', { resolveDir: '${dir}'} );\n`;
+  });
+
+  content += `
+          console.timeEnd('bench')
         })
       },
     }],
   })
-  return result
-}
+};
 
-const suite = new Benchmark.Suite();
+run();
 
-async function run() {
-`;
-  run(function (dir, file) {
-    content += `await resolve('${dir}', '${file}');\n`;
-  });
-
-  content += `};
-
-suite
-  .add("ESBuildResolve", run)
-  .on('cycle', function(event) {
-    console.log(String(event.target));
-  })
-  .run({ 'async': true });
+// suite
+//   .add("ESBuildResolve", run)
+//   .on('cycle', function(event) {
+//     console.log(String(event.target));
+//   })
+//   .run({ 'async': true });
 `;
   console.log("length", content.length);
   const jsFileStoredPath = path.resolve(__dirname, "../esbuildResolve.js");
@@ -347,12 +342,10 @@ function generatorESBuildNativeResolveBenchMark() {
     "github.com/evanw/esbuild/pkg/api"
   )
   
-  func resolve(dir string, id string) string {
-    var result string = ""
+  func main() {
     api.Build(api.BuildOptions{
       Stdin: &api.StdinOptions{
-        Contents:   "import '" + id + "'",
-        ResolveDir: dir,
+        Contents:   "",
       },
       Write:             false,
       TreeShaking:       api.TreeShakingFalse,
@@ -362,28 +355,20 @@ function generatorESBuildNativeResolveBenchMark() {
       Plugins: []api.Plugin{{
         Name: "resolve",
         Setup: func(build api.PluginBuild) {
-          build.OnLoad(api.OnLoadOptions{Filter: \`.*\`},
-            func(args api.OnLoadArgs) (api.OnLoadResult, error) {
-              contents := string("")
-              result = args.Path
-              return api.OnLoadResult{
-                Contents: &contents,
-              }, nil
-            })
-        },
-      },
-      },
-    })
-    return result
-  }
-  
-  func main() {
+          build.OnStart(func() (api.OnStartResult, error) {
   `;
   run(function (dir, file) {
-    content += `resolve("${dir}", "${file}");\n`;
+    content += `build.Resolve("${file}", api.ResolveOptions{ ResolveDir: "${dir}"})\n`;
   });
 
-  content += `}
+  content += `
+          return api.OnStartResult{}, nil
+          })
+        },
+      },
+    },
+  })
+}
   `;
   console.log("length", content.length);
   const goFileStoredPath = path.resolve(
@@ -392,7 +377,6 @@ function generatorESBuildNativeResolveBenchMark() {
   );
   fs.writeFileSync(goFileStoredPath, content);
 }
-
 
 // -------------------------------------------------
 
@@ -403,8 +387,10 @@ if (process.argv[2] === "rs") {
 } else if (process.argv[2] === "enhanced") {
   generatorEnhanceResolveBenchmark();
 } else if (process.argv[2] === "esbuild_native") {
-  generatorkESBuildNativeResolveBenchMark();
-  
+  generatorESBuildNativeResolveBenchMark();
+  const cp = require("child_process");
+  cp.spawnSync("go mod init esbuildResolve_native");
+  cp.spawnSync("go get github.com/evanw/esbuild/pkg/api");
 } else {
   throw Error("Input the correct argument");
 }

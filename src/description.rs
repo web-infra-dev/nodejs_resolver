@@ -1,7 +1,7 @@
 use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
 use crate::{AliasMap, RResult, Resolver};
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs::{read_to_string, File};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -26,11 +26,15 @@ impl Resolver {
         description_file_name: &str,
     ) -> RResult<PkgFileInfo> {
         let location = dir.join(description_file_name);
-        let file =
-            File::open(&location).map_err(|_| format!("Open {} failed", location.display()))?;
 
-        let json: serde_json::Value = serde_json::from_reader(file)
-            .map_err(|_| format!("Parse {} failed", location.display()))?;
+        let str = tracing::debug_span!("read_to_string").in_scope(|| {
+            read_to_string(&location).map_err(|_| format!("Open {} failed", location.display()))
+        })?;
+        let json: serde_json::Value =
+            tracing::debug_span!("serde_json_from_str").in_scope(|| {
+                serde_json::from_str(&str)
+                    .map_err(|_| format!("Parse {} failed", location.display()))
+            })?;
 
         let main_fields = self
             .options
@@ -51,7 +55,6 @@ impl Resolver {
             if let Some(value) = json.get(alias_filed) {
                 if let Some(map) = value.as_object() {
                     for (key, value) in map {
-                        // TODO: nested
                         if let Some(b) = value.as_bool() {
                             assert!(!b);
                             alias_fields.insert(key.to_string(), AliasMap::Ignored);

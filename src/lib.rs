@@ -41,6 +41,7 @@
 //!
 
 mod description;
+mod fs;
 mod kind;
 mod map;
 mod normalize;
@@ -165,13 +166,11 @@ impl ResolverStats {
 
 pub(crate) static MODULE: &str = "node_modules";
 
-pub(crate) type RResult<T> = Result<T, ResolverError>;
+pub type RResult<T> = Result<T, ResolverError>;
 
 impl Resolver {
     pub fn new(options: ResolverOptions) -> Self {
-        let unsafe_cache = if options.disable_unsafe_cache {
-            None
-        } else if let Some(external_unsafe_cache) = options.unsafe_cache.as_ref() {
+        let unsafe_cache = if let Some(external_unsafe_cache) = options.unsafe_cache.as_ref() {
             Some(external_unsafe_cache.clone())
         } else {
             Some(Arc::new(ResolverUnsafeCache::default()))
@@ -209,12 +208,16 @@ impl Resolver {
     }
 
     pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolverResult> {
+        // let start = std::time::Instant::now();
         let info = ResolverInfo::from(path.to_path_buf(), self.parse(request));
+
         let result = if let Some(tsconfig_location) = self.options.tsconfig.as_ref() {
             self._resolve_with_tsconfig(info, tsconfig_location)
         } else {
             self._resolve(info)
         };
+        // println!("time cost: {:?} ms", start.elapsed().as_millis()); // ms
+
         match result {
             ResolverStats::Success(result) => self.normalize_result(result),
             ResolverStats::Error((err_msg, _)) => Err(err_msg),

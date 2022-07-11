@@ -15,6 +15,10 @@ on:
 
 jobs:
   benchmark:
+    strategy:
+      fail-fast: false
+      matrix:
+        manager: [npm, pnpm]
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
@@ -22,12 +26,11 @@ jobs:
       - name: Install minimal nightly
         uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: nightly
       - uses: actions/setup-node@v3
         with:
           node-version: 16
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: bench/package-lock.json
       - name: Configure Rust cache
         uses: actions/cache@v2
@@ -42,7 +45,7 @@ jobs:
       - name: Generate bench case and run
         run: |
           cd ./bench
-          sh ./scripts/run.sh
+          bash ./scripts/run.sh ${{ matrix.manager }}
           cd ..
       - name: Download previous benchmark data
         uses: actions/cache@v1
@@ -52,9 +55,8 @@ jobs:
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
         with:
-          tool: 'cargo'
+          tool: "cargo"
           output-file-path: ./bench/rs_bench.txt
           external-data-json-path: ./cache/benchmark-data.json
-          fail-on-alert: true
           comment-always: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
