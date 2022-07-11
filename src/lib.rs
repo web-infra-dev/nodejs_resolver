@@ -55,11 +55,11 @@ mod utils;
 
 use dashmap::DashMap;
 use description::PkgFileInfo;
+pub use description::SideEffects;
 use kind::PathKind;
 pub use options::{AliasMap, ResolverOptions};
-use plugin::{AliasFieldPlugin, AliasPlugin, ImportsFieldPlugin, Plugin, PreferRelativePlugin};
-
 use parse::Request;
+use plugin::{AliasFieldPlugin, AliasPlugin, ImportsFieldPlugin, Plugin, PreferRelativePlugin};
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -216,8 +216,16 @@ impl Resolver {
         } else {
             self._resolve(info)
         };
-        // println!("time cost: {:?} ms", start.elapsed().as_millis()); // ms
-
+        // let duration = start.elapsed().as_millis();
+        // println!("time cost: {:?} ms", duration); // ms
+        // if duration > 5 {
+        //     println!(
+        //         "{:?}ms, path: {:?}, request: {:?}",
+        //         duration,
+        //         path.display(),
+        //         request,
+        //     );
+        // }
         match result {
             ResolverStats::Success(result) => self.normalize_result(result),
             ResolverStats::Error((err_msg, _)) => Err(err_msg),

@@ -1,4 +1,6 @@
-use nodejs_resolver::{AliasMap, Resolver, ResolverOptions, ResolverResult, ResolverUnsafeCache};
+use nodejs_resolver::{
+    AliasMap, Resolver, ResolverOptions, ResolverResult, ResolverUnsafeCache, SideEffects,
+};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -2381,4 +2383,102 @@ fn tsconfig_paths_extends_from_node_modules() {
         "foo",
         p(vec!["tsconfig-paths-extends-from-module", "src", "test.ts"]),
     );
+}
+
+#[test]
+fn load_sideeffects_tests() {
+    let case_path = p(vec!["exports-field"]);
+    let resolver = Resolver::new(ResolverOptions {
+        ..Default::default()
+    });
+    let scope_import_require_path = if let ResolverResult::Info(info) = resolver
+        .resolve(&case_path, "@scope/import-require")
+        .unwrap()
+    {
+        info.path
+    } else {
+        panic!("error")
+    };
+
+    assert_eq!(
+        resolver
+            .load_sideeffects(&scope_import_require_path)
+            .unwrap()
+            .unwrap()
+            .0,
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "@scope",
+            "import-require",
+            "package.json"
+        ])
+    );
+
+    assert!(matches!(
+        resolver
+            .load_sideeffects(&scope_import_require_path)
+            .unwrap()
+            .unwrap()
+            .1,
+        Some(SideEffects::Array(_))
+    ));
+
+    let exports_field_path = if let ResolverResult::Info(info) =
+        resolver.resolve(&case_path, "exports-field").unwrap()
+    {
+        info.path
+    } else {
+        panic!("error")
+    };
+
+    assert_eq!(
+        resolver
+            .load_sideeffects(&exports_field_path)
+            .unwrap()
+            .unwrap()
+            .0,
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "exports-field",
+            "package.json"
+        ])
+    );
+
+    assert!(matches!(
+        resolver
+            .load_sideeffects(&exports_field_path)
+            .unwrap()
+            .unwrap()
+            .1,
+        Some(SideEffects::Bool(false))
+    ));
+
+    assert_eq!(
+        resolver
+            .load_sideeffects(&p(vec!["incorrect-package", "sideeffects-map"]))
+            .unwrap_err(),
+        format!(
+            "sideEffects in {} had unexpected value {{}}",
+            p(vec!["incorrect-package", "sideeffects-map", "package.json"]).display()
+        )
+    );
+
+    assert_eq!(
+        resolver
+            .load_sideeffects(&p(vec!["incorrect-package", "sideeffects-other-in-array"]))
+            .unwrap_err(),
+        format!(
+            "sideEffects in {} had unexpected value 1",
+            p(vec![
+                "incorrect-package",
+                "sideeffects-other-in-array",
+                "package.json"
+            ])
+            .display()
+        )
+    );
+
+    assert!(resolver.load_sideeffects(&p(vec![])).unwrap().is_none());
 }
