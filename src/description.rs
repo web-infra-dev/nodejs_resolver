@@ -57,20 +57,20 @@ impl Resolver {
             });
 
         let mut alias_fields = HashMap::new();
-        for alias_filed in &self.options.alias_fields {
-            if let Some(value) = json.get(alias_filed) {
-                if let Some(map) = value.as_object() {
-                    for (key, value) in map {
-                        if let Some(b) = value.as_bool() {
-                            assert!(!b);
-                            alias_fields.insert(key.to_string(), AliasMap::Ignored);
-                        } else if let Some(s) = value.as_str() {
-                            alias_fields.insert(key.to_string(), AliasMap::Target(s.to_string()));
-                        }
+
+        if let Some(value) = json.get("browser") {
+            if let Some(map) = value.as_object() {
+                for (key, value) in map {
+                    if let Some(b) = value.as_bool() {
+                        assert!(!b);
+                        alias_fields.insert(key.to_string(), AliasMap::Ignored);
+                    } else if let Some(s) = value.as_str() {
+                        alias_fields.insert(key.to_string(), AliasMap::Target(s.to_string()));
                     }
                 }
             }
         }
+
         let exports_field_tree = if let Some(value) = json.get("exports") {
             Some(ExportsField::build_field_path_tree(value)?)
         } else {

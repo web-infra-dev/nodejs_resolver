@@ -46,9 +46,9 @@ pub struct ResolverOptions {
     /// Main fields in Description.
     /// Default is `["main"]`.
     pub main_fields: Vec<String>,
-    /// The list of alias fields in description files.
-    /// Default is `[]`
-    pub alias_fields: Vec<String>,
+    /// Whether read browser filed in package.json.
+    /// Default is `false`
+    pub browser_field: bool,
     /// Condition names for exports filed. Note that its
     /// type is a `HashSet`, because the priority is
     /// related to the order in which the export field
@@ -74,7 +74,7 @@ impl Default for ResolverOptions {
         let description_file = Some(String::from("package.json"));
         let alias = vec![];
         let symlinks = true;
-        let alias_fields = vec![];
+        let browser_field = false;
         let condition_names: HashSet<String> =
             HashSet::from_iter(["node"].into_iter().map(String::from));
         let prefer_relative = false;
@@ -89,7 +89,7 @@ impl Default for ResolverOptions {
             description_file,
             alias,
             symlinks,
-            alias_fields,
+            browser_field,
             condition_names,
             enforce_extension,
             tsconfig,

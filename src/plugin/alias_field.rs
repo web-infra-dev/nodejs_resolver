@@ -54,6 +54,10 @@ impl<'a> AliasFieldPlugin<'a> {
 
 impl<'a> Plugin for AliasFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: ResolverInfo) -> ResolverStats {
+        if !resolver.options.browser_field {
+            return ResolverStats::Resolving(info);
+        }
+
         if let Some(pkg_info) = self.pkg_info.as_ref() {
             for (alias_key, alias_target) in &pkg_info.alias_fields {
                 let should_deal_alias = match matches!(info.request.kind, PathKind::Normal) {
