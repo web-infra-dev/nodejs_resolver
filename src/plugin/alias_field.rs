@@ -35,7 +35,7 @@ impl<'a> AliasFieldPlugin<'a> {
         alias_key: &String,
         info: &ResolverInfo,
     ) -> bool {
-        matches!(info.request.kind, PathKind::Normal) && info.request.target.eq(alias_key)
+        info.request.target.eq(alias_key)
     }
 
     pub(super) fn request_path_is_equal_alias_key_path(
@@ -56,13 +56,15 @@ impl<'a> Plugin for AliasFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: ResolverInfo) -> ResolverStats {
         if let Some(pkg_info) = self.pkg_info.as_ref() {
             for (alias_key, alias_target) in &pkg_info.alias_fields {
-                if Self::request_target_is_module_and_equal_alias_key(alias_key, &info)
-                    || Self::request_path_is_equal_alias_key_path(
+                let should_deal_alias = match matches!(info.request.kind, PathKind::Normal) {
+                    true => Self::request_target_is_module_and_equal_alias_key(alias_key, &info),
+                    false => Self::request_path_is_equal_alias_key_path(
                         &pkg_info.abs_dir_path.join(alias_key),
                         &info,
                         &resolver.options.extensions,
-                    )
-                {
+                    ),
+                };
+                if should_deal_alias {
                     return match self
                         .deal_with_alias_fields_recursive(alias_target, &pkg_info.alias_fields)
                     {

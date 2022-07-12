@@ -44,7 +44,10 @@ fn should_error(resolver: &Resolver, path: &Path, request: &str, expected_err_ms
                 assert_eq!(err, expected_err_msg);
             }
         }
-        _ => unreachable!(),
+        Ok(result) => {
+            dbg!(result);
+            unreachable!();
+        }
     }
 }
 
@@ -968,6 +971,10 @@ fn browser_filed_test() {
         ..Default::default()
     });
 
+    let browser_after_main_path = p(vec!["browser-after-main"]);
+    should_ignored(&resolver, &browser_after_main_path, ".");
+    should_ignored(&resolver, &p(vec![]), "./browser-after-main");
+
     should_equal(
         &resolver,
         &browser_module_case_path,
@@ -1015,6 +1022,15 @@ fn browser_filed_test() {
         &browser_module_case_path,
         "./toString",
         p(vec!["browser-module", "lib", "toString.js"]),
+    );
+    should_error(
+        &resolver,
+        &browser_module_case_path,
+        "toString",
+        format!(
+            "Resolve 'toString' failed in '{}'",
+            browser_module_case_path.display()
+        ),
     );
     should_error(
         &resolver,
@@ -1227,6 +1243,14 @@ fn full_specified_test() {
         alias_fields: vec![String::from("browser")],
         ..Default::default()
     });
+
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "package4/a.js",
+        p(vec!["full", "a", "node_modules", "package4", "b.js"]),
+    );
+
     should_equal(
         &resolver,
         &full_cases_path,
@@ -2073,6 +2097,18 @@ fn main_fields_test() {
         "./main-field-inexist",
         p(vec!["main-field-inexist", "index.js"]),
     );
+    should_equal(
+        &resolver,
+        &fixture_path,
+        "./main-filed-no-relative",
+        p(vec!["main-filed-no-relative", "c.js"]),
+    );
+    should_equal(
+        &resolver,
+        &fixture_path.join("main-filed-no-relative"),
+        ".",
+        p(vec!["main-filed-no-relative", "c.js"]),
+    );
 
     let resolver = Resolver::new(ResolverOptions {
         main_fields: vec![String::from("module")],
@@ -2084,6 +2120,18 @@ fn main_fields_test() {
         &fixture_path,
         "./main-field-inexist",
         p(vec!["main-field-inexist", "module.js"]),
+    );
+    should_equal(
+        &resolver,
+        &fixture_path,
+        "./main-filed-no-relative",
+        p(vec!["main-filed-no-relative", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &fixture_path.join("main-filed-no-relative"),
+        ".",
+        p(vec!["main-filed-no-relative", "index.js"]),
     );
 
     let resolver = Resolver::new(ResolverOptions {

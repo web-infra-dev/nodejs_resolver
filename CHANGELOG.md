@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.0.29
+
+- fix alias_filed resolve bug:
+
+  before:
+
+  ```package.json
+  {
+    "browser": {
+      "./toString": "xxxx"
+    }
+  }
+  ```
+
+  and the file structure is:
+
+  ```
+  | xxxx.js
+  ```
+
+  then `resolve('toString')` will return `xxxx.js`, and this bug had fixed, it will throw Error now.
+
 ## 0.0.28
 
 - support `sideEffects` in package.json, and export `load_sideeffects`.
