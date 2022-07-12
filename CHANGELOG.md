@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.30
+
+- do not support `alias_fileds` any more, instead of `options.browser_field`.
+
 ## 0.0.29
 
 - fix alias_filed resolve bug:

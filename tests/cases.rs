@@ -967,7 +967,7 @@ fn resolve_test() {
 fn browser_filed_test() {
     let browser_module_case_path = p(vec!["browser-module"]);
     let resolver = Resolver::new(ResolverOptions {
-        alias_fields: vec![String::from("browser")],
+        browser_field: true,
         ..Default::default()
     });
 
@@ -1240,7 +1240,7 @@ fn full_specified_test() {
             ),
             (String::from("alias2"), AliasMap::Target(String::from("./"))),
         ],
-        alias_fields: vec![String::from("browser")],
+        browser_field: true,
         ..Default::default()
     });
 
@@ -1444,7 +1444,7 @@ fn incorrect_package_test() {
 fn scoped_packages_test() {
     let scoped_path = p(vec!["scoped"]);
     let resolver = Resolver::new(ResolverOptions {
-        alias_fields: vec![String::from("browser")],
+        browser_field: true,
         ..Default::default()
     });
     should_equal(
@@ -1799,7 +1799,7 @@ fn exports_fields_test() {
 
     let resolver = Resolver::new(ResolverOptions {
         extensions: vec![String::from("js")],
-        alias_fields: vec![String::from("browser")],
+        browser_field: true,
         condition_names: vec_to_set!(["webpack"]),
         ..Default::default()
     });
@@ -1830,7 +1830,7 @@ fn exports_fields_test() {
 
     let resolver = Resolver::new(ResolverOptions {
         extensions: vec![String::from(".js")],
-        alias_fields: vec![String::from("browser")],
+        browser_field: true,
         condition_names: vec_to_set!(["node"]),
         ..Default::default()
     });
@@ -2434,7 +2434,7 @@ fn tsconfig_paths_extends_from_node_modules() {
 }
 
 #[test]
-fn load_sideeffects_tests() {
+fn load_sideeffects_test() {
     let case_path = p(vec!["exports-field"]);
     let resolver = Resolver::new(ResolverOptions {
         ..Default::default()
@@ -2529,4 +2529,30 @@ fn load_sideeffects_tests() {
     );
 
     assert!(resolver.load_sideeffects(&p(vec![])).unwrap().is_none());
+}
+
+#[test]
+fn shared_cache_test() {
+    let case_path = p(vec!["browser-module"]);
+
+    // shared cache
+    let cache = Arc::new(ResolverUnsafeCache::default());
+
+    let resolver1 = Resolver::new(ResolverOptions {
+        browser_field: true,
+        unsafe_cache: Some(cache.clone()),
+        ..Default::default()
+    });
+    should_ignored(&resolver1, &case_path, "./lib/ignore.js");
+
+    let resolver2 = Resolver::new(ResolverOptions {
+        unsafe_cache: Some(cache.clone()),
+        ..Default::default()
+    });
+    should_equal(
+        &resolver2,
+        &case_path,
+        "./lib/ignore.js",
+        case_path.join("lib").join("ignore.js").to_path_buf(),
+    );
 }
