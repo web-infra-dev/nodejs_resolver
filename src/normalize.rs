@@ -21,26 +21,29 @@ impl Resolver {
         }
     }
 
-    pub fn normalize_path(&self, path: &Path) -> RResult<PathBuf> {
+    pub fn normalize_path_without_link(path: &Path) -> PathBuf {
+        path.components()
+            .fold(PathBuf::new(), |mut acc, path_component| {
+                match path_component {
+                    Component::Prefix(prefix) => acc.push(prefix.as_os_str()),
+                    Component::Normal(name) => acc.push(name),
+                    Component::RootDir => acc.push("/"),
+                    Component::CurDir => {}
+                    Component::ParentDir => {
+                        acc.pop();
+                    }
+                }
+                acc
+            })
+    }
+
+    fn normalize_path(&self, path: &Path) -> RResult<PathBuf> {
         if self.options.symlinks {
             Path::canonicalize(path)
                 .map_err(|_| "Path normalized failed".to_string())
                 .map(|result| PathBuf::from(Self::adjust(result)))
         } else {
-            Ok(path
-                .components()
-                .fold(PathBuf::new(), |mut acc, path_component| {
-                    match path_component {
-                        Component::Prefix(prefix) => acc.push(prefix.as_os_str()),
-                        Component::Normal(name) => acc.push(name),
-                        Component::RootDir => acc.push("/"),
-                        Component::CurDir => {}
-                        Component::ParentDir => {
-                            acc.pop();
-                        }
-                    }
-                    acc
-                }))
+            Ok(Self::normalize_path_without_link(path))
         }
     }
 

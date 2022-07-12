@@ -7,7 +7,7 @@ use crate::plugin::{
     MainFilePlugin, Plugin,
 };
 use crate::utils::RAISE_RESOLVE_ERROR_TAG;
-use crate::{Resolver, ResolverInfo, ResolverResult, ResolverStats, MODULE};
+use crate::{PathKind, Resolver, ResolverInfo, ResolverResult, ResolverStats, MODULE};
 
 impl Resolver {
     pub(crate) fn append_ext_for_path(path: &Path, ext: &str) -> PathBuf {
@@ -86,7 +86,16 @@ impl Resolver {
                 let stats = ExportsFieldPlugin::new(&pkg_info)
                     .apply(self, module_info)
                     .and_then(|info| ImportsFieldPlugin::new(&pkg_info).apply(self, info))
-                    .and_then(|info| AliasFieldPlugin::new(&pkg_info).apply(self, info))
+                    .and_then(|info| {
+                        let info = if matches!(info.request.kind, PathKind::Normal) {
+                            let target = format!("./{}", info.request.target);
+                            info.with_target(self, &target)
+                        } else {
+                            info
+                        };
+
+                        AliasFieldPlugin::new(&pkg_info).apply(self, info)
+                    })
                     .and_then(|info| self.resolve_as_file(info))
                     .and_then(|info| self.resolve_as_dir(info));
 
