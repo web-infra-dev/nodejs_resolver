@@ -55,7 +55,7 @@ fn parse_file_to_value(location: &Path, resolver: &Resolver) -> RResult<serde_js
         read_to_string(location).map_err(|_| format!("Open {} failed", location.display()))?;
     let mut json: serde_json::Value = jsonc_parser::parse_to_serde_value(&json_str)
         .map_err(|err| format!("Parse {} failed. Error: {err}", location.display()))?
-        .unwrap();
+        .unwrap_or_else(|| panic!("Transfer {} to serde value failed", location.display()));
 
     // merge `extends`.
     if let serde_json::Value::String(s) = &json["extends"] {

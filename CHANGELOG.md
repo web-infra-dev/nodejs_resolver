@@ -1,6 +1,10 @@
 # Changelog
 
-# 0.0.31
+## 0.0.32
+
+- cached `exportField` and `importsField`.
+
+## 0.0.31
 
 - use `CacheFile` to read `package.json`, therefore, remove `unsafe_cache` and use `cache` instead.
 

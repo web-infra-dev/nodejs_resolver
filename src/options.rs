@@ -28,8 +28,8 @@ pub struct ResolverOptions {
     /// Use of cache defined external, it designed to shared the info of `description_file`
     /// in different resolver.
     ///
-    /// - If `unsafe_cache` is `None`, use default cache in resolver.
-    /// - If `unsafe_cache.is_some()` is true, use this cache.
+    /// - If `external_cache` is `None`, use default cache in resolver.
+    /// - If `external_cache.is_some()` is true, use this cache.
     ///
     /// Default is `None`.
     pub external_cache: Option<Arc<ResolverCache>>,

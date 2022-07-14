@@ -16,9 +16,10 @@ pub struct PkgFileInfo {
     /// It not a property in package.json.
     pub abs_dir_path: PathBuf,
     pub name: Option<String>,
+    pub version: Option<String>,
     pub alias_fields: HashMap<String, AliasMap>,
-    pub exports_field_tree: Option<PathTreeNode>,
-    pub imports_field_tree: Option<PathTreeNode>,
+    pub exports_field_tree: Option<Arc<PathTreeNode>>,
+    pub imports_field_tree: Option<Arc<PathTreeNode>>,
     pub side_effects: Option<SideEffects>,
     pub raw: serde_json::Value,
 }
@@ -29,15 +30,15 @@ impl Resolver {
         #[cfg(debug_assertions)]
         {
             // ensure that the same package.json is not parsed twice
-            if self.dbg_map.contains_key(&file_path) {
-                println!("{:?}", self.cache.pkg_info);
-                println!("{:?}", self.dbg_map);
+            if self.dbg_read_map.contains_key(&file_path) {
+                println!("{:?}", self.cache.file_dir_to_pkg_info);
+                println!("{:?}", self.dbg_read_map);
                 panic!(
                     "Had try to parse same package.json, {}",
                     file_path.display()
                 )
             }
-            self.dbg_map.insert(file_path.clone(), true);
+            self.dbg_read_map.insert(&file_path, true);
         }
 
         let str = tracing::debug_span!("read_to_string").in_scope(|| {
@@ -67,13 +68,31 @@ impl Resolver {
         }
 
         let exports_field_tree = if let Some(value) = json.get("exports") {
-            Some(ExportsField::build_field_path_tree(value)?)
+            let key = serde_json::to_string(&value).unwrap_or_else(|_| {
+                panic!("Parse {}/exports to hash key failed", file_path.display())
+            });
+            if let Some(tree) = self.cache.exports_content_to_tree.get(&key) {
+                Some(tree.clone())
+            } else {
+                let tree = Arc::new(ExportsField::build_field_path_tree(value)?);
+                self.cache.exports_content_to_tree.insert(key, tree.clone());
+                Some(tree)
+            }
         } else {
             None
         };
 
         let imports_field_tree = if let Some(value) = json.get("imports") {
-            Some(ImportsField::build_field_path_tree(value)?)
+            let key = serde_json::to_string(&value).unwrap_or_else(|_| {
+                panic!("Parse {}/imports to hash key failed", file_path.display())
+            });
+            if let Some(tree) = self.cache.imports_content_to_tree.get(&key) {
+                Some(tree.clone())
+            } else {
+                let tree = Arc::new(ImportsField::build_field_path_tree(value)?);
+                self.cache.exports_content_to_tree.insert(key, tree.clone());
+                Some(tree)
+            }
         } else {
             None
         };
@@ -111,8 +130,14 @@ impl Resolver {
                 }
             })?;
 
+        let version = json
+            .get("version")
+            .and_then(|value| value.as_str())
+            .and_then(|str| Some(str.to_string()));
+
         Ok(PkgFileInfo {
             name,
+            version,
             abs_dir_path: dir.to_path_buf(),
             alias_fields,
             exports_field_tree,
@@ -141,7 +166,7 @@ impl Resolver {
         if self.options.description_file.is_none() {
             return Ok(None);
         }
-        // Because the key in `self.unsafe_cache.pkg_info` represents directory.
+        // Because the key in `self.cache.file_dir_to_pkg_info` represents directory.
         // So this step is ensure `path` pointed to directory.
         if !path.is_dir() {
             return match path.parent() {
@@ -152,7 +177,7 @@ impl Resolver {
 
         let description_file_name = self.options.description_file.as_ref().unwrap();
         let description_file_path = path.join(description_file_name);
-        let need_find_up = if let Some(r#ref) = self.cache.pkg_info.get(path) {
+        let need_find_up = if let Some(r#ref) = self.cache.file_dir_to_pkg_info.get(path) {
             // if pkg_info_cache contain this key
             if !self.fs.need_update(&description_file_path)? {
                 // and not modified, then return
@@ -160,7 +185,7 @@ impl Resolver {
             } else {
                 #[cfg(debug_assertions)]
                 {
-                    self.dbg_map.remove(&description_file_path);
+                    self.dbg_read_map.remove(&description_file_path);
                 }
 
                 false
@@ -181,7 +206,9 @@ impl Resolver {
                 let mut path = path;
                 loop {
                     if path.is_dir() {
-                        self.cache.pkg_info.insert(path.to_path_buf(), None);
+                        self.cache
+                            .file_dir_to_pkg_info
+                            .insert(path.to_path_buf(), None);
                         match path.parent() {
                             Some(parent) => path = parent,
                             None => return Ok(None),
@@ -196,7 +223,7 @@ impl Resolver {
         ));
 
         self.cache
-            .pkg_info
+            .file_dir_to_pkg_info
             .insert(path.to_path_buf(), pkg_info.clone());
 
         Ok(pkg_info)
