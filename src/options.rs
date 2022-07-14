@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
-use crate::ResolverUnsafeCache;
+use crate::ResolverCache;
 
 #[derive(Debug, Clone)]
 pub enum AliasMap {
@@ -26,13 +26,13 @@ pub struct ResolverOptions {
     /// Default is `false`
     pub prefer_relative: bool,
     /// Use of cache defined external, it designed to shared the info of `description_file`
-    /// in different.
+    /// in different resolver.
     ///
     /// - If `unsafe_cache` is `None`, use default cache in resolver.
     /// - If `unsafe_cache.is_some()` is true, use this cache.
     ///
     /// Default is `None`.
-    pub unsafe_cache: Option<Arc<ResolverUnsafeCache>>,
+    pub external_cache: Option<Arc<ResolverCache>>,
     /// Whether to resolve the real path when the result
     /// is a symlink.
     /// Default is `true`.
@@ -80,7 +80,7 @@ impl Default for ResolverOptions {
         let prefer_relative = false;
         let enforce_extension = None;
         let tsconfig = None;
-        let unsafe_cache = None;
+        let external_cache = None;
         Self {
             prefer_relative,
             extensions,
@@ -93,7 +93,7 @@ impl Default for ResolverOptions {
             condition_names,
             enforce_extension,
             tsconfig,
-            unsafe_cache,
+            external_cache,
         }
     }
 }

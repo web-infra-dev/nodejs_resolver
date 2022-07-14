@@ -24,9 +24,7 @@ impl Plugin for AliasPlugin {
                         let normalized_target = inner_target.replacen(from, to, 1);
                         let alias_info = ResolverInfo::from(
                             info.path.to_path_buf(),
-                            info.request
-                                .clone()
-                                .with_target(resolver, &normalized_target),
+                            info.request.clone().with_target(&normalized_target),
                         );
                         let stats = resolver._resolve(alias_info);
                         if stats.is_success() {

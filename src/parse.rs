@@ -66,9 +66,9 @@ impl Request {
         (target, query, fragment)
     }
 
-    pub(crate) fn with_target(self, resolver: &Resolver, target: &str) -> Self {
+    pub(crate) fn with_target(self, target: &str) -> Self {
         Self {
-            kind: resolver.get_target_kind(target),
+            kind: Resolver::get_target_kind(target),
             target: target.into(),
             ..self
         }
@@ -79,7 +79,7 @@ impl Resolver {
     pub(crate) fn parse(&self, request: &str) -> Request {
         let (target, query, fragment) = Request::parse_identifier(request);
         Request {
-            kind: self.get_target_kind(&target),
+            kind: Self::get_target_kind(&target),
             target: target.into(),
             query: query.into(),
             fragment: fragment.into(),

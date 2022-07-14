@@ -109,13 +109,11 @@ static PMA: Lazy<DoubleArrayAhoCorasick> = Lazy::new(|| {
 });
 
 impl Resolver {
-    pub(crate) fn get_target_kind(&self, target: &str) -> PathKind {
+    pub(crate) fn get_target_kind(target: &str) -> PathKind {
         if target.is_empty() {
             return PathKind::Relative;
         }
-        if let Some(result) = self.safe_cache.target_kind.get(target) {
-            return result.clone();
-        }
+
         let path_kind = if target.starts_with('#') {
             PathKind::Internal
         } else if target.starts_with('/') {
@@ -139,9 +137,6 @@ impl Resolver {
             }
             PathKind::Normal
         };
-        self.safe_cache
-            .target_kind
-            .insert(target.to_string(), path_kind.clone());
         path_kind
     }
 
@@ -154,37 +149,39 @@ impl Resolver {
 fn test_resolver() {
     assert!(Resolver::is_build_in_module("fs"));
     assert!(!Resolver::is_build_in_module("a"));
-    let resolver = Resolver::new(Default::default());
-    assert!(matches!(resolver.get_target_kind(""), PathKind::Relative));
-    assert!(matches!(resolver.get_target_kind("."), PathKind::Relative));
-    assert!(matches!(resolver.get_target_kind(".."), PathKind::Relative));
+    assert!(matches!(Resolver::get_target_kind(""), PathKind::Relative));
+    assert!(matches!(Resolver::get_target_kind("."), PathKind::Relative));
     assert!(matches!(
-        resolver.get_target_kind("../a.js"),
+        Resolver::get_target_kind(".."),
         PathKind::Relative
     ));
     assert!(matches!(
-        resolver.get_target_kind("./a.js"),
+        Resolver::get_target_kind("../a.js"),
         PathKind::Relative
     ));
     assert!(matches!(
-        resolver.get_target_kind("D:"),
+        Resolver::get_target_kind("./a.js"),
+        PathKind::Relative
+    ));
+    assert!(matches!(
+        Resolver::get_target_kind("D:"),
         PathKind::AbsoluteWin
     ));
     assert!(matches!(
-        resolver.get_target_kind("C:path"),
+        Resolver::get_target_kind("C:path"),
         PathKind::Normal
     ));
     assert!(matches!(
-        resolver.get_target_kind("C:\\a"),
+        Resolver::get_target_kind("C:\\a"),
         PathKind::AbsoluteWin
     ));
     assert!(matches!(
-        resolver.get_target_kind("c:/a"),
+        Resolver::get_target_kind("c:/a"),
         PathKind::AbsoluteWin
     ));
     assert!(matches!(
-        resolver.get_target_kind("cc:/a"),
+        Resolver::get_target_kind("cc:/a"),
         PathKind::Normal
     ));
-    assert!(matches!(resolver.get_target_kind("fs"), PathKind::Normal));
+    assert!(matches!(Resolver::get_target_kind("fs"), PathKind::Normal));
 }

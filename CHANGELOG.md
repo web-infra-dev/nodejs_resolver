@@ -1,8 +1,12 @@
 # Changelog
 
+# 0.0.31
+
+- use `CacheFile` to read `package.json`, therefore, remove `unsafe_cache` and use `cache` instead.
+
 ## 0.0.30
 
-- do not support `alias_fileds` any more, instead of `options.browser_field`.
+- do not support `alias_fields` any more, instead of `options.browser_field`.
 
 ## 0.0.29
 

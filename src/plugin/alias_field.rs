@@ -74,7 +74,7 @@ impl<'a> Plugin for AliasFieldPlugin<'a> {
                     {
                         AliasMap::Target(converted) => ResolverStats::Resolving(
                             info.with_path(pkg_info.abs_dir_path.to_path_buf())
-                                .with_target(resolver, &converted),
+                                .with_target(&converted),
                         ),
                         AliasMap::Ignored => ResolverStats::Success(ResolverResult::Ignored),
                     };

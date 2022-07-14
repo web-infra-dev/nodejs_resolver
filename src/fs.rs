@@ -7,9 +7,10 @@ use std::time;
 
 use crate::RResult;
 
+#[derive(Default, Debug)]
 pub struct CacheFile {
     duration: time::Duration,
-    cached_file: DashMap<PathBuf, (Arc<fs::File>, time::SystemTime)>,
+    cached_file: DashMap<PathBuf, (Arc<String>, time::SystemTime)>,
 }
 
 impl CacheFile {
@@ -21,36 +22,42 @@ impl CacheFile {
         }
     }
 
-    fn get_last_modified_time_from_file<P: AsRef<Path>>(
-        path: P,
-        file: &fs::File,
-    ) -> RResult<time::SystemTime> {
-        file.metadata()
-            .map_err(|_| format!("Get metadata of {} failed.", path.as_ref().display()))?
+    fn get_last_modified_time_from_file<P: AsRef<Path>>(path: P) -> RResult<time::SystemTime> {
+        fs::metadata(path.as_ref())
+            .map_err(|_| format!("Open {} failed", path.as_ref().display()))?
             .modified()
             .map_err(|_| format!("Get modified time of {} failed", path.as_ref().display()))
     }
 
-    pub fn open<P: AsRef<Path>>(&self, path: P) -> RResult<Arc<fs::File>> {
-        if let Some(value) = self.cached_file.get(path.as_ref()) {
-            let last_modified_time =
-                Self::get_last_modified_time_from_file(path.as_ref(), &value.0)?;
-            let duration = last_modified_time
-                .duration_since(value.1)
-                .map_err(|_| format!("Compare SystemTime failed in {}", path.as_ref().display()))?;
-            if duration <= self.duration {
-                return Ok(value.0.clone());
-            }
+    pub fn need_update<P: AsRef<Path>>(&self, path: P) -> RResult<bool> {
+        if !path.as_ref().is_file() {
+            // no  need update if `p` pointed file dose not exist
+            return Ok(false);
         }
-        let file = Arc::new(
-            fs::File::open(path.as_ref())
+        self.cached_file
+            .get(path.as_ref())
+            .map(|value| value.1)
+            .map(|stored_last_modify_time| -> RResult<bool> {
+                let duration = Self::get_last_modified_time_from_file(path.as_ref())?
+                    .duration_since(stored_last_modify_time)
+                    .map_err(|_| {
+                        format!("Compare SystemTime failed in {}", path.as_ref().display())
+                    })?;
+                Ok(duration >= self.duration)
+            })
+            .map_or(Ok(true), |val| val)
+    }
+
+    pub fn read_to_string<P: AsRef<Path>>(&self, path: P) -> RResult<Arc<String>> {
+        let str = Arc::new(
+            fs::read_to_string(path.as_ref())
                 .map_err(|_| format!("Open {} failed", path.as_ref().display()))?,
         );
-        let last_modified_time = Self::get_last_modified_time_from_file(path.as_ref(), &file)?;
+        let last_modified_time = Self::get_last_modified_time_from_file(path.as_ref())?;
         self.cached_file.insert(
             path.as_ref().to_path_buf(),
-            (file.clone(), last_modified_time),
+            (str.clone(), last_modified_time),
         );
-        Ok(file)
+        Ok(str)
     }
 }

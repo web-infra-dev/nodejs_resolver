@@ -20,29 +20,37 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
             if !info.path.eq(&pkg_info.abs_dir_path) {
                 return ResolverStats::Resolving(info);
             }
+
             let mut main_field_info =
                 ResolverInfo::from(info.path.to_owned(), info.request.clone());
-            for main_field in &pkg_info.main_fields {
-                if main_field == "." || main_field == "./" {
-                    // if it pointed to itself.
-                    break;
-                }
 
-                main_field_info = if main_field.starts_with("./") {
-                    main_field_info.with_target(resolver, main_field)
-                } else {
-                    main_field_info.with_target(resolver, &format!("./{main_field}"))
-                };
+            for user_main_field in &resolver.options.main_fields {
+                if let Some(main_field) = pkg_info
+                    .raw
+                    .get(&user_main_field)
+                    .and_then(|value| value.as_str())
+                {
+                    if main_field == "." || main_field == "./" {
+                        // if it pointed to itself.
+                        break;
+                    }
 
-                let stats = AliasFieldPlugin::new(self.pkg_info)
-                    .apply(resolver, main_field_info)
-                    .and_then(|info| resolver.resolve_as_file(info))
-                    .and_then(|info| resolver.resolve_as_dir(info));
+                    main_field_info = if main_field.starts_with("./") {
+                        main_field_info.with_target(main_field)
+                    } else {
+                        main_field_info.with_target(&format!("./{main_field}"))
+                    };
 
-                if stats.is_success() {
-                    return stats;
-                } else {
-                    main_field_info = stats.extract_info();
+                    let stats = AliasFieldPlugin::new(self.pkg_info)
+                        .apply(resolver, main_field_info)
+                        .and_then(|info| resolver.resolve_as_file(info))
+                        .and_then(|info| resolver.resolve_as_dir(info));
+
+                    if stats.is_success() {
+                        return stats;
+                    } else {
+                        main_field_info = stats.extract_info();
+                    }
                 }
             }
         }

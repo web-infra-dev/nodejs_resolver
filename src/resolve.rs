@@ -19,9 +19,7 @@ impl Resolver {
     pub(crate) fn resolve_as_file(&self, info: ResolverInfo) -> ResolverStats {
         let path = info.get_path();
         if !(*self.options.enforce_extension.as_ref().unwrap_or(&false)) && path.is_file() {
-            ResolverStats::Success(ResolverResult::Info(
-                info.with_path(path).with_target(self, ""),
-            ))
+            ResolverStats::Success(ResolverResult::Info(info.with_path(path).with_target("")))
         } else {
             ExtensionsPlugin::default().apply(self, info)
         }
@@ -38,7 +36,7 @@ impl Resolver {
             Err(err) => return ResolverStats::Error((err, info)),
         };
 
-        let info = info.with_path(dir).with_target(self, "");
+        let info = info.with_path(dir).with_target("");
         MainFieldPlugin::new(&pkg_info_wrap)
             .apply(self, info)
             .and_then(|info| MainFilePlugin::new(&pkg_info_wrap).apply(self, info))
@@ -89,7 +87,7 @@ impl Resolver {
                     .and_then(|info| {
                         let info = if matches!(info.request.kind, PathKind::Normal) {
                             let target = format!("./{}", info.request.target);
-                            info.with_target(self, &target)
+                            info.with_target(&target)
                         } else {
                             info
                         };
