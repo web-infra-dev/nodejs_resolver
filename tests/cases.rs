@@ -1986,47 +1986,6 @@ fn prefer_relative_test() {
 }
 
 #[test]
-fn pkg_info_cache_test() {
-    let fixture_path = p(vec![]);
-    // show tracing tree
-    tracing_span_tree::span_tree().aggregate(true).enable();
-    let resolver = Resolver::new(Default::default());
-    let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
-
-    let full_path = p(vec!["full", "a"]);
-    let _ = resolver.resolve(&full_path, "package3");
-
-    let pkg_info_cache = &resolver.cache.pkg_info;
-
-    assert_eq!(pkg_info_cache.len(), 2);
-
-    assert_eq!(
-        pkg_info_cache
-            .get(&p(vec!["browser-module"]))
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .abs_dir_path,
-        p(vec!["browser-module"])
-    );
-    assert_eq!(
-        pkg_info_cache
-            .get(&p(vec!["full", "a", "node_modules", "package3"]))
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .abs_dir_path,
-        p(vec!["full", "a", "node_modules", "package3"])
-    );
-
-    // should hit `cache.pkg_info`.
-    let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
-    let _ = resolver.resolve(&full_path, "package3");
-
-    // TODO: more cases.
-}
-
-#[test]
 fn cache_fs() {
     use std::fs::write;
     use std::thread::sleep;
@@ -2036,7 +1995,7 @@ fn cache_fs() {
     let resolver = Resolver::new(ResolverOptions::default());
     should_equal(&resolver, &fixture_path, ".", fixture_path.join("index.js"));
 
-    sleep(Duration::from_secs(1));
+    sleep(Duration::from_secs(3));
     write(
         &fixture_path.join("package.json"),
         "{\"main\": \"module.js\"}",
@@ -2050,7 +2009,7 @@ fn cache_fs() {
         fixture_path.join("module.js"),
     );
 
-    sleep(Duration::from_secs(1));
+    sleep(Duration::from_secs(3));
     write(
         &fixture_path.join("package.json"),
         "{\"main\": \"index.js\"}",
@@ -2524,7 +2483,7 @@ fn load_side_effects_test() {
 }
 
 #[test]
-fn shared_cache_test1() {
+fn shared_cache_test() {
     let case_path = p(vec!["browser-module"]);
 
     // shared cache
@@ -2559,28 +2518,4 @@ fn shared_cache_test1() {
         ".",
         p(vec!["main-field-inexist", "module.js"]),
     );
-}
-
-#[test]
-fn share_cache_test2() {
-    let cache = Arc::new(ResolverCache::default());
-    let fixture_path = p(vec![]);
-
-    let resolver = Resolver::new(ResolverOptions {
-        external_cache: Some(cache.clone()),
-        ..Default::default()
-    });
-    let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
-    assert_eq!(cache.pkg_info.len(), 1);
-    assert_eq!(resolver.cache.pkg_info.len(), 1);
-
-    let resolver = Resolver::new(ResolverOptions {
-        external_cache: Some(cache.clone()),
-        ..Default::default()
-    });
-
-    let full_path = p(vec!["full", "a"]);
-    let _ = resolver.resolve(&full_path, "package3");
-    assert_eq!(cache.pkg_info.len(), 2);
-    assert_eq!(resolver.cache.pkg_info.len(), 2);
 }

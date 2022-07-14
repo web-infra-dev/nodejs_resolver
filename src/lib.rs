@@ -40,6 +40,7 @@
 //! ```
 //!
 
+mod cache;
 mod description;
 mod fs;
 mod kind;
@@ -53,8 +54,10 @@ mod tsconfig;
 mod tsconfig_path;
 mod utils;
 
-use dashmap::DashMap;
-use description::PkgFileInfo;
+#[cfg(debug_assertions)]
+use cache::DebugReadMap;
+
+pub use cache::ResolverCache;
 pub use description::SideEffects;
 use kind::PathKind;
 pub use options::{AliasMap, ResolverOptions};
@@ -70,18 +73,10 @@ use crate::utils::RAISE_RESOLVE_ERROR_TAG;
 #[derive(Default, Debug)]
 pub struct Resolver {
     pub options: ResolverOptions,
-    pub cache: Arc<ResolverCache>,
-    pub input_path: Option<PathBuf>,
-    pub input_request: Option<String>,
+    cache: Arc<ResolverCache>,
     fs: fs::CacheFile,
-    /// just use in debug mode.
-    dbg_map: DashMap<PathBuf, bool>,
-}
-
-#[derive(Default, Debug, Clone)]
-pub struct ResolverCache {
-    /// key is pointed to the directory of description file.
-    pub pkg_info: DashMap<PathBuf, Option<Arc<PkgFileInfo>>>,
+    #[cfg(debug_assertions)]
+    dbg_read_map: DebugReadMap,
 }
 
 pub type ResolverError = String;
@@ -196,9 +191,8 @@ impl Resolver {
             fs,
             cache,
             options,
-            input_path: None,
-            input_request: None,
-            dbg_map: Default::default(),
+            #[cfg(debug_assertions)]
+            dbg_read_map: Default::default(),
         }
     }
 
@@ -272,5 +266,87 @@ impl Resolver {
             }
             _ => unreachable!(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    fn p(paths: Vec<&str>) -> PathBuf {
+        paths.iter().fold(
+            std::env::current_dir()
+                .unwrap()
+                .join("tests")
+                .join("fixtures"),
+            |acc, path| acc.join(path),
+        )
+    }
+
+    #[test]
+    fn pkg_info_cache_test() {
+        let fixture_path = p(vec![]);
+
+        // show tracing tree
+        tracing_span_tree::span_tree().aggregate(true).enable();
+        let resolver = Resolver::new(Default::default());
+        let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
+
+        let full_path = fixture_path.join("full").join("a");
+        let _ = resolver.resolve(&full_path, "package3");
+
+        assert_eq!(resolver.cache.file_dir_to_pkg_info.len(), 2);
+
+        assert_eq!(
+            resolver
+                .cache
+                .file_dir_to_pkg_info
+                .get(&p(vec!["browser-module"]))
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .abs_dir_path,
+            p(vec!["browser-module"])
+        );
+        assert_eq!(
+            resolver
+                .cache
+                .file_dir_to_pkg_info
+                .get(&p(vec!["full", "a", "node_modules", "package3"]))
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .abs_dir_path,
+            p(vec!["full", "a", "node_modules", "package3"])
+        );
+
+        // should hit `cache.file_dir_to_pkg_info`.
+        let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
+        let _ = resolver.resolve(&full_path, "package3");
+    }
+
+    #[test]
+    fn share_cache_test() {
+        let cache = Arc::new(ResolverCache::default());
+        let fixture_path = p(vec![]);
+
+        let resolver = Resolver::new(ResolverOptions {
+            external_cache: Some(cache.clone()),
+            ..Default::default()
+        });
+        let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
+        assert_eq!(cache.file_dir_to_pkg_info.len(), 1);
+        assert_eq!(resolver.cache.file_dir_to_pkg_info.len(), 1);
+
+        let resolver = Resolver::new(ResolverOptions {
+            external_cache: Some(cache.clone()),
+            ..Default::default()
+        });
+
+        let full_path = p(vec!["full", "a"]);
+        let _ = resolver.resolve(&full_path, "package3");
+        assert_eq!(cache.file_dir_to_pkg_info.len(), 2);
+        assert_eq!(resolver.cache.file_dir_to_pkg_info.len(), 2);
     }
 }

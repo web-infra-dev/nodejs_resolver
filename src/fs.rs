@@ -1,4 +1,5 @@
 use dashmap::DashMap;
+use std::fmt::Debug;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -22,14 +23,17 @@ impl CacheFile {
         }
     }
 
-    fn get_last_modified_time_from_file<P: AsRef<Path>>(path: P) -> RResult<time::SystemTime> {
+    fn get_last_modified_time_from_file<P: AsRef<Path> + Debug>(
+        path: P,
+    ) -> RResult<time::SystemTime> {
         fs::metadata(path.as_ref())
             .map_err(|_| format!("Open {} failed", path.as_ref().display()))?
             .modified()
             .map_err(|_| format!("Get modified time of {} failed", path.as_ref().display()))
     }
 
-    pub fn need_update<P: AsRef<Path>>(&self, path: P) -> RResult<bool> {
+    #[tracing::instrument]
+    pub fn need_update<P: AsRef<Path> + Debug>(&self, path: P) -> RResult<bool> {
         if !path.as_ref().is_file() {
             // no  need update if `p` pointed file dose not exist
             return Ok(false);
@@ -48,7 +52,8 @@ impl CacheFile {
             .map_or(Ok(true), |val| val)
     }
 
-    pub fn read_to_string<P: AsRef<Path>>(&self, path: P) -> RResult<Arc<String>> {
+    #[tracing::instrument]
+    pub fn read_to_string<P: AsRef<Path> + Debug>(&self, path: P) -> RResult<Arc<String>> {
         let str = Arc::new(
             fs::read_to_string(path.as_ref())
                 .map_err(|_| format!("Open {} failed", path.as_ref().display()))?,
