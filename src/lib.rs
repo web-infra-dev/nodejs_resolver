@@ -70,23 +70,18 @@ use crate::utils::RAISE_RESOLVE_ERROR_TAG;
 #[derive(Default, Debug)]
 pub struct Resolver {
     pub options: ResolverOptions,
-    pub unsafe_cache: Option<Arc<ResolverUnsafeCache>>,
-    pub safe_cache: ResolverSafeCache,
+    pub cache: Arc<ResolverCache>,
     pub input_path: Option<PathBuf>,
     pub input_request: Option<String>,
-    // /// just use under development.
-    // dbg_map: DashMap<PathBuf, bool>,
+    fs: fs::CacheFile,
+    /// just use in debug mode.
+    dbg_map: DashMap<PathBuf, bool>,
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct ResolverUnsafeCache {
+pub struct ResolverCache {
     /// key is pointed to the directory of description file.
     pub pkg_info: DashMap<PathBuf, Option<Arc<PkgFileInfo>>>,
-}
-
-#[derive(Default, Debug)]
-pub struct ResolverSafeCache {
-    pub(crate) target_kind: DashMap<String, PathKind>,
 }
 
 pub type ResolverError = String;
@@ -114,8 +109,8 @@ impl ResolverInfo {
         Self { path, ..self }
     }
 
-    pub fn with_target(self, resolver: &Resolver, target: &str) -> Self {
-        let request = self.request.with_target(resolver, target);
+    pub fn with_target(self, target: &str) -> Self {
+        let request = self.request.with_target(target);
         Self { request, ..self }
     }
 
@@ -170,12 +165,11 @@ pub type RResult<T> = Result<T, ResolverError>;
 
 impl Resolver {
     pub fn new(options: ResolverOptions) -> Self {
-        let unsafe_cache = if let Some(external_unsafe_cache) = options.unsafe_cache.as_ref() {
-            Some(external_unsafe_cache.clone())
+        let cache = if let Some(external_cache) = options.external_cache.as_ref() {
+            external_cache.clone()
         } else {
-            Some(Arc::new(ResolverUnsafeCache::default()))
+            Arc::new(ResolverCache::default())
         };
-        let safe_cache = ResolverSafeCache::default();
         let extensions: Vec<String> = options
             .extensions
             .into_iter()
@@ -197,13 +191,14 @@ impl Resolver {
             enforce_extension,
             ..options
         };
+        let fs = fs::CacheFile::new(1000);
         Self {
+            fs,
+            cache,
             options,
-            unsafe_cache,
-            safe_cache,
             input_path: None,
             input_request: None,
-            // dbg_map: Default::default(),
+            dbg_map: Default::default(),
         }
     }
 

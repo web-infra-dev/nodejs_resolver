@@ -20,7 +20,7 @@ impl<'a> Plugin for MainFilePlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: ResolverInfo) -> ResolverStats {
         let mut main_file_info = ResolverInfo::from(info.path.to_owned(), info.request.clone());
         for main_file in &resolver.options.main_files {
-            main_file_info = main_file_info.with_target(resolver, &format!("./{main_file}"));
+            main_file_info = main_file_info.with_target(&format!("./{main_file}"));
             let stats = ExportsFieldPlugin::new(self.pkg_info)
                 .apply(resolver, main_file_info)
                 .and_then(|info| ImportsFieldPlugin::new(self.pkg_info).apply(resolver, info))

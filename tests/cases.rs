@@ -1,5 +1,5 @@
 use nodejs_resolver::{
-    AliasMap, Resolver, ResolverOptions, ResolverResult, ResolverUnsafeCache, SideEffects,
+    AliasMap, Resolver, ResolverCache, ResolverOptions, ResolverResult, SideEffects,
 };
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -45,7 +45,7 @@ fn should_error(resolver: &Resolver, path: &Path, request: &str, expected_err_ms
             }
         }
         Ok(result) => {
-            dbg!(result);
+            println!("{:?}", result);
             unreachable!();
         }
     }
@@ -1996,19 +1996,10 @@ fn pkg_info_cache_test() {
     let full_path = p(vec!["full", "a"]);
     let _ = resolver.resolve(&full_path, "package3");
 
-    let pkg_info_cache = &resolver.unsafe_cache.as_ref().unwrap().pkg_info;
+    let pkg_info_cache = &resolver.cache.pkg_info;
 
-    assert_eq!(pkg_info_cache.len(), 3);
+    assert_eq!(pkg_info_cache.len(), 2);
 
-    assert_eq!(
-        pkg_info_cache
-            .get(&p(vec!["browser-module", "lib"]))
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .abs_dir_path,
-        p(vec!["browser-module"])
-    );
     assert_eq!(
         pkg_info_cache
             .get(&p(vec!["browser-module"]))
@@ -2036,36 +2027,37 @@ fn pkg_info_cache_test() {
 }
 
 #[test]
-fn external_unsafe_cache_test() {
-    let unsafe_cache = Arc::new(ResolverUnsafeCache::default());
-    let fixture_path = p(vec![]);
-
-    let resolver = Resolver::new(ResolverOptions {
-        unsafe_cache: Some(unsafe_cache.clone()),
-        ..Default::default()
-    });
-    let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
-    assert_eq!(unsafe_cache.pkg_info.len(), 2);
-    assert_eq!(resolver.unsafe_cache.as_ref().unwrap().pkg_info.len(), 2);
-
-    let resolver = Resolver::new(ResolverOptions {
-        unsafe_cache: Some(unsafe_cache.clone()),
-        ..Default::default()
-    });
-
-    let full_path = p(vec!["full", "a"]);
-    let _ = resolver.resolve(&full_path, "package3");
-    assert_eq!(unsafe_cache.pkg_info.len(), 3);
-    assert_eq!(resolver.unsafe_cache.as_ref().unwrap().pkg_info.len(), 3);
-}
-
-#[test]
 fn cache_fs() {
-    let fixture_path = p(vec![]);
+    use std::fs::write;
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    let fixture_path = p(vec!["cache-fs"]);
     let resolver = Resolver::new(ResolverOptions::default());
-    // assert!(resolver.unsafe_cache.is_none());·
-    // let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
-    // assert!(resolver.unsafe_cache.is_none());
+    should_equal(&resolver, &fixture_path, ".", fixture_path.join("index.js"));
+
+    sleep(Duration::from_secs(1));
+    write(
+        &fixture_path.join("package.json"),
+        "{\"main\": \"module.js\"}",
+    )
+    .expect("write failed");
+
+    should_equal(
+        &resolver,
+        &fixture_path,
+        ".",
+        fixture_path.join("module.js"),
+    );
+
+    sleep(Duration::from_secs(1));
+    write(
+        &fixture_path.join("package.json"),
+        "{\"main\": \"index.js\"}",
+    )
+    .expect("write failed");
+
+    should_equal(&resolver, &fixture_path, ".", fixture_path.join("index.js"));
 }
 
 #[test]
@@ -2434,7 +2426,7 @@ fn tsconfig_paths_extends_from_node_modules() {
 }
 
 #[test]
-fn load_sideeffects_test() {
+fn load_side_effects_test() {
     let case_path = p(vec!["exports-field"]);
     let resolver = Resolver::new(ResolverOptions {
         ..Default::default()
@@ -2450,7 +2442,7 @@ fn load_sideeffects_test() {
 
     assert_eq!(
         resolver
-            .load_sideeffects(&scope_import_require_path)
+            .load_side_effects(&scope_import_require_path)
             .unwrap()
             .unwrap()
             .0,
@@ -2465,7 +2457,7 @@ fn load_sideeffects_test() {
 
     assert!(matches!(
         resolver
-            .load_sideeffects(&scope_import_require_path)
+            .load_side_effects(&scope_import_require_path)
             .unwrap()
             .unwrap()
             .1,
@@ -2482,7 +2474,7 @@ fn load_sideeffects_test() {
 
     assert_eq!(
         resolver
-            .load_sideeffects(&exports_field_path)
+            .load_side_effects(&exports_field_path)
             .unwrap()
             .unwrap()
             .0,
@@ -2496,7 +2488,7 @@ fn load_sideeffects_test() {
 
     assert!(matches!(
         resolver
-            .load_sideeffects(&exports_field_path)
+            .load_side_effects(&exports_field_path)
             .unwrap()
             .unwrap()
             .1,
@@ -2505,7 +2497,7 @@ fn load_sideeffects_test() {
 
     assert_eq!(
         resolver
-            .load_sideeffects(&p(vec!["incorrect-package", "sideeffects-map"]))
+            .load_side_effects(&p(vec!["incorrect-package", "sideeffects-map"]))
             .unwrap_err(),
         format!(
             "sideEffects in {} had unexpected value {{}}",
@@ -2515,7 +2507,7 @@ fn load_sideeffects_test() {
 
     assert_eq!(
         resolver
-            .load_sideeffects(&p(vec!["incorrect-package", "sideeffects-other-in-array"]))
+            .load_side_effects(&p(vec!["incorrect-package", "sideeffects-other-in-array"]))
             .unwrap_err(),
         format!(
             "sideEffects in {} had unexpected value 1",
@@ -2528,25 +2520,25 @@ fn load_sideeffects_test() {
         )
     );
 
-    assert!(resolver.load_sideeffects(&p(vec![])).unwrap().is_none());
+    assert!(resolver.load_side_effects(&p(vec![])).unwrap().is_none());
 }
 
 #[test]
-fn shared_cache_test() {
+fn shared_cache_test1() {
     let case_path = p(vec!["browser-module"]);
 
     // shared cache
-    let cache = Arc::new(ResolverUnsafeCache::default());
+    let cache = Arc::new(ResolverCache::default());
 
     let resolver1 = Resolver::new(ResolverOptions {
         browser_field: true,
-        unsafe_cache: Some(cache.clone()),
+        external_cache: Some(cache.clone()),
         ..Default::default()
     });
     should_ignored(&resolver1, &case_path, "./lib/ignore.js");
 
     let resolver2 = Resolver::new(ResolverOptions {
-        unsafe_cache: Some(cache.clone()),
+        external_cache: Some(cache.clone()),
         ..Default::default()
     });
     should_equal(
@@ -2555,4 +2547,40 @@ fn shared_cache_test() {
         "./lib/ignore.js",
         case_path.join("lib").join("ignore.js").to_path_buf(),
     );
+
+    let resolver3 = Resolver::new(ResolverOptions {
+        external_cache: Some(cache.clone()),
+        main_fields: vec!["module".to_string()],
+        ..Default::default()
+    });
+    should_equal(
+        &resolver3,
+        &p(vec!["main-field-inexist"]),
+        ".",
+        p(vec!["main-field-inexist", "module.js"]),
+    );
+}
+
+#[test]
+fn share_cache_test2() {
+    let cache = Arc::new(ResolverCache::default());
+    let fixture_path = p(vec![]);
+
+    let resolver = Resolver::new(ResolverOptions {
+        external_cache: Some(cache.clone()),
+        ..Default::default()
+    });
+    let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
+    assert_eq!(cache.pkg_info.len(), 1);
+    assert_eq!(resolver.cache.pkg_info.len(), 1);
+
+    let resolver = Resolver::new(ResolverOptions {
+        external_cache: Some(cache.clone()),
+        ..Default::default()
+    });
+
+    let full_path = p(vec!["full", "a"]);
+    let _ = resolver.resolve(&full_path, "package3");
+    assert_eq!(cache.pkg_info.len(), 2);
+    assert_eq!(resolver.cache.pkg_info.len(), 2);
 }

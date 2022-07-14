@@ -18,7 +18,7 @@ impl Plugin for ExtensionsPlugin {
             };
             if path.is_file() {
                 return ResolverStats::Success(ResolverResult::Info(
-                    info.with_path(path).with_target(resolver, ""),
+                    info.with_path(path).with_target(""),
                 ));
             }
         }

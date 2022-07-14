@@ -14,7 +14,7 @@ impl Plugin for PreferRelativePlugin {
             let target = format!("./{}", info.request.target);
             let info = ResolverInfo::from(
                 info.path.to_owned(),
-                info.request.clone().with_target(resolver, &target),
+                info.request.clone().with_target(&target),
             );
             let stats = resolver._resolve(info);
             if stats.is_success() {

@@ -1,7 +1,6 @@
 use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
 use crate::{AliasMap, RResult, Resolver};
 use std::collections::HashMap;
-use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -17,44 +16,40 @@ pub struct PkgFileInfo {
     /// It not a property in package.json.
     pub abs_dir_path: PathBuf,
     pub name: Option<String>,
-    pub main_fields: Vec<String>,
     pub alias_fields: HashMap<String, AliasMap>,
     pub exports_field_tree: Option<PathTreeNode>,
     pub imports_field_tree: Option<PathTreeNode>,
     pub side_effects: Option<SideEffects>,
+    pub raw: serde_json::Value,
 }
 
 impl Resolver {
     #[tracing::instrument]
-    fn parse_description_file(
-        &self,
-        dir: &Path,
-        description_file_name: &str,
-    ) -> RResult<PkgFileInfo> {
-        let location = dir.join(description_file_name);
+    fn parse_description_file(&self, dir: &Path, file_path: PathBuf) -> RResult<PkgFileInfo> {
+        #[cfg(debug_assertions)]
+        {
+            // ensure that the same package.json is not parsed twice
+            if self.dbg_map.contains_key(&file_path) {
+                println!("{:?}", self.cache.pkg_info);
+                println!("{:?}", self.dbg_map);
+                panic!(
+                    "Had try to parse same package.json, {}",
+                    file_path.display()
+                )
+            }
+            self.dbg_map.insert(file_path.clone(), true);
+        }
 
         let str = tracing::debug_span!("read_to_string").in_scope(|| {
-            read_to_string(&location).map_err(|_| format!("Open {} failed", location.display()))
+            self.fs
+                .read_to_string(&file_path)
+                .map_err(|_| format!("Open {} failed", file_path.display()))
         })?;
         let json: serde_json::Value =
             tracing::debug_span!("serde_json_from_str").in_scope(|| {
                 serde_json::from_str(&str)
-                    .map_err(|_| format!("Parse {} failed", location.display()))
+                    .map_err(|_| format!("Parse {} failed", file_path.display()))
             })?;
-
-        let main_fields = self
-            .options
-            .main_fields
-            .iter()
-            .fold(vec![], |mut acc, main_filed| {
-                if let Some(value) = json.get(main_filed) {
-                    // TODO: `main_field` maybe a object, array...
-                    if let Some(s) = value.as_str() {
-                        acc.push(s.to_string());
-                    }
-                }
-                acc
-            });
 
         let mut alias_fields = HashMap::new();
 
@@ -90,6 +85,7 @@ impl Resolver {
 
         let side_effects: Option<SideEffects> =
             json.get("sideEffects").map_or(Ok(None), |value| {
+                // TODO: should optimized
                 if let Some(b) = value.as_bool() {
                     Ok(Some(SideEffects::Bool(b)))
                 } else if let Some(vec) = value.as_array() {
@@ -100,7 +96,7 @@ impl Resolver {
                         } else {
                             return Err(format!(
                                 "sideEffects in {} had unexpected value {}",
-                                location.display(),
+                                file_path.display(),
                                 value
                             ));
                         }
@@ -109,7 +105,7 @@ impl Resolver {
                 } else {
                     Err(format!(
                         "sideEffects in {} had unexpected value {}",
-                        location.display(),
+                        file_path.display(),
                         value
                     ))
                 }
@@ -118,15 +114,18 @@ impl Resolver {
         Ok(PkgFileInfo {
             name,
             abs_dir_path: dir.to_path_buf(),
-            main_fields,
             alias_fields,
             exports_field_tree,
             imports_field_tree,
             side_effects,
+            raw: json,
         })
     }
 
-    pub fn load_sideeffects(&self, path: &Path) -> RResult<Option<(PathBuf, Option<SideEffects>)>> {
+    pub fn load_side_effects(
+        &self,
+        path: &Path,
+    ) -> RResult<Option<(PathBuf, Option<SideEffects>)>> {
         Ok(self.load_pkg_file(path)?.map(|pkg_info| {
             (
                 pkg_info
@@ -151,61 +150,54 @@ impl Resolver {
             };
         }
 
-        let pkg_info = if let Some(r#ref) = self
-            .unsafe_cache
-            .as_ref()
-            .and_then(|cache| cache.pkg_info.get(path))
-        {
-            r#ref.clone()
+        let description_file_name = self.options.description_file.as_ref().unwrap();
+        let description_file_path = path.join(description_file_name);
+        let need_find_up = if let Some(r#ref) = self.cache.pkg_info.get(path) {
+            // if pkg_info_cache contain this key
+            if !self.fs.need_update(&description_file_path)? {
+                // and not modified, then return
+                return Ok(r#ref.clone());
+            } else {
+                #[cfg(debug_assertions)]
+                {
+                    self.dbg_map.remove(&description_file_path);
+                }
+
+                false
+            }
         } else {
-            let description_file_name = self.options.description_file.as_ref().unwrap();
-            let (pkg_info, target_dir) =
-                if let Some(target_dir) = Self::find_up(path, description_file_name) {
-                    // TODO: should optimized
-                    if let Some(r#ref) = self
-                        .unsafe_cache
-                        .as_ref()
-                        .and_then(|cache| cache.pkg_info.get(&target_dir))
-                    {
-                        return Ok(r#ref.clone());
-                    }
+            !description_file_path.is_file()
+        };
 
-                    // {
-                    //     // debug block, comment it when release.
-                    //     let location = target_dir.join(description_file_name);
-                    //     if self.unsafe_cache.is_some() && self.dbg_map.contains_key(&location) {
-                    //         dbg!(&self.unsafe_cache.as_ref().unwrap().pkg_info);
-                    //         dbg!(&self.dbg_map);
-                    //         panic!("Had try to parse same package.json, {}", location.display())
-                    //     }
-                    //     self.dbg_map.insert(location, true);
-                    // }
-
-                    let parsed =
-                        Arc::new(self.parse_description_file(&target_dir, description_file_name)?);
-                    (Some(parsed), Some(target_dir))
-                } else {
-                    (None, None)
-                };
-
-            // TODO: should optimized
-            if let Some(cache) = self.unsafe_cache.as_ref() {
-                let mut temp_dir = path.to_path_buf();
-                let target_dir = if let Some(target_dir) = target_dir {
-                    target_dir
-                } else {
-                    PathBuf::from("/")
-                };
+        // pkg_info_cache do **not** contain this key
+        // or this file had modified
+        if need_find_up {
+            // find the closest directory witch contains description file
+            if let Some(target_dir) = Self::find_up(path, description_file_name) {
+                return self.load_pkg_file(&target_dir);
+            } else {
+                // it means all paths during from the `path` to root pointed None.
+                // cache it
+                let mut path = path;
                 loop {
-                    let info = pkg_info.clone();
-                    cache.pkg_info.insert(temp_dir.clone(), info);
-                    if temp_dir.eq(&target_dir) || !temp_dir.pop() {
-                        break;
+                    if path.is_dir() {
+                        self.cache.pkg_info.insert(path.to_path_buf(), None);
+                        match path.parent() {
+                            Some(parent) => path = parent,
+                            None => return Ok(None),
+                        }
                     }
                 }
             }
-            pkg_info
-        };
+        }
+
+        let pkg_info = Some(Arc::new(
+            self.parse_description_file(path, description_file_path)?,
+        ));
+
+        self.cache
+            .pkg_info
+            .insert(path.to_path_buf(), pkg_info.clone());
 
         Ok(pkg_info)
     }
