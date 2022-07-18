@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::{collections::HashMap, path::PathBuf};
 
 use super::Plugin;
-use crate::{PathKind, ResolverInfo, ResolverResult, ResolverStats};
+use crate::{PathKind, ResolveInfo, ResolveResult, ResolverStats};
 
 pub struct AliasFieldPlugin<'a> {
     pkg_info: &'a Option<Arc<PkgFileInfo>>,
@@ -33,14 +33,14 @@ impl<'a> AliasFieldPlugin<'a> {
 
     pub(super) fn request_target_is_module_and_equal_alias_key(
         alias_key: &String,
-        info: &ResolverInfo,
+        info: &ResolveInfo,
     ) -> bool {
         info.request.target.eq(alias_key)
     }
 
     pub(super) fn request_path_is_equal_alias_key_path(
         alias_path: &PathBuf,
-        info: &ResolverInfo,
+        info: &ResolveInfo,
         extensions: &[String],
     ) -> bool {
         let request_path = info.get_path();
@@ -53,7 +53,7 @@ impl<'a> AliasFieldPlugin<'a> {
 }
 
 impl<'a> Plugin for AliasFieldPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: ResolverInfo) -> ResolverStats {
+    fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats {
         if !resolver.options.browser_field {
             return ResolverStats::Resolving(info);
         }
@@ -76,7 +76,7 @@ impl<'a> Plugin for AliasFieldPlugin<'a> {
                             info.with_path(pkg_info.abs_dir_path.to_path_buf())
                                 .with_target(&converted),
                         ),
-                        AliasMap::Ignored => ResolverStats::Success(ResolverResult::Ignored),
+                        AliasMap::Ignored => ResolverStats::Success(ResolveResult::Ignored),
                     };
                 }
             }

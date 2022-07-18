@@ -133,7 +133,7 @@ impl Resolver {
         let version = json
             .get("version")
             .and_then(|value| value.as_str())
-            .and_then(|str| Some(str.to_string()));
+            .map(|str| str.to_string());
 
         Ok(PkgFileInfo {
             name,

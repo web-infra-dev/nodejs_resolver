@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{description::PkgFileInfo, Resolver};
 
 use super::{
-    AliasFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, Plugin, ResolverInfo, ResolverStats,
+    AliasFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, Plugin, ResolveInfo, ResolverStats,
 };
 
 pub struct MainFilePlugin<'a> {
@@ -17,8 +17,8 @@ impl<'a> MainFilePlugin<'a> {
 }
 
 impl<'a> Plugin for MainFilePlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: ResolverInfo) -> ResolverStats {
-        let mut main_file_info = ResolverInfo::from(info.path.to_owned(), info.request.clone());
+    fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats {
+        let mut main_file_info = ResolveInfo::from(info.path.to_owned(), info.request.clone());
         for main_file in &resolver.options.main_files {
             main_file_info = main_file_info.with_target(&format!("./{main_file}"));
             let stats = ExportsFieldPlugin::new(self.pkg_info)

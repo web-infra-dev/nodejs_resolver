@@ -1,6 +1,6 @@
 // copy from https://github.com/drivasperez/tsconfig
 
-use crate::{RResult, Resolver, ResolverInfo, ResolverResult, ResolverStats};
+use crate::{RResult, ResolveInfo, ResolveResult, Resolver, ResolverStats};
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::Path;
@@ -61,12 +61,12 @@ fn parse_file_to_value(location: &Path, resolver: &Resolver) -> RResult<serde_js
     if let serde_json::Value::String(s) = &json["extends"] {
         // `location` pointed to `dir/tsconfig.json`
         let dir = location.parent().unwrap().to_path_buf();
-        let stats = resolver._resolve(ResolverInfo::from(dir, resolver.parse(s)));
+        let stats = resolver._resolve(ResolveInfo::from(dir, resolver.parse(s)));
         // Is it better to use cache?
         if let ResolverStats::Success(result) = stats {
             let extends_tsconfig_json = match result {
-                ResolverResult::Info(info) => parse_file_to_value(&info.get_path(), resolver),
-                ResolverResult::Ignored => {
+                ResolveResult::Info(info) => parse_file_to_value(&info.get_path(), resolver),
+                ResolveResult::Ignored => {
                     return Err(format!("{s} had been ignored in {}", location.display()))
                 }
             }?;

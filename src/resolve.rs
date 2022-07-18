@@ -7,7 +7,7 @@ use crate::plugin::{
     MainFilePlugin, Plugin,
 };
 use crate::utils::RAISE_RESOLVE_ERROR_TAG;
-use crate::{PathKind, Resolver, ResolverInfo, ResolverResult, ResolverStats, MODULE};
+use crate::{PathKind, ResolveInfo, ResolveResult, Resolver, ResolverStats, MODULE};
 
 impl Resolver {
     pub(crate) fn append_ext_for_path(path: &Path, ext: &str) -> PathBuf {
@@ -16,17 +16,17 @@ impl Resolver {
     }
 
     #[tracing::instrument]
-    pub(crate) fn resolve_as_file(&self, info: ResolverInfo) -> ResolverStats {
+    pub(crate) fn resolve_as_file(&self, info: ResolveInfo) -> ResolverStats {
         let path = info.get_path();
         if !(*self.options.enforce_extension.as_ref().unwrap_or(&false)) && path.is_file() {
-            ResolverStats::Success(ResolverResult::Info(info.with_path(path).with_target("")))
+            ResolverStats::Success(ResolveResult::Info(info.with_path(path).with_target("")))
         } else {
             ExtensionsPlugin::default().apply(self, info)
         }
     }
 
     #[tracing::instrument]
-    pub(crate) fn resolve_as_dir(&self, info: ResolverInfo) -> ResolverStats {
+    pub(crate) fn resolve_as_dir(&self, info: ResolveInfo) -> ResolverStats {
         let dir = info.get_path();
         if !dir.is_dir() {
             return ResolverStats::Error((Resolver::raise_tag(), info));
@@ -43,7 +43,7 @@ impl Resolver {
     }
 
     #[tracing::instrument]
-    pub(crate) fn resolve_as_modules(&self, info: ResolverInfo) -> ResolverStats {
+    pub(crate) fn resolve_as_modules(&self, info: ResolveInfo) -> ResolverStats {
         let original_dir = info.path.clone();
         let module_root_path = original_dir.join(MODULE);
         let stats = if module_root_path.is_dir() {
@@ -65,7 +65,7 @@ impl Resolver {
                 last_start_index.map_or(target.clone(), |&index| SmolStr::new(&target[0..index]));
             let module_path = module_root_path.join(&*module_name);
 
-            let module_info = ResolverInfo::from(module_root_path, info.request.clone());
+            let module_info = ResolveInfo::from(module_root_path, info.request.clone());
             let pkg_info = match self.load_pkg_file(&module_info.path.join(&**target)) {
                 Ok(pkg_info) => pkg_info,
                 Err(err) => return ResolverStats::Error((err, info)),
