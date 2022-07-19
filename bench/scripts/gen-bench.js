@@ -174,13 +174,13 @@ extern crate test;
 #[cfg(test)] 
 mod bench_test {
 
-    use nodejs_resolver::{Resolver, ResolverOptions, ResolverResult, RResult};
+    use nodejs_resolver::{Resolver, ResolverOptions, ResolveResult, RResult};
     use std::env::current_dir;
     use std::path::PathBuf;
     use test::Bencher;
     use std::time::Instant;
 
-    fn is_ok(result: RResult<ResolverResult>) {
+    fn is_ok(result: RResult<ResolveResult>) {
       assert!(result.is_ok())
     }
 
@@ -202,7 +202,7 @@ mod bench_test {
             ..Default::default()
           });
 
-          let start = Instant::now();
+          // let start = Instant::now();
 `;
   run(function (dir, file) {
     const relativePath = path.relative(base, dir);
@@ -214,7 +214,7 @@ mod bench_test {
 `;
   });
   content += `
-          println!("time cost: {:?} ms", start.elapsed().as_millis());// ms
+          // println!("time cost: {:?} ms", start.elapsed().as_millis());// ms
         });
     }
 }\n`;

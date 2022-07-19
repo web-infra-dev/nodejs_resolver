@@ -17,7 +17,7 @@
 //! let resolver = Resolver::default();
 //!
 //! resolver.resolve(&cwd.join("./src"), "foo");
-//! // -> ResolveResult::Info(ResolverInfo {
+//! // -> ResolveResult::Info(ResolveInfo {
 //! //    path: PathBuf::from("<cwd>/node_modules/foo/index.js")
 //! //    request: Request {
 //! //       target: "",
@@ -28,7 +28,7 @@
 //! //
 //!
 //! resolver.resolve(&cwd.join("./src"), "./foo");
-//! // -> ResolveResult::Info(ResolverInfo {
+//! // -> ResolveResult::Info(ResolveInfo {
 //! //    path: PathBuf::from("<cwd>/src/foo.js")
 //! //    request: Request {
 //! //       target: "",
@@ -82,12 +82,12 @@ pub struct Resolver {
 pub type ResolverError = String;
 
 #[derive(Debug, Clone)]
-pub struct ResolverInfo {
+pub struct ResolveInfo {
     pub path: PathBuf,
     pub request: Request,
 }
 
-impl ResolverInfo {
+impl ResolveInfo {
     pub fn from(path: PathBuf, request: Request) -> Self {
         Self { path, request }
     }
@@ -121,20 +121,20 @@ impl ResolverInfo {
 }
 
 #[derive(Debug)]
-pub enum ResolverResult {
-    Info(ResolverInfo),
+pub enum ResolveResult {
+    Info(ResolveInfo),
     Ignored,
 }
 
 #[derive(Debug)]
 pub(crate) enum ResolverStats {
-    Success(ResolverResult),
-    Resolving(ResolverInfo),
-    Error((ResolverError, ResolverInfo)),
+    Success(ResolveResult),
+    Resolving(ResolveInfo),
+    Error((ResolverError, ResolveInfo)),
 }
 
 impl ResolverStats {
-    pub fn and_then<F: FnOnce(ResolverInfo) -> ResolverStats>(self, op: F) -> ResolverStats {
+    pub fn and_then<F: FnOnce(ResolveInfo) -> ResolverStats>(self, op: F) -> ResolverStats {
         match self {
             ResolverStats::Resolving(info) => op(info),
             _ => self,
@@ -145,7 +145,7 @@ impl ResolverStats {
         matches!(self, ResolverStats::Success(_))
     }
 
-    pub fn extract_info(self) -> ResolverInfo {
+    pub fn extract_info(self) -> ResolveInfo {
         match self {
             ResolverStats::Resolving(info) => info,
             ResolverStats::Error((_, info)) => info,
@@ -196,9 +196,9 @@ impl Resolver {
         }
     }
 
-    pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolverResult> {
+    pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolveResult> {
         // let start = std::time::Instant::now();
-        let info = ResolverInfo::from(path.to_path_buf(), self.parse(request));
+        let info = ResolveInfo::from(path.to_path_buf(), self.parse(request));
 
         let result = if let Some(tsconfig_location) = self.options.tsconfig.as_ref() {
             self._resolve_with_tsconfig(info, tsconfig_location)
@@ -223,7 +223,7 @@ impl Resolver {
     }
 
     #[tracing::instrument]
-    fn _resolve(&self, info: ResolverInfo) -> ResolverStats {
+    fn _resolve(&self, info: ResolveInfo) -> ResolverStats {
         let resolve_err_msg = Self::raise_resolve_failed_message(&info);
         let stats = AliasPlugin::default()
             .apply(self, info)
@@ -269,12 +269,9 @@ impl Resolver {
     }
 }
 
-#[cfg(test)]
-mod test {
-
-    use super::*;
-
-    fn p(paths: Vec<&str>) -> PathBuf {
+#[cfg(debug_assertions)]
+pub mod test_helper {
+    pub fn p(paths: Vec<&str>) -> std::path::PathBuf {
         paths.iter().fold(
             std::env::current_dir()
                 .unwrap()
@@ -283,6 +280,13 @@ mod test {
             |acc, path| acc.join(path),
         )
     }
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::test_helper::p;
+    use super::*;
 
     #[test]
     fn pkg_info_cache_test() {

@@ -5,7 +5,7 @@ use crate::{description::PkgFileInfo, kind::PathKind, Resolver, MODULE};
 use super::Plugin;
 use crate::{
     map::{ExportsField, Field},
-    ResolverInfo, ResolverStats,
+    ResolveInfo, ResolverStats,
 };
 
 pub struct ExportsFieldPlugin<'a> {
@@ -21,7 +21,7 @@ impl<'a> ExportsFieldPlugin<'a> {
         pkg_info.abs_dir_path.to_string_lossy().contains(MODULE)
     }
 
-    pub(crate) fn is_resolve_self(pkg_info: &PkgFileInfo, info: &ResolverInfo) -> bool {
+    pub(crate) fn is_resolve_self(pkg_info: &PkgFileInfo, info: &ResolveInfo) -> bool {
         pkg_info
             .name
             .as_ref()
@@ -31,7 +31,7 @@ impl<'a> ExportsFieldPlugin<'a> {
 }
 
 impl<'a> Plugin for ExportsFieldPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: ResolverInfo) -> ResolverStats {
+    fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats {
         if let Some(pkg_info) = self.pkg_info.as_ref() {
             let target = &info.request.target;
 
@@ -91,7 +91,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
 
             for item in list {
                 let request = resolver.parse(&item);
-                let info = ResolverInfo::from(pkg_info.abs_dir_path.to_path_buf(), request);
+                let info = ResolveInfo::from(pkg_info.abs_dir_path.to_path_buf(), request);
 
                 if info.get_path().is_file() && ExportsField::check_target(&info.request.target) {
                     return ResolverStats::Resolving(info);

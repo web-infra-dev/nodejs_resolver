@@ -5,7 +5,7 @@ use crate::{description::PkgFileInfo, plugin::ExportsFieldPlugin, Resolver, MODU
 use super::{AliasFieldPlugin, Plugin};
 use crate::{
     map::{Field, ImportsField},
-    PathKind, ResolverInfo, ResolverStats,
+    PathKind, ResolveInfo, ResolverStats,
 };
 
 pub struct ImportsFieldPlugin<'a> {
@@ -17,7 +17,7 @@ impl<'a> ImportsFieldPlugin<'a> {
         Self { pkg_info }
     }
 
-    fn check_target(info: ResolverInfo, target: &str) -> ResolverStats {
+    fn check_target(info: ResolveInfo, target: &str) -> ResolverStats {
         if info.get_path().is_file() && ImportsField::check_target(&info.request.target) {
             ResolverStats::Resolving(info)
         } else {
@@ -27,7 +27,7 @@ impl<'a> ImportsFieldPlugin<'a> {
 }
 
 impl<'a> Plugin for ImportsFieldPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: ResolverInfo) -> ResolverStats {
+    fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats {
         if let Some(pkg_info) = self.pkg_info {
             if !info.request.target.starts_with('#') {
                 return ResolverStats::Resolving(info);
@@ -47,7 +47,7 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
                 let request = resolver.parse(item);
                 let is_normal_kind = matches!(request.kind, PathKind::Normal);
                 let is_internal_kind = matches!(request.kind, PathKind::Internal);
-                let info = ResolverInfo::from(
+                let info = ResolveInfo::from(
                     if is_normal_kind {
                         pkg_info.abs_dir_path.join(MODULE)
                     } else {

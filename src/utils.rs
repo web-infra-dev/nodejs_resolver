@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::{Resolver, ResolverInfo};
+use crate::{ResolveInfo, Resolver};
 
 pub static RAISE_RESOLVE_ERROR_TAG: &str = "T0";
 
@@ -9,7 +9,7 @@ impl Resolver {
         RAISE_RESOLVE_ERROR_TAG.to_string()
     }
 
-    pub(super) fn raise_resolve_failed_message(info: &ResolverInfo) -> String {
+    pub(super) fn raise_resolve_failed_message(info: &ResolveInfo) -> String {
         format!(
             "Resolve '{}' failed in '{}'",
             info.request,

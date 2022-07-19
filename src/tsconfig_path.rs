@@ -1,7 +1,7 @@
 // Copy from https://github.com/dividab/tsconfig-paths
 
 use super::tsconfig::TsConfig;
-use crate::{parse::Request, RResult, Resolver, ResolverInfo, ResolverStats};
+use crate::{parse::Request, RResult, ResolveInfo, Resolver, ResolverStats};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -89,7 +89,7 @@ impl Resolver {
 
     pub(super) fn _resolve_with_tsconfig(
         &self,
-        info: ResolverInfo,
+        info: ResolveInfo,
         location: &Path,
     ) -> ResolverStats {
         let tsconfig = match Self::parse_tsconfig(location, self) {
@@ -116,7 +116,7 @@ impl Resolver {
                     .replace('*', star_match);
 
                 let path = PathBuf::from(physical_path);
-                let result = self._resolve(ResolverInfo::from(path, Request::empty()));
+                let result = self._resolve(ResolveInfo::from(path, Request::empty()));
                 if result.is_success() {
                     return result;
                 }

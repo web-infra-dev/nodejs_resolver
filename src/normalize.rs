@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use crate::{RResult, Resolver, ResolverResult};
+use crate::{RResult, ResolveResult, Resolver};
 
 impl Resolver {
     #[cfg(not(target_os = "windows"))]
@@ -47,14 +47,14 @@ impl Resolver {
         }
     }
 
-    pub(super) fn normalize_result(&self, result: ResolverResult) -> RResult<ResolverResult> {
+    pub(super) fn normalize_result(&self, result: ResolveResult) -> RResult<ResolveResult> {
         match result {
-            ResolverResult::Info(info) => {
+            ResolveResult::Info(info) => {
                 assert!(info.request.target.is_empty());
                 let result = self.normalize_path(&info.path)?;
-                Ok(ResolverResult::Info(info.with_path(result)))
+                Ok(ResolveResult::Info(info.with_path(result)))
             }
-            ResolverResult::Ignored => Ok(ResolverResult::Ignored),
+            ResolveResult::Ignored => Ok(ResolveResult::Ignored),
         }
     }
 }

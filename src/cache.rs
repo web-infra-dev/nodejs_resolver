@@ -1,7 +1,7 @@
 use crate::description::PkgFileInfo;
 use crate::map::PathTreeNode;
 use dashmap::DashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 #[derive(Default, Debug, Clone)]
@@ -12,19 +12,21 @@ pub struct ResolverCache {
     pub imports_content_to_tree: DashMap<String, Arc<PathTreeNode>>,
 }
 
+#[cfg(debug_assertions)]
 #[derive(Default, Debug, Clone)]
 pub(crate) struct DebugReadMap(DashMap<PathBuf, bool>);
 
+#[cfg(debug_assertions)]
 impl DebugReadMap {
-    pub(crate) fn remove(&self, path: &Path) {
+    pub(crate) fn remove(&self, path: &std::path::Path) {
         self.0.remove(path);
     }
 
-    pub(crate) fn contains_key(&self, path: &Path) -> bool {
+    pub(crate) fn contains_key(&self, path: &std::path::Path) -> bool {
         self.0.contains_key(path)
     }
 
-    pub(crate) fn insert(&self, path: &Path, value: bool) {
+    pub(crate) fn insert(&self, path: &std::path::Path, value: bool) {
         self.0.insert(path.to_path_buf(), value);
     }
 }

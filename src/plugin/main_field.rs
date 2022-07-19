@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{description::PkgFileInfo, Resolver};
 
-use super::{AliasFieldPlugin, Plugin, ResolverInfo, ResolverStats};
+use super::{AliasFieldPlugin, Plugin, ResolveInfo, ResolverStats};
 
 pub struct MainFieldPlugin<'a> {
     pkg_info: &'a Option<Arc<PkgFileInfo>>,
@@ -15,14 +15,13 @@ impl<'a> MainFieldPlugin<'a> {
 }
 
 impl<'a> Plugin for MainFieldPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: ResolverInfo) -> ResolverStats {
+    fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats {
         if let Some(pkg_info) = self.pkg_info {
             if !info.path.eq(&pkg_info.abs_dir_path) {
                 return ResolverStats::Resolving(info);
             }
 
-            let mut main_field_info =
-                ResolverInfo::from(info.path.to_owned(), info.request.clone());
+            let mut main_field_info = ResolveInfo::from(info.path.to_owned(), info.request.clone());
 
             for user_main_field in &resolver.options.main_fields {
                 if let Some(main_field) = pkg_info

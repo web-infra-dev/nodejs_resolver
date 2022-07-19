@@ -1,37 +1,25 @@
+use nodejs_resolver::test_helper::p;
 use nodejs_resolver::{
-    AliasMap, Resolver, ResolverCache, ResolverOptions, ResolverResult, SideEffects,
+    AliasMap, ResolveResult, Resolver, ResolverCache, ResolverOptions, SideEffects,
 };
+
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-macro_rules! get_cases_path {
-    ($path: expr) => {
-        std::env::current_dir().unwrap().join($path)
-    };
-}
-
-fn p(paths: Vec<&str>) -> PathBuf {
-    paths
-        .iter()
-        .fold(get_cases_path!("tests").join("fixtures"), |acc, path| {
-            acc.join(path)
-        })
-}
-
 fn should_equal(resolver: &Resolver, path: &Path, request: &str, expected: PathBuf) {
     match resolver.resolve(path, request) {
-        Ok(ResolverResult::Info(info)) => {
+        Ok(ResolveResult::Info(info)) => {
             assert_eq!(info.join(), expected);
         }
-        Ok(ResolverResult::Ignored) => panic!("should not ignored"),
+        Ok(ResolveResult::Ignored) => panic!("should not ignored"),
         Err(error) => panic!("{}", error),
     }
 }
 
 fn should_ignored(resolver: &Resolver, path: &Path, request: &str) {
     match resolver.resolve(path, request) {
-        Ok(ResolverResult::Ignored) => {}
+        Ok(ResolveResult::Ignored) => {}
         _ => unreachable!(),
     }
 }
@@ -2390,7 +2378,7 @@ fn load_side_effects_test() {
     let resolver = Resolver::new(ResolverOptions {
         ..Default::default()
     });
-    let scope_import_require_path = if let ResolverResult::Info(info) = resolver
+    let scope_import_require_path = if let ResolveResult::Info(info) = resolver
         .resolve(&case_path, "@scope/import-require")
         .unwrap()
     {
@@ -2423,13 +2411,12 @@ fn load_side_effects_test() {
         Some(SideEffects::Array(_))
     ));
 
-    let exports_field_path = if let ResolverResult::Info(info) =
-        resolver.resolve(&case_path, "exports-field").unwrap()
-    {
-        info.path
-    } else {
-        panic!("error")
-    };
+    let exports_field_path =
+        if let ResolveResult::Info(info) = resolver.resolve(&case_path, "exports-field").unwrap() {
+            info.path
+        } else {
+            panic!("error")
+        };
 
     assert_eq!(
         resolver
