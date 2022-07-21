@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.33
+
+- do not support auto prefix '.' any more in `extensions`.
+
 ## 0.0.32
 
 - cached `exportField` and `importsField`.
@@ -138,7 +142,7 @@
 ## 0.0.5 && 0.0.6
 
 yanked
- 
+
 ## 0.0.4
 
 - support `Debug` trait. According to [Debuggability](https://rust-lang.github.io/api-guidelines/debuggability.html#debuggability), all public API types should be implements `Debug`.

@@ -11,8 +11,7 @@ use crate::{PathKind, ResolveInfo, ResolveResult, Resolver, ResolverStats, MODUL
 
 impl Resolver {
     pub(crate) fn append_ext_for_path(path: &Path, ext: &str) -> PathBuf {
-        let str = if ext.is_empty() { "" } else { "." };
-        PathBuf::from(&format!("{}{str}{ext}", path.display()))
+        PathBuf::from(&format!("{}{ext}", path.display()))
     }
 
     #[tracing::instrument]
@@ -21,7 +20,7 @@ impl Resolver {
         if !(*self.options.enforce_extension.as_ref().unwrap_or(&false)) && path.is_file() {
             ResolverStats::Success(ResolveResult::Info(info.with_path(path).with_target("")))
         } else {
-            ExtensionsPlugin::default().apply(self, info)
+            ExtensionsPlugin::new(path).apply(self, info)
         }
     }
 
