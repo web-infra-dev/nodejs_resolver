@@ -49,7 +49,7 @@ macro_rules! vec_to_set {
 fn extensions_test() {
     let extensions_cases_path = p(vec!["extensions"]);
     let resolver = Resolver::new(ResolverOptions {
-        extensions: vec![String::from("ts"), String::from(".js")], // `extensions` can start with `.` or not.
+        extensions: vec![String::from(".ts"), String::from(".js")],
         ..Default::default()
     });
 
@@ -85,6 +85,37 @@ fn extensions_test() {
     );
     should_equal(
         &resolver,
+        &extensions_cases_path.join("index"),
+        ".",
+        p(vec!["extensions", "index.ts"]),
+    );
+    should_equal(
+        &resolver,
+        &extensions_cases_path.join("index.js"),
+        ".",
+        p(vec!["extensions", "index.js"]),
+    );
+    should_error(
+        &resolver,
+        &extensions_cases_path.join("index."),
+        ".",
+        format!(
+            "Resolve '.' failed in '{}'",
+            extensions_cases_path.join("index.").display()
+        ),
+    );
+    should_error(
+        &resolver,
+        &extensions_cases_path.join("inde"),
+        ".",
+        format!(
+            "Resolve '.' failed in '{}'",
+            extensions_cases_path.join("inde").display()
+        ),
+    );
+
+    should_equal(
+        &resolver,
         &extensions_cases_path,
         "m",
         p(vec!["extensions", "node_modules", "m.js"]),
@@ -94,6 +125,117 @@ fn extensions_test() {
         &extensions_cases_path,
         "m/",
         p(vec!["extensions", "node_modules", "m", "index.ts"]),
+    );
+    should_error(
+        &resolver,
+        &extensions_cases_path,
+        "./b.js",
+        format!(
+            "Resolve './b.js' failed in '{}'",
+            extensions_cases_path.display()
+        ),
+    );
+    should_error(
+        &resolver,
+        &extensions_cases_path,
+        "fs",
+        format!(
+            "Resolve 'fs' failed in '{}'",
+            extensions_cases_path.display()
+        ),
+    );
+    should_error(
+        &resolver,
+        &extensions_cases_path,
+        "./a.js/",
+        format!(
+            "Resolve './a.js/' failed in '{}'",
+            extensions_cases_path.display()
+        ),
+    );
+    should_error(
+        &resolver,
+        &extensions_cases_path,
+        "m.js/",
+        format!(
+            "Resolve 'm.js/' failed in '{}'",
+            extensions_cases_path.display()
+        ),
+    );
+    let resolver = Resolver::new(ResolverOptions {
+        extensions: vec![String::from("ts"), String::from(".js")],
+        ..Default::default()
+    });
+
+    should_equal(
+        &resolver,
+        &extensions_cases_path.join("./a"),
+        "",
+        p(vec!["extensions", "a.js"]),
+    );
+    should_equal(
+        &resolver,
+        &extensions_cases_path,
+        "./a",
+        p(vec!["extensions", "a.js"]),
+    );
+    should_equal(
+        &resolver,
+        &extensions_cases_path,
+        "./a.js",
+        p(vec!["extensions", "a.js"]),
+    );
+    should_equal(
+        &resolver,
+        &extensions_cases_path,
+        "./dir",
+        p(vec!["extensions", "dir", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &extensions_cases_path,
+        ".",
+        p(vec!["extensions", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &extensions_cases_path.join("index"),
+        ".",
+        p(vec!["extensions", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &extensions_cases_path.join("index.js"),
+        ".",
+        p(vec!["extensions", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &extensions_cases_path.join("index."),
+        ".",
+        p(vec!["extensions", "index.ts"]),
+    );
+    should_error(
+        &resolver,
+        &extensions_cases_path.join("inde"),
+        ".",
+        format!(
+            "Resolve '.' failed in '{}'",
+            extensions_cases_path.join("inde").display()
+        ),
+    );
+
+    should_equal(
+        &resolver,
+        &extensions_cases_path,
+        "m",
+        p(vec!["extensions", "node_modules", "m.js"]),
+    );
+    should_equal(
+        &resolver,
+        &extensions_cases_path,
+        "m/",
+        p(vec!["extensions", "node_modules", "m", "index.js"]),
     );
     should_error(
         &resolver,
@@ -1516,7 +1658,7 @@ fn exports_fields_test() {
     );
 
     let resolver = Resolver::new(ResolverOptions {
-        extensions: vec![String::from("js")],
+        extensions: vec![String::from(".js")],
         condition_names: vec_to_set!(["require"]),
         ..Default::default()
     });
@@ -1552,7 +1694,7 @@ fn exports_fields_test() {
     );
 
     let resolver = Resolver::new(ResolverOptions {
-        extensions: vec![String::from("js")],
+        extensions: vec![String::from(".js")],
         condition_names: vec_to_set!(["webpack"]),
         ..Default::default()
     });
@@ -1786,7 +1928,7 @@ fn exports_fields_test() {
     );
 
     let resolver = Resolver::new(ResolverOptions {
-        extensions: vec![String::from("js")],
+        extensions: vec![String::from(".js")],
         browser_field: true,
         condition_names: vec_to_set!(["webpack"]),
         ..Default::default()
@@ -1839,7 +1981,7 @@ fn exports_fields_test() {
     let export_cases_path4 = p(vec!["exports-field-error"]);
 
     let resolver = Resolver::new(ResolverOptions {
-        extensions: vec![String::from("js")],
+        extensions: vec![String::from(".js")],
         condition_names: vec_to_set!(["webpack"]),
         ..Default::default()
     });
@@ -2106,6 +2248,13 @@ fn tsconfig_paths_test() {
         tsconfig: Some(tsconfig_paths.join("tsconfig.json")),
         ..Default::default()
     });
+
+    should_equal(
+        &resolver,
+        &tsconfig_paths,
+        "test2/foo",
+        p(vec!["tsconfig-paths", "test2-success", "foo.ts"]),
+    );
 
     should_equal(
         &resolver,

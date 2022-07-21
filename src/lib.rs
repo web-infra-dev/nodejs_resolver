@@ -93,7 +93,7 @@ impl ResolveInfo {
     }
 
     pub fn get_path(&self) -> PathBuf {
-        if self.request.target.is_empty() {
+        if self.request.target.is_empty() || self.request.target == "." {
             self.path.to_path_buf()
         } else {
             self.path.join(&*self.request.target)
@@ -165,24 +165,12 @@ impl Resolver {
         } else {
             Arc::new(ResolverCache::default())
         };
-        let extensions: Vec<String> = options
-            .extensions
-            .into_iter()
-            .map(|s| {
-                if let Some(striped) = s.strip_prefix('.') {
-                    striped.to_string()
-                } else {
-                    s
-                }
-            })
-            .collect();
         let enforce_extension = if options.enforce_extension.is_none() {
-            Some(extensions.iter().any(|ext| ext.is_empty()))
+            Some(options.extensions.iter().any(|ext| ext.is_empty()))
         } else {
             options.enforce_extension
         };
         let options = ResolverOptions {
-            extensions,
             enforce_extension,
             ..options
         };
@@ -295,10 +283,12 @@ mod test {
         // show tracing tree
         tracing_span_tree::span_tree().aggregate(true).enable();
         let resolver = Resolver::new(Default::default());
-        let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
+        assert!(resolver
+            .resolve(&fixture_path, "./browser-module/lib/browser")
+            .is_ok());
 
         let full_path = fixture_path.join("full").join("a");
-        let _ = resolver.resolve(&full_path, "package3");
+        assert!(resolver.resolve(&full_path, "package3").is_ok());
 
         assert_eq!(resolver.cache.file_dir_to_pkg_info.len(), 2);
 

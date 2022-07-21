@@ -11,7 +11,7 @@ pub enum AliasMap {
 #[derive(Debug, Clone)]
 pub struct ResolverOptions {
     /// Tried detect file with this extension.
-    /// Default is `["js", "json", "node"]`
+    /// Default is `[".js", ".json", ".node"]`
     pub extensions: Vec<String>,
     /// Enforce that a extension from extensions must be used.
     /// Default is `None`
@@ -65,9 +65,9 @@ pub struct ResolverOptions {
 impl Default for ResolverOptions {
     fn default() -> Self {
         let extensions = vec![
-            String::from("js"),
-            String::from("json"),
-            String::from("node"),
+            String::from(".js"),
+            String::from(".json"),
+            String::from(".node"),
         ];
         let main_files = vec![String::from("index")];
         let main_fields = vec![String::from("main")];
