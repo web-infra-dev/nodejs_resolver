@@ -1,9 +1,11 @@
-use crate::{description::PkgFileInfo, AliasMap, Resolver};
+use std::path::PathBuf;
 use std::sync::Arc;
-use std::{collections::HashMap, path::PathBuf};
 
 use super::Plugin;
-use crate::{PathKind, ResolveInfo, ResolveResult, ResolverStats};
+use crate::{
+    description::PkgFileInfo, AliasMap, PathKind, ResolveInfo, ResolveResult, Resolver,
+    ResolverStats,
+};
 
 pub struct AliasFieldPlugin<'a> {
     pkg_info: &'a Option<Arc<PkgFileInfo>>,
@@ -12,23 +14,6 @@ pub struct AliasFieldPlugin<'a> {
 impl<'a> AliasFieldPlugin<'a> {
     pub fn new(pkg_info: &'a Option<Arc<PkgFileInfo>>) -> Self {
         Self { pkg_info }
-    }
-
-    pub(super) fn deal_with_alias_fields_recursive(
-        &self,
-        target: &AliasMap,
-        alias_fields: &HashMap<String, AliasMap>,
-    ) -> AliasMap {
-        match target {
-            AliasMap::Target(target) => {
-                if let Some(next) = alias_fields.get(target) {
-                    self.deal_with_alias_fields_recursive(next, alias_fields)
-                } else {
-                    AliasMap::Target(target.clone())
-                }
-            }
-            AliasMap::Ignored => AliasMap::Ignored,
-        }
     }
 
     pub(super) fn request_target_is_module_and_equal_alias_key(
@@ -57,7 +42,6 @@ impl<'a> Plugin for AliasFieldPlugin<'a> {
         if !resolver.options.browser_field {
             return ResolverStats::Resolving(info);
         }
-
         if let Some(pkg_info) = self.pkg_info.as_ref() {
             for (alias_key, alias_target) in &pkg_info.alias_fields {
                 let should_deal_alias = match matches!(info.request.kind, PathKind::Normal) {
@@ -68,21 +52,31 @@ impl<'a> Plugin for AliasFieldPlugin<'a> {
                         &resolver.options.extensions,
                     ),
                 };
-                if should_deal_alias {
-                    return match self
-                        .deal_with_alias_fields_recursive(alias_target, &pkg_info.alias_fields)
-                    {
-                        AliasMap::Target(converted) => ResolverStats::Resolving(
-                            info.with_path(pkg_info.abs_dir_path.to_path_buf())
-                                .with_target(&converted),
-                        ),
-                        AliasMap::Ignored => ResolverStats::Success(ResolveResult::Ignored),
-                    };
+                if !should_deal_alias {
+                    continue;
                 }
+                match alias_target {
+                    AliasMap::Target(converted) => {
+                        if alias_key == converted {
+                            // pointed itself in `browser` field:
+                            // {
+                            //  "recursive": "recursive"
+                            // }
+                            return ResolverStats::Resolving(info);
+                        }
+                        let alias_info = ResolveInfo::from(
+                            pkg_info.abs_dir_path.to_path_buf(),
+                            info.request.clone().with_target(converted),
+                        );
+                        let stats = resolver._resolve(alias_info);
+                        if stats.is_success() {
+                            return stats;
+                        }
+                    }
+                    AliasMap::Ignored => return ResolverStats::Success(ResolveResult::Ignored),
+                };
             }
-            ResolverStats::Resolving(info)
-        } else {
-            ResolverStats::Resolving(info)
         }
+        ResolverStats::Resolving(info)
     }
 }

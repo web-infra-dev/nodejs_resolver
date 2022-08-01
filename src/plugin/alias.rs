@@ -16,9 +16,8 @@ impl Plugin for AliasPlugin {
             if inner_target.starts_with(from) {
                 match to {
                     AliasMap::Target(to) => {
-                        if inner_target.eq(to) || inner_target.starts_with(to) {
-                            // skip `target.eq(to)` to reduce useless function call.
-                            // skip `target.starts_with(&format("{to}"))` to prevent infinite loop.
+                        if inner_target.starts_with(to) {
+                            // skip `target.starts_with(to)` to prevent infinite loop.
                             continue;
                         }
                         let normalized_target = inner_target.replacen(from, to, 1);

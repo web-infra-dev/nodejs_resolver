@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
-use crate::{description::PkgFileInfo, plugin::ExportsFieldPlugin, Resolver, MODULE};
-
-use super::{AliasFieldPlugin, Plugin};
+use super::Plugin;
 use crate::{
+    description::PkgFileInfo,
     map::{Field, ImportsField},
-    PathKind, ResolveInfo, ResolverStats,
+    PathKind, ResolveInfo, Resolver, ResolverStats, MODULE,
 };
 
 pub struct ImportsFieldPlugin<'a> {
@@ -69,11 +68,12 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
                         }
                     }
 
-                    ExportsFieldPlugin::new(&pkg_info)
-                        .apply(resolver, info)
-                        .and_then(|info| ImportsFieldPlugin::new(&pkg_info).apply(resolver, info))
-                        .and_then(|info| AliasFieldPlugin::new(&pkg_info).apply(resolver, info))
-                        .and_then(|info| ImportsFieldPlugin::check_target(info, target))
+                    let stats = resolver._resolve(info.clone());
+                    if stats.is_success() {
+                        stats
+                    } else {
+                        ResolverStats::Resolving(info)
+                    }
                 } else if is_internal_kind {
                     self.apply(resolver, info)
                 } else {

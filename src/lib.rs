@@ -193,11 +193,11 @@ impl Resolver {
         } else {
             self._resolve(info)
         };
-        // let duration = start.elapsed().as_millis();
-        // println!("time cost: {:?} ms", duration); // ms
-        // if duration > 5 {
+        // let duration = start.elapsed().as_micros();
+        // println!("time cost: {:?} us", duration); // us
+        // if duration > 5000 {
         //     println!(
-        //         "{:?}ms, path: {:?}, request: {:?}",
+        //         "{:?}us, path: {:?}, request: {:?}",
         //         duration,
         //         path.display(),
         //         request,

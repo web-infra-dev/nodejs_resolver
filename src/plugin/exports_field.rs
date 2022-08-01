@@ -94,7 +94,10 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 let info = ResolveInfo::from(pkg_info.abs_dir_path.to_path_buf(), request);
 
                 if info.get_path().is_file() && ExportsField::check_target(&info.request.target) {
-                    return ResolverStats::Resolving(info);
+                    let stats = resolver._resolve(info);
+                    if stats.is_success() {
+                        return stats;
+                    }
                 }
             }
             ResolverStats::Error((format!("Package path {target} is not exported"), info))
