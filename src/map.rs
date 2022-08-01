@@ -110,6 +110,7 @@ pub trait Field {
         Self: Sized,
     {
         let result = match json_value {
+            // TODO: null
             serde_json::Value::String(str) => MappingValue::Direct(str.to_string()),
             serde_json::Value::Array(arr) => {
                 let mut temp: ArrayMapping = vec![];
@@ -444,7 +445,6 @@ impl PathTreeNode {
                 .get(key)
                 .map(|value| (value, (request.len() + 1) as i32))
         } else {
-            // TODO: cache
             let slash_index_list = Self::get_next_list(request, '/');
             let mut last_non_slash_index = 0;
             let mut node = root;

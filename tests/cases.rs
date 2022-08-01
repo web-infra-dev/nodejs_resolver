@@ -356,10 +356,15 @@ fn alias_test() {
                 String::from("aliasA"),
                 AliasMap::Target(String::from("./a")),
             ),
-            (
-                String::from("./b$"),
-                AliasMap::Target(String::from("./a/index")),
-            ), // TODO: should we use trailing?
+            // (
+            //     String::from("./b$"),
+            //     AliasMap::Target(String::from("./a/index")),
+            // ), // TODO: should we use trailing?
+            // TODO: recursion error tips
+            // (String::from("./e"), AliasMap::Target(String::from("./d"))),
+            // (String::from("./d"), AliasMap::Target(String::from("./e"))),
+            (String::from("./f"), AliasMap::Target(String::from("./g"))),
+            (String::from("./g"), AliasMap::Target(String::from("./h"))),
             (
                 String::from("recursive"),
                 AliasMap::Target(String::from("./recursive/dir")),
@@ -382,11 +387,18 @@ fn alias_test() {
                 String::from("@recursive"),
                 AliasMap::Target(String::from("@recursive/general")),
             ),
+            (String::from("./c"), AliasMap::Target(String::from("./c"))),
             (String::from("ignore"), AliasMap::Ignored),
         ],
         ..Default::default()
     });
 
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "./f",
+        p(vec!["alias", "h", "index"]),
+    );
     should_equal(
         &resolver,
         &alias_cases_path,
@@ -522,6 +534,12 @@ fn alias_test() {
         &alias_cases_path,
         "recursive/index",
         p(vec!["alias", "recursive", "dir", "index"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "./c",
+        p(vec!["alias", "c", "index"]),
     );
     should_equal(
         &resolver,
@@ -1095,23 +1113,14 @@ fn resolve_test() {
 
 #[test]
 fn browser_filed_test() {
-    let browser_module_case_path = p(vec!["browser-module"]);
     let resolver = Resolver::new(ResolverOptions {
         browser_field: true,
         ..Default::default()
     });
 
-    let browser_after_main_path = p(vec!["browser-after-main"]);
-    should_ignored(&resolver, &browser_after_main_path, ".");
     should_ignored(&resolver, &p(vec![]), "./browser-after-main");
 
-    should_equal(
-        &resolver,
-        &browser_module_case_path,
-        "./lib/redirect2",
-        p(vec!["browser-module", "lib", "sub", "dir", "index.js"]),
-    );
-
+    let browser_module_case_path = p(vec!["browser-module"]);
     should_ignored(&resolver, &browser_module_case_path, ".");
     should_ignored(&resolver, &browser_module_case_path, "./lib/ignore");
     should_ignored(&resolver, &browser_module_case_path, "./lib/ignore.js");
@@ -1120,8 +1129,25 @@ fn browser_filed_test() {
     should_equal(
         &resolver,
         &browser_module_case_path,
+        "recursive-module",
+        p(vec![
+            "browser-module",
+            "node_modules",
+            "recursive-module",
+            "index.js",
+        ]),
+    );
+    should_equal(
+        &resolver,
+        &browser_module_case_path,
         "./lib/replaced",
         p(vec!["browser-module", "lib", "browser.js"]),
+    );
+    should_equal(
+        &resolver,
+        &browser_module_case_path,
+        "./lib/redirect2",
+        p(vec!["browser-module", "lib", "sub", "dir", "index.js"]),
     );
     should_equal(
         &resolver,
@@ -1194,6 +1220,23 @@ fn browser_filed_test() {
             "dir",
             "index.js",
         ]),
+    );
+
+    // browser with alias
+    let resolver = Resolver::new(ResolverOptions {
+        browser_field: true,
+        alias: vec![(
+            String::from("./lib/toString.js"),
+            AliasMap::Target(String::from("module-d")),
+        )],
+        ..Default::default()
+    });
+
+    should_equal(
+        &resolver,
+        &browser_module_case_path,
+        "./toString",
+        p(vec!["browser-module", "node_modules", "module-c.js"]),
     );
 
     let lib_path = browser_module_case_path.join("lib");
@@ -1270,6 +1313,7 @@ fn browser_filed_test() {
     let browser_after_main_path = p(vec!["browser-after-main"]);
     should_ignored(&resolver, &browser_after_main_path, ".");
     should_ignored(&resolver, &p(vec![]), "./browser-after-main");
+    should_ignored(&resolver, &browser_after_main_path, ".");
 
     // TODO: alias_fields
 }
@@ -1380,7 +1424,6 @@ fn full_specified_test() {
         "package4/a.js",
         p(vec!["full", "a", "node_modules", "package4", "b.js"]),
     );
-
     should_equal(
         &resolver,
         &full_cases_path,

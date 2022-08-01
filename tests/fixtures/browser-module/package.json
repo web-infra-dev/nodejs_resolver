@@ -10,6 +10,7 @@
     "module-d": "module-b",
     "./toString": "./lib/toString.js",
     ".": false,
-    "./util.inspect.js": false
+    "./util.inspect.js": false,
+    "recursive-module": "recursive-module"
   }
 }
