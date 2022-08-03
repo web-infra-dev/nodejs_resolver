@@ -2166,12 +2166,17 @@ fn cache_fs() {
 
     let fixture_path = p(vec!["cache-fs"]);
     let resolver = Resolver::new(ResolverOptions::default());
-    should_equal(&resolver, &fixture_path, ".", fixture_path.join("index.js"));
+    should_equal(
+        &resolver,
+        &fixture_path,
+        ".",
+        p(vec!["cache-fs", "src", "index.js"]),
+    );
 
     sleep(Duration::from_secs(3));
     write(
         &fixture_path.join("package.json"),
-        "{\"main\": \"module.js\"}",
+        "{\"main\": \"./src/module.js\"}",
     )
     .expect("write failed");
 
@@ -2179,17 +2184,22 @@ fn cache_fs() {
         &resolver,
         &fixture_path,
         ".",
-        fixture_path.join("module.js"),
+        p(vec!["cache-fs", "src", "module.js"]),
     );
 
     sleep(Duration::from_secs(3));
     write(
         &fixture_path.join("package.json"),
-        "{\"main\": \"index.js\"}",
+        "{\"main\": \"./src/index.js\"}",
     )
     .expect("write failed");
 
-    should_equal(&resolver, &fixture_path, ".", fixture_path.join("index.js"));
+    should_equal(
+        &resolver,
+        &fixture_path,
+        ".",
+        p(vec!["cache-fs", "src", "index.js"]),
+    );
 }
 
 #[test]

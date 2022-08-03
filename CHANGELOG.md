@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.35
+
+- To prevent crashes under multiple threads, the `panic` in the debug_assertions has been commented out.
+
 ## 0.0.34
 
 - Prevent infinity loop when `browser` filed map to itself.

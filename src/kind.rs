@@ -1,4 +1,7 @@
 use crate::Resolver;
+use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, MatchKind};
+use once_cell::sync::Lazy;
+use phf::{phf_set, Set};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum PathKind {
@@ -8,10 +11,6 @@ pub(crate) enum PathKind {
     Internal,
     Normal,
 }
-
-use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, MatchKind};
-use once_cell::sync::Lazy;
-use phf::{phf_set, Set};
 
 const BUILT_IN_MODULE_SET: Set<&'static str> = phf_set! {
    "_http_agent",
