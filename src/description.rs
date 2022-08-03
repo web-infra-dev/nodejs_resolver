@@ -26,21 +26,7 @@ pub struct PkgFileInfo {
 
 impl Resolver {
     #[tracing::instrument]
-    fn parse_description_file(&self, dir: &Path, file_path: PathBuf) -> RResult<PkgFileInfo> {
-        #[cfg(debug_assertions)]
-        {
-            // ensure that the same package.json is not parsed twice
-            if self.dbg_read_map.contains_key(&file_path) {
-                println!("{:?}", self.cache.file_dir_to_pkg_info);
-                println!("{:?}", self.dbg_read_map);
-                panic!(
-                    "Had try to parse same package.json, {}",
-                    file_path.display()
-                )
-            }
-            self.dbg_read_map.insert(&file_path, true);
-        }
-
+    fn parse_description_file(&self, dir: &Path, file_path: &Path) -> RResult<PkgFileInfo> {
         let str = tracing::debug_span!("read_to_string").in_scope(|| {
             self.fs
                 .read_to_string(&file_path)
@@ -218,13 +204,36 @@ impl Resolver {
             }
         }
 
+        #[cfg(debug_assertions)]
+        {
+            // ensure that the same package.json is not parsed twice
+            if self.dbg_read_map.contains_key(&description_file_path) {
+                println!(
+                    "Had try to parse parsed package.json, {}",
+                    description_file_path.display()
+                );
+                println!("{:?}", self.cache.file_dir_to_pkg_info);
+                println!("{:?}", self.dbg_read_map);
+                // TODO: may panic under multi-thread
+                // panic!(
+                //     "Had try to parse same package.json, {}",
+                //     file_path.display()
+                // )
+            }
+        }
+
         let pkg_info = Some(Arc::new(
-            self.parse_description_file(path, description_file_path)?,
+            self.parse_description_file(path, &description_file_path)?,
         ));
 
         self.cache
             .file_dir_to_pkg_info
             .insert(path.to_path_buf(), pkg_info.clone());
+
+        #[cfg(debug_assertions)]
+        {
+            self.dbg_read_map.insert(&description_file_path, true);
+        }
 
         Ok(pkg_info)
     }

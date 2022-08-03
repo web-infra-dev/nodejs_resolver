@@ -17,7 +17,6 @@ pub struct ResolverOptions {
     /// Default is `None`
     pub enforce_extension: Option<bool>,
     /// Maps key to value.
-    /// `None` means that the value is `false`.
     /// Default is `vec![]`.
     /// The reason for using `Vec` instead `HashMap` to keep the order.
     pub alias: Vec<(String, AliasMap)>,
@@ -46,7 +45,8 @@ pub struct ResolverOptions {
     /// Main fields in Description.
     /// Default is `["main"]`.
     pub main_fields: Vec<String>,
-    /// Whether read browser filed in package.json.
+    /// Whether read and parse `"browser"` filed
+    /// in package.json.
     /// Default is `false`
     pub browser_field: bool,
     /// Condition names for exports filed. Note that its
