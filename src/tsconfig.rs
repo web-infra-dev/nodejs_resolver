@@ -1,6 +1,6 @@
 // copy from https://github.com/drivasperez/tsconfig
 
-use crate::{RResult, ResolveInfo, ResolveResult, Resolver, ResolverStats};
+use crate::{RResult, ResolveInfo, ResolveResult, Resolver, ResolverError, ResolverStats};
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::Path;
@@ -51,11 +51,15 @@ impl TsConfig {
 }
 
 fn parse_file_to_value(location: &Path, resolver: &Resolver) -> RResult<serde_json::Value> {
-    let json_str =
-        read_to_string(location).map_err(|_| format!("Open {} failed", location.display()))?;
+    let json_str = read_to_string(location).map_err(ResolverError::Io)?;
     let mut json: serde_json::Value =
         jsonc_parser::parse_to_serde_value(&json_str, &Default::default())
-            .map_err(|err| format!("Parse {} failed. Error: {err}", location.display()))?
+            .map_err(|err| {
+                ResolverError::UnexpectedValue(format!(
+                    "Parse {} failed. Error: {err}",
+                    location.display()
+                ))
+            })?
             .unwrap_or_else(|| panic!("Transfer {} to serde value failed", location.display()));
 
     // merge `extends`.
@@ -68,7 +72,10 @@ fn parse_file_to_value(location: &Path, resolver: &Resolver) -> RResult<serde_js
             let extends_tsconfig_json = match result {
                 ResolveResult::Info(info) => parse_file_to_value(&info.get_path(), resolver),
                 ResolveResult::Ignored => {
-                    return Err(format!("{s} had been ignored in {}", location.display()))
+                    return Err(ResolverError::UnexpectedValue(format!(
+                        "{s} had been ignored in {}",
+                        location.display()
+                    )))
                 }
             }?;
             merge(&mut json, extends_tsconfig_json);

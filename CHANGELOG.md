@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.36
+
+- remove build in module support.
+- error code
+
 ## 0.0.35
 
 - To prevent crashes under multiple threads, the `panic` in the debug_assertions has been commented out.
@@ -100,7 +105,7 @@
 - Remove node build_in detection.
 - No longer support `modules` filed in options.
 - No longer support node buildIn module, such as `resolve(xxx, 'fs')` will throw error when there is no `'fs'` polyfill.
-- Changed `Option<String>` to `AliasMap` in `Options.alias` and `PkgFileInfo.aliasField`.
+- Changed `Option<String>` to `AliasMap` in `Options.alias` and `PkgInfo.aliasField`.
 - Support tsconfig path mapping.
 
 ## 0.0.16

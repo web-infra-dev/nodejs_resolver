@@ -2,17 +2,17 @@ use std::sync::Arc;
 
 use super::Plugin;
 use crate::{
-    description::PkgFileInfo,
+    description::PkgInfo,
     map::{Field, ImportsField},
-    PathKind, ResolveInfo, Resolver, ResolverStats, MODULE,
+    PathKind, ResolveInfo, Resolver, ResolverError, ResolverStats, MODULE,
 };
 
 pub struct ImportsFieldPlugin<'a> {
-    pkg_info: &'a Option<Arc<PkgFileInfo>>,
+    pkg_info: &'a Option<Arc<PkgInfo>>,
 }
 
 impl<'a> ImportsFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a Option<Arc<PkgFileInfo>>) -> Self {
+    pub fn new(pkg_info: &'a Option<Arc<PkgInfo>>) -> Self {
         Self { pkg_info }
     }
 
@@ -20,7 +20,10 @@ impl<'a> ImportsFieldPlugin<'a> {
         if info.get_path().is_file() && ImportsField::check_target(&info.request.target) {
             ResolverStats::Resolving(info)
         } else {
-            ResolverStats::Error((format!("Package path {target} is not exported"), info))
+            ResolverStats::Error((
+                ResolverError::UnexpectedValue(format!("Package path {target} is not exported")),
+                info,
+            ))
         }
     }
 }
@@ -80,7 +83,12 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
                     ImportsFieldPlugin::check_target(info, target)
                 }
             } else {
-                ResolverStats::Error((format!("Package path {target} is not exported"), info))
+                ResolverStats::Error((
+                    ResolverError::UnexpectedValue(format!(
+                        "Package path {target} is not exported"
+                    )),
+                    info,
+                ))
             }
         } else {
             ResolverStats::Resolving(info)

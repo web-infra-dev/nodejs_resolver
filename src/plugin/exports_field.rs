@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{description::PkgFileInfo, kind::PathKind, Resolver, MODULE};
+use crate::{description::PkgInfo, kind::PathKind, Resolver, ResolverError, MODULE};
 
 use super::Plugin;
 use crate::{
@@ -9,19 +9,19 @@ use crate::{
 };
 
 pub struct ExportsFieldPlugin<'a> {
-    pkg_info: &'a Option<Arc<PkgFileInfo>>,
+    pkg_info: &'a Option<Arc<PkgInfo>>,
 }
 
 impl<'a> ExportsFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a Option<Arc<PkgFileInfo>>) -> Self {
+    pub fn new(pkg_info: &'a Option<Arc<PkgInfo>>) -> Self {
         Self { pkg_info }
     }
 
-    fn is_in_module(&self, pkg_info: &PkgFileInfo) -> bool {
+    fn is_in_module(&self, pkg_info: &PkgInfo) -> bool {
         pkg_info.abs_dir_path.to_string_lossy().contains(MODULE)
     }
 
-    pub(crate) fn is_resolve_self(pkg_info: &PkgFileInfo, info: &ResolveInfo) -> bool {
+    pub(crate) fn is_resolve_self(pkg_info: &PkgInfo, info: &ResolveInfo) -> bool {
         pkg_info
             .name
             .as_ref()
@@ -62,7 +62,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                         if info.path.join(&target).exists() || pkg_info.name.eq(&Some(target)) {
                             ".".to_string()
                         } else {
-                            return ResolverStats::Error((Resolver::raise_tag(), info));
+                            return ResolverStats::Error((ResolverError::ResolveFailedTag, info));
                         }
                     }
                 };
@@ -100,7 +100,10 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                     }
                 }
             }
-            ResolverStats::Error((format!("Package path {target} is not exported"), info))
+            ResolverStats::Error((
+                ResolverError::UnexpectedValue(format!("Package path {target} is not exported")),
+                info,
+            ))
             // TODO: `info.abs_dir_path.as_os_str().to_str().unwrap(),` has abs_path
         } else {
             ResolverStats::Resolving(info)

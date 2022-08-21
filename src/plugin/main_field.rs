@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use crate::{description::PkgFileInfo, Resolver};
+use crate::{description::PkgInfo, Resolver};
 
 use super::{Plugin, ResolveInfo, ResolverStats};
 
 pub struct MainFieldPlugin<'a> {
-    pkg_info: &'a Option<Arc<PkgFileInfo>>,
+    pkg_info: &'a Option<Arc<PkgInfo>>,
 }
 
 impl<'a> MainFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a Option<Arc<PkgFileInfo>>) -> Self {
+    pub fn new(pkg_info: &'a Option<Arc<PkgInfo>>) -> Self {
         Self { pkg_info }
     }
 }
