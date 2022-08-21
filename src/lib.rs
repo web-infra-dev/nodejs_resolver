@@ -42,6 +42,7 @@
 
 mod cache;
 mod description;
+mod error;
 mod fs;
 mod kind;
 mod map;
@@ -59,16 +60,16 @@ use cache::DebugReadMap;
 
 pub use cache::ResolverCache;
 pub use description::SideEffects;
+pub use error::*;
 use kind::PathKind;
 pub use options::{AliasMap, ResolverOptions};
 use parse::Request;
 use plugin::{AliasFieldPlugin, AliasPlugin, ImportsFieldPlugin, Plugin, PreferRelativePlugin};
+
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-
-use crate::utils::RAISE_RESOLVE_ERROR_TAG;
 
 #[derive(Default, Debug)]
 pub struct Resolver {
@@ -78,8 +79,6 @@ pub struct Resolver {
     #[cfg(debug_assertions)]
     dbg_read_map: DebugReadMap,
 }
-
-pub type ResolverError = String;
 
 #[derive(Debug, Clone)]
 pub struct ResolveInfo {
@@ -212,8 +211,8 @@ impl Resolver {
 
     #[tracing::instrument]
     fn _resolve(&self, info: ResolveInfo) -> ResolverStats {
-        let resolve_err_msg = Self::raise_resolve_failed_message(&info);
-        let stats = AliasPlugin::default()
+        // let resolve_err_msg = Self::raise_resolve_failed_message(&info);
+        AliasPlugin::default()
             .apply(self, info)
             .and_then(|info| PreferRelativePlugin::default().apply(self, info))
             .and_then(|info| {
@@ -240,20 +239,7 @@ impl Resolver {
                 } else {
                     self.resolve_as_modules(info)
                 }
-            });
-
-        match stats {
-            ResolverStats::Success(result) => ResolverStats::Success(result),
-            ResolverStats::Error((err_msg, info)) => {
-                let err_msg = if err_msg.eq(RAISE_RESOLVE_ERROR_TAG) {
-                    resolve_err_msg
-                } else {
-                    err_msg
-                };
-                ResolverStats::Error((err_msg, info))
-            }
-            _ => unreachable!(),
-        }
+            })
     }
 }
 
@@ -267,6 +253,10 @@ pub mod test_helper {
                 .join("fixtures"),
             |acc, path| acc.join(path),
         )
+    }
+
+    pub fn vec_to_set(vec: Vec<&str>) -> std::collections::HashSet<String> {
+        std::collections::HashSet::from_iter(vec.into_iter().map(|s| s.to_string()))
     }
 }
 

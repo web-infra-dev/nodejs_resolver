@@ -1,5 +1,5 @@
 use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
-use crate::{AliasMap, RResult, Resolver};
+use crate::{AliasMap, RResult, Resolver, ResolverError};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -11,7 +11,7 @@ pub enum SideEffects {
 }
 
 #[derive(Clone, Debug)]
-pub struct PkgFileInfo {
+pub struct PkgInfo {
     /// The path to the directory where the description file located.
     /// It not a property in package.json.
     pub abs_dir_path: PathBuf,
@@ -26,16 +26,14 @@ pub struct PkgFileInfo {
 
 impl Resolver {
     #[tracing::instrument]
-    fn parse_description_file(&self, dir: &Path, file_path: &Path) -> RResult<PkgFileInfo> {
-        let str = tracing::debug_span!("read_to_string").in_scope(|| {
-            self.fs
-                .read_to_string(&file_path)
-                .map_err(|_| format!("Open {} failed", file_path.display()))
-        })?;
+    fn parse_description_file(&self, dir: &Path, file_path: &Path) -> RResult<PkgInfo> {
+        let str = tracing::debug_span!("read_to_string")
+            .in_scope(|| self.fs.read_to_string(&file_path))?;
         let json: serde_json::Value =
             tracing::debug_span!("serde_json_from_str").in_scope(|| {
-                serde_json::from_str(&str)
-                    .map_err(|_| format!("Parse {} failed", file_path.display()))
+                serde_json::from_str(&str).map_err(|error| {
+                    ResolverError::UnexpectedJson((file_path.to_path_buf(), error))
+                })
             })?;
 
         let mut alias_fields = HashMap::new();
@@ -99,20 +97,20 @@ impl Resolver {
                         if let Some(str) = value.as_str() {
                             ans.push(str.to_string());
                         } else {
-                            return Err(format!(
+                            return Err(ResolverError::UnexpectedValue(format!(
                                 "sideEffects in {} had unexpected value {}",
                                 file_path.display(),
                                 value
-                            ));
+                            )));
                         }
                     }
                     Ok(Some(SideEffects::Array(ans)))
                 } else {
-                    Err(format!(
+                    Err(ResolverError::UnexpectedValue(format!(
                         "sideEffects in {} had unexpected value {}",
                         file_path.display(),
                         value
-                    ))
+                    )))
                 }
             })?;
 
@@ -121,7 +119,7 @@ impl Resolver {
             .and_then(|value| value.as_str())
             .map(|str| str.to_string());
 
-        Ok(PkgFileInfo {
+        Ok(PkgInfo {
             name,
             version,
             abs_dir_path: dir.to_path_buf(),
@@ -148,7 +146,7 @@ impl Resolver {
     }
 
     #[tracing::instrument]
-    pub(crate) fn load_pkg_file(&self, path: &Path) -> RResult<Option<Arc<PkgFileInfo>>> {
+    pub(crate) fn load_pkg_file(&self, path: &Path) -> RResult<Option<Arc<PkgInfo>>> {
         if self.options.description_file.is_none() {
             return Ok(None);
         }
@@ -157,7 +155,7 @@ impl Resolver {
         if !path.is_dir() {
             return match path.parent() {
                 Some(dir) => self.load_pkg_file(dir),
-                None => Err(Resolver::raise_tag()),
+                None => Err(ResolverError::ResolveFailedTag),
             };
         }
 

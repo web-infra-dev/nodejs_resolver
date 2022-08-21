@@ -1,4 +1,4 @@
-use crate::description::PkgFileInfo;
+use crate::description::PkgInfo;
 use crate::map::PathTreeNode;
 use dashmap::DashMap;
 use std::path::PathBuf;
@@ -7,7 +7,7 @@ use std::sync::Arc;
 #[derive(Default, Debug, Clone)]
 pub struct ResolverCache {
     /// file_directory -> the closet package.json info
-    pub file_dir_to_pkg_info: DashMap<PathBuf, Option<Arc<PkgFileInfo>>>,
+    pub file_dir_to_pkg_info: DashMap<PathBuf, Option<Arc<PkgInfo>>>,
     pub exports_content_to_tree: DashMap<String, Arc<PathTreeNode>>,
     pub imports_content_to_tree: DashMap<String, Arc<PathTreeNode>>,
 }

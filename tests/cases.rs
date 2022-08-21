@@ -1,9 +1,8 @@
-use nodejs_resolver::test_helper::p;
+use nodejs_resolver::test_helper::{p, vec_to_set};
 use nodejs_resolver::{
-    AliasMap, ResolveResult, Resolver, ResolverCache, ResolverOptions, SideEffects,
+    AliasMap, ResolveResult, Resolver, ResolverCache, ResolverError, ResolverOptions, SideEffects,
 };
 
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -13,7 +12,7 @@ fn should_equal(resolver: &Resolver, path: &Path, request: &str, expected: PathB
             assert_eq!(info.join(), expected);
         }
         Ok(ResolveResult::Ignored) => panic!("should not ignored"),
-        Err(error) => panic!("{}", error),
+        Err(error) => panic!("{:?}", error),
     }
 }
 
@@ -24,14 +23,30 @@ fn should_ignored(resolver: &Resolver, path: &Path, request: &str) {
     }
 }
 
-fn should_error(resolver: &Resolver, path: &Path, request: &str, expected_err_msg: String) {
+fn should_resolve_failed_error(resolver: &Resolver, path: &Path, request: &str) {
+    let result = resolver.resolve(path, request);
+    if !matches!(result, Err(ResolverError::ResolveFailedTag)) {
+        println!("{:?}", result);
+        unreachable!();
+    }
+}
+
+fn should_unexpected_json_error(
+    resolver: &Resolver,
+    path: &Path,
+    request: &str,
+    error_file_path: PathBuf,
+) {
     match resolver.resolve(path, request) {
-        Err(err) => {
-            if err.contains(&expected_err_msg) {
-            } else {
-                assert_eq!(err, expected_err_msg);
+        Err(err) => match err {
+            ResolverError::UnexpectedJson((actual_error_file_path, _)) => {
+                assert_eq!(error_file_path, actual_error_file_path)
             }
-        }
+            _ => {
+                println!("{:?}", err);
+                unreachable!();
+            }
+        },
         Ok(result) => {
             println!("{:?}", result);
             unreachable!();
@@ -39,10 +54,30 @@ fn should_error(resolver: &Resolver, path: &Path, request: &str, expected_err_ms
     }
 }
 
-macro_rules! vec_to_set {
-    ($vec:expr) => {
-        HashSet::from_iter($vec.into_iter().map(String::from))
-    };
+fn should_unexpected_value_error(
+    resolver: &Resolver,
+    path: &Path,
+    request: &str,
+    expected_err_msg: String,
+) {
+    match resolver.resolve(path, request) {
+        Err(err) => match err {
+            ResolverError::UnexpectedValue(err) => {
+                if err.contains(&expected_err_msg) {
+                } else {
+                    assert_eq!(err, expected_err_msg);
+                }
+            }
+            _ => {
+                println!("{:?}", err);
+                unreachable!();
+            }
+        },
+        Ok(result) => {
+            println!("{:?}", result);
+            unreachable!();
+        }
+    }
 }
 
 #[test]
@@ -95,24 +130,8 @@ fn extensions_test() {
         ".",
         p(vec!["extensions", "index.js"]),
     );
-    should_error(
-        &resolver,
-        &extensions_cases_path.join("index."),
-        ".",
-        format!(
-            "Resolve '.' failed in '{}'",
-            extensions_cases_path.join("index.").display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &extensions_cases_path.join("inde"),
-        ".",
-        format!(
-            "Resolve '.' failed in '{}'",
-            extensions_cases_path.join("inde").display()
-        ),
-    );
+    should_resolve_failed_error(&resolver, &extensions_cases_path.join("index."), ".");
+    should_resolve_failed_error(&resolver, &extensions_cases_path.join("inde"), ".");
 
     should_equal(
         &resolver,
@@ -126,42 +145,10 @@ fn extensions_test() {
         "m/",
         p(vec!["extensions", "node_modules", "m", "index.ts"]),
     );
-    should_error(
-        &resolver,
-        &extensions_cases_path,
-        "./b.js",
-        format!(
-            "Resolve './b.js' failed in '{}'",
-            extensions_cases_path.display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &extensions_cases_path,
-        "fs",
-        format!(
-            "Resolve 'fs' failed in '{}'",
-            extensions_cases_path.display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &extensions_cases_path,
-        "./a.js/",
-        format!(
-            "Resolve './a.js/' failed in '{}'",
-            extensions_cases_path.display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &extensions_cases_path,
-        "m.js/",
-        format!(
-            "Resolve 'm.js/' failed in '{}'",
-            extensions_cases_path.display()
-        ),
-    );
+    should_resolve_failed_error(&resolver, &extensions_cases_path, "./b.js");
+    should_resolve_failed_error(&resolver, &extensions_cases_path, "fs");
+    should_resolve_failed_error(&resolver, &extensions_cases_path, "./a.js/");
+    should_resolve_failed_error(&resolver, &extensions_cases_path, "m.js/");
     let resolver = Resolver::new(ResolverOptions {
         extensions: vec![String::from("ts"), String::from(".js")],
         ..Default::default()
@@ -215,15 +202,7 @@ fn extensions_test() {
         ".",
         p(vec!["extensions", "index.ts"]),
     );
-    should_error(
-        &resolver,
-        &extensions_cases_path.join("inde"),
-        ".",
-        format!(
-            "Resolve '.' failed in '{}'",
-            extensions_cases_path.join("inde").display()
-        ),
-    );
+    should_resolve_failed_error(&resolver, &extensions_cases_path.join("inde"), ".");
 
     should_equal(
         &resolver,
@@ -237,42 +216,10 @@ fn extensions_test() {
         "m/",
         p(vec!["extensions", "node_modules", "m", "index.js"]),
     );
-    should_error(
-        &resolver,
-        &extensions_cases_path,
-        "./b.js",
-        format!(
-            "Resolve './b.js' failed in '{}'",
-            extensions_cases_path.display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &extensions_cases_path,
-        "fs",
-        format!(
-            "Resolve 'fs' failed in '{}'",
-            extensions_cases_path.display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &extensions_cases_path,
-        "./a.js/",
-        format!(
-            "Resolve './a.js/' failed in '{}'",
-            extensions_cases_path.display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &extensions_cases_path,
-        "m.js/",
-        format!(
-            "Resolve 'm.js/' failed in '{}'",
-            extensions_cases_path.display()
-        ),
-    );
+    should_resolve_failed_error(&resolver, &extensions_cases_path, "./b.js");
+    should_resolve_failed_error(&resolver, &extensions_cases_path, "fs");
+    should_resolve_failed_error(&resolver, &extensions_cases_path, "./a.js/");
+    should_resolve_failed_error(&resolver, &extensions_cases_path, "m.js/");
 
     let extensions_cases_path = p(vec!["extensions2"]);
     let resolver = Resolver::new(ResolverOptions {
@@ -514,15 +461,7 @@ fn alias_test() {
         "@/index",
         p(vec!["alias", "c", "dir", "index"]),
     );
-    should_error(
-        &resolver,
-        &alias_cases_path,
-        "@/a.js",
-        format!(
-            "Resolve '@/a.js' failed in '{}'",
-            alias_cases_path.display()
-        ),
-    );
+    should_resolve_failed_error(&resolver, &alias_cases_path, "@/a.js");
     should_equal(
         &resolver,
         &alias_cases_path,
@@ -547,12 +486,7 @@ fn alias_test() {
         "@start/a",
         p(vec!["alias", "a", "index"]),
     );
-    should_error(
-        &resolver,
-        &Path::new("@start/a"),
-        "",
-        "Resolve '' failed in '@start/a'".to_string(),
-    );
+    should_resolve_failed_error(&resolver, &Path::new("@start/a"), "");
 
     // TODO: exact alias
     // should_equal(resolver, &alias_cases_path, "./b?aa#bb?cc", fixture!("alias/a/index?aa#bb?cc"));
@@ -877,15 +811,7 @@ fn pnpm_structure_test() {
             "index.js",
         ]),
     );
-    should_error(
-        &resolver,
-        &case_path.join("exports-field-c"),
-        "./b",
-        format!(
-            "Resolve './b' failed in '{}'",
-            case_path.join("exports-field-c").display()
-        ),
-    );
+    should_resolve_failed_error(&resolver, &case_path.join("exports-field-c"), "./b");
     should_equal(
         &resolver,
         &case_path.join("exports-field-c").join("lib"),
@@ -934,7 +860,7 @@ fn pnpm_structure_test() {
         ]),
     );
 
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &case_path.join("exports-field-a"),
         "exports-field-b",
@@ -1179,24 +1105,8 @@ fn browser_filed_test() {
         "./toString",
         p(vec!["browser-module", "lib", "toString.js"]),
     );
-    should_error(
-        &resolver,
-        &browser_module_case_path,
-        "toString",
-        format!(
-            "Resolve 'toString' failed in '{}'",
-            browser_module_case_path.display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &browser_module_case_path,
-        "./toString.js",
-        format!(
-            "Resolve \'./toString.js\' failed in '{}'",
-            browser_module_case_path.display()
-        ),
-    );
+    should_resolve_failed_error(&resolver, &browser_module_case_path, "toString");
+    should_resolve_failed_error(&resolver, &browser_module_case_path, "./toString.js");
     should_equal(
         &resolver,
         &browser_module_case_path,
@@ -1536,57 +1446,12 @@ fn missing_test() {
     let resolver = Resolver::new(ResolverOptions::default());
     // TODO: optimize error
     // TODO: path
-    should_error(
-        &resolver,
-        &fixture_path,
-        "./missing-file",
-        format!(
-            "Resolve './missing-file' failed in '{}'",
-            fixture_path.display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &fixture_path,
-        "./missing-file.js",
-        format!(
-            "Resolve './missing-file.js' failed in '{}'",
-            fixture_path.display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &fixture_path,
-        "missing-module",
-        format!(
-            "Resolve 'missing-module' failed in '{}'",
-            fixture_path.display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &fixture_path,
-        "missing-module/missing-file",
-        format!(
-            "Resolve 'missing-module/missing-file' failed in '{}'",
-            fixture_path.display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &fixture_path,
-        "m1/missing-file",
-        format!(
-            "Resolve 'm1/missing-file' failed in '{}'",
-            fixture_path.display()
-        ),
-    );
-    should_error(
-        &resolver,
-        &fixture_path,
-        "m1/",
-        format!("Resolve 'm1/' failed in '{}'", fixture_path.display()),
-    );
+    should_resolve_failed_error(&resolver, &fixture_path, "./missing-file");
+    should_resolve_failed_error(&resolver, &fixture_path, "./missing-file.js");
+    should_resolve_failed_error(&resolver, &fixture_path, "missing-module");
+    should_resolve_failed_error(&resolver, &fixture_path, "missing-module/missing-file");
+    should_resolve_failed_error(&resolver, &fixture_path, "m1/missing-file");
+    should_resolve_failed_error(&resolver, &fixture_path, "m1/");
     should_equal(
         &resolver,
         &fixture_path,
@@ -1599,17 +1464,17 @@ fn missing_test() {
 fn incorrect_package_test() {
     let incorrect_package_path = p(vec!["incorrect-package"]);
     let resolver = Resolver::new(ResolverOptions::default());
-    should_error(
+    should_unexpected_json_error(
         &resolver,
         &incorrect_package_path.join("pack1"),
         ".",
-        "Parse".to_string(),
+        incorrect_package_path.join("pack1").join("package.json"),
     );
-    should_error(
+    should_unexpected_json_error(
         &resolver,
         &incorrect_package_path.join("pack2"),
         ".",
-        "Parse".to_string(),
+        incorrect_package_path.join("pack2").join("package.json"),
     );
 }
 
@@ -1666,7 +1531,7 @@ fn exports_fields_test() {
     let export_cases_path = p(vec!["exports-field"]);
 
     let resolver = Resolver::new(ResolverOptions {
-        condition_names: vec_to_set!(["import"]),
+        condition_names: vec_to_set(vec!["import"]),
         ..Default::default()
     });
 
@@ -1702,7 +1567,7 @@ fn exports_fields_test() {
 
     let resolver = Resolver::new(ResolverOptions {
         extensions: vec![String::from(".js")],
-        condition_names: vec_to_set!(["require"]),
+        condition_names: vec_to_set(vec!["require"]),
         ..Default::default()
     });
 
@@ -1738,20 +1603,12 @@ fn exports_fields_test() {
 
     let resolver = Resolver::new(ResolverOptions {
         extensions: vec![String::from(".js")],
-        condition_names: vec_to_set!(["webpack"]),
+        condition_names: vec_to_set(vec!["webpack"]),
         ..Default::default()
     });
-    should_error(
-        &resolver,
-        &export_cases_path,
-        "@exports-field/coreaaaa",
-        format!(
-            "Resolve '@exports-field/coreaaaa' failed in '{}'",
-            export_cases_path.display()
-        ),
-    );
+    should_resolve_failed_error(&resolver, &export_cases_path, "@exports-field/coreaaaa");
     // TODO: error stack
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path,
         "exports-field/x.js",
@@ -1759,7 +1616,7 @@ fn exports_fields_test() {
     );
 
     // TODO: error stack
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path,
         "exports-field/dist/a.js",
@@ -1767,7 +1624,7 @@ fn exports_fields_test() {
     );
 
     // TODO: error stack
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path,
         "exports-field/dist/../../../a.js",
@@ -1806,7 +1663,7 @@ fn exports_fields_test() {
         p(vec!["exports-field", "a.js"]),
     );
     // TODO: error stack
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path,
         "@exports-field/core/a",
@@ -1826,45 +1683,41 @@ fn exports_fields_test() {
             "main.js",
         ]),
     );
-    should_error(
+    should_resolve_failed_error(
         &resolver,
         &export_cases_path,
         "./node_modules/exports-field/dist/main",
-        format!(
-            "Resolve './node_modules/exports-field/dist/main' failed in '{}'",
-            export_cases_path.display()
-        ),
     );
     // TODO: error stack
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path,
         "exports-field/anything/else",
         "Package path exports-field/anything/else is not exported".to_string(),
     );
     // TODO: error stack
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path,
         "exports-field/",
         "Only requesting file allowed".to_string(),
     );
     // TODO: error stack
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path,
         "exports-field/dist",
         "Package path exports-field/dist is not exported".to_string(),
     );
     // TODO: error stack
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path,
         "exports-field/lib",
         "Package path exports-field/lib is not exported".to_string(),
     );
 
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path,
         "invalid-exports-field",
@@ -1936,7 +1789,7 @@ fn exports_fields_test() {
         ]),
     );
     // TODO: error stack
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path2,
         "exports-field/dist/main",
@@ -1944,14 +1797,14 @@ fn exports_fields_test() {
     );
     // TODO: error stack
     // TODO: should `exports-field?foo is not exported`.
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path2,
         "exports-field?foo",
         "Package path exports-field is not exported".to_string(),
     );
     // TODO: error stack
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path2,
         "exports-field#foo",
@@ -1973,7 +1826,7 @@ fn exports_fields_test() {
     let resolver = Resolver::new(ResolverOptions {
         extensions: vec![String::from(".js")],
         browser_field: true,
-        condition_names: vec_to_set!(["webpack"]),
+        condition_names: vec_to_set(vec!["webpack"]),
         ..Default::default()
     });
     should_equal(
@@ -2004,7 +1857,7 @@ fn exports_fields_test() {
     let resolver = Resolver::new(ResolverOptions {
         extensions: vec![String::from(".js")],
         browser_field: true,
-        condition_names: vec_to_set!(["node"]),
+        condition_names: vec_to_set(vec!["node"]),
         ..Default::default()
     });
 
@@ -2025,11 +1878,11 @@ fn exports_fields_test() {
 
     let resolver = Resolver::new(ResolverOptions {
         extensions: vec![String::from(".js")],
-        condition_names: vec_to_set!(["webpack"]),
+        condition_names: vec_to_set(vec!["webpack"]),
         ..Default::default()
     });
 
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &export_cases_path4,
         "exports-field",
@@ -2043,7 +1896,7 @@ fn imports_fields_test() {
     let import_cases_path = p(vec!["imports-field"]);
     let resolver = Resolver::new(ResolverOptions {
         extensions: vec![String::from(".js")],
-        condition_names: vec_to_set!(["webpack"]),
+        condition_names: vec_to_set(vec!["webpack"]),
         ..Default::default()
     });
 
@@ -2073,7 +1926,7 @@ fn imports_fields_test() {
         "#imports-field",
         p(vec!["imports-field", "b.js"]),
     );
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &import_cases_path,
         "#b",
@@ -2098,7 +1951,7 @@ fn imports_fields_test() {
         "#ccc/index.js",
         p(vec!["imports-field", "node_modules", "c", "index.js"]),
     );
-    should_error(
+    should_unexpected_value_error(
         &resolver,
         &import_cases_path,
         "#a",
@@ -2327,15 +2180,7 @@ fn tsconfig_paths_test() {
         "test2/foo",
         p(vec!["tsconfig-paths", "test2-success", "foo.ts"]),
     );
-    should_error(
-        &resolver,
-        &tsconfig_paths,
-        "te*t3/foo",
-        format!(
-            "Resolve 'te*t3/foo' failed in '{}'",
-            tsconfig_paths.display()
-        ),
-    );
+    should_resolve_failed_error(&resolver, &tsconfig_paths, "te*t3/foo");
     should_equal(
         &resolver,
         &tsconfig_paths,
@@ -2444,15 +2289,7 @@ fn tsconfig_paths_nested() {
             "foo.ts",
         ]),
     );
-    should_error(
-        &resolver,
-        &tsconfig_paths,
-        "te*t3/foo",
-        format!(
-            "Resolve 'te*t3/foo' failed in '{}'",
-            tsconfig_paths.display()
-        ),
-    );
+    should_resolve_failed_error(&resolver, &tsconfig_paths, "te*t3/foo");
     should_equal(
         &resolver,
         &tsconfig_paths,
@@ -2503,15 +2340,7 @@ fn tsconfig_paths_without_base_url_test() {
         tsconfig: Some(case_path.join("tsconfig.json")),
         ..Default::default()
     });
-    should_error(
-        &resolver,
-        &case_path,
-        "should-not-be-imported",
-        format!(
-            "Resolve 'should-not-be-imported' failed in '{}'",
-            case_path.display()
-        ),
-    )
+    should_resolve_failed_error(&resolver, &case_path, "should-not-be-imported")
 }
 
 #[test]
@@ -2538,12 +2367,7 @@ fn tsconfig_paths_missing_base_url() {
         tsconfig: Some(case_path.join("tsconfig.json")),
         ..Default::default()
     });
-    should_error(
-        &resolver,
-        &case_path,
-        "#/test",
-        format!("Resolve '#/test' failed in '{}'", case_path.display()),
-    );
+    should_resolve_failed_error(&resolver, &case_path, "#/test");
 }
 
 #[test]
@@ -2643,30 +2467,38 @@ fn load_side_effects_test() {
         Some(SideEffects::Bool(false))
     ));
 
-    assert_eq!(
-        resolver
-            .load_side_effects(&p(vec!["incorrect-package", "sideeffects-map"]))
-            .unwrap_err(),
-        format!(
-            "sideEffects in {} had unexpected value {{}}",
-            p(vec!["incorrect-package", "sideeffects-map", "package.json"]).display()
-        )
-    );
+    match resolver
+        .load_side_effects(&p(vec!["incorrect-package", "sideeffects-map"]))
+        .unwrap_err()
+    {
+        ResolverError::UnexpectedValue(error) => assert_eq!(
+            error,
+            format!(
+                "sideEffects in {} had unexpected value {{}}",
+                p(vec!["incorrect-package", "sideeffects-map", "package.json"]).display()
+            )
+        ),
+        _ => unreachable!(),
+    }
 
-    assert_eq!(
-        resolver
-            .load_side_effects(&p(vec!["incorrect-package", "sideeffects-other-in-array"]))
-            .unwrap_err(),
-        format!(
-            "sideEffects in {} had unexpected value 1",
-            p(vec![
-                "incorrect-package",
-                "sideeffects-other-in-array",
-                "package.json"
-            ])
-            .display()
-        )
-    );
+    match resolver
+        .load_side_effects(&p(vec!["incorrect-package", "sideeffects-other-in-array"]))
+        .unwrap_err()
+    {
+        ResolverError::UnexpectedValue(error) => assert_eq!(
+            error,
+            format!(
+                "sideEffects in {} had unexpected value 1",
+                p(vec![
+                    "incorrect-package",
+                    "sideeffects-other-in-array",
+                    "package.json"
+                ])
+                .display()
+            )
+        ),
+        _ => unreachable!(),
+    }
 
     assert!(resolver.load_side_effects(&p(vec![])).unwrap().is_none());
 }

@@ -6,8 +6,7 @@ use crate::plugin::{
     AliasFieldPlugin, ExportsFieldPlugin, ExtensionsPlugin, ImportsFieldPlugin, MainFieldPlugin,
     MainFilePlugin, Plugin,
 };
-use crate::utils::RAISE_RESOLVE_ERROR_TAG;
-use crate::{PathKind, ResolveInfo, ResolveResult, Resolver, ResolverStats, MODULE};
+use crate::{PathKind, ResolveInfo, ResolveResult, Resolver, ResolverError, ResolverStats, MODULE};
 
 impl Resolver {
     pub(crate) fn append_ext_for_path(path: &Path, ext: &str) -> PathBuf {
@@ -28,7 +27,7 @@ impl Resolver {
     pub(crate) fn resolve_as_dir(&self, info: ResolveInfo) -> ResolverStats {
         let dir = info.get_path();
         if !dir.is_dir() {
-            return ResolverStats::Error((Resolver::raise_tag(), info));
+            return ResolverStats::Error((ResolverError::ResolveFailedTag, info));
         }
         let pkg_info_wrap = match self.load_pkg_file(&dir) {
             Ok(pkg_info) => pkg_info,
@@ -98,7 +97,7 @@ impl Resolver {
 
                 match stats {
                     ResolverStats::Error((error, err_info)) => {
-                        if error.eq(RAISE_RESOLVE_ERROR_TAG) {
+                        if matches!(error, ResolverError::ResolveFailedTag) {
                             ResolverStats::Resolving(info)
                         } else {
                             ResolverStats::Error((error, err_info))
@@ -120,7 +119,9 @@ impl Resolver {
 
         match stats {
             ResolverStats::Success(success) => ResolverStats::Success(success),
-            ResolverStats::Resolving(info) => ResolverStats::Error((Resolver::raise_tag(), info)),
+            ResolverStats::Resolving(info) => {
+                ResolverStats::Error((ResolverError::ResolveFailedTag, info))
+            }
             ResolverStats::Error(err) => ResolverStats::Error(err),
         }
     }

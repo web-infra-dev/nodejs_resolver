@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use crate::{RResult, ResolveResult, Resolver};
+use crate::{RResult, ResolveResult, Resolver, ResolverError};
 
 impl Resolver {
     #[cfg(not(target_os = "windows"))]
@@ -40,7 +40,7 @@ impl Resolver {
     fn normalize_path(&self, path: &Path) -> RResult<PathBuf> {
         if self.options.symlinks {
             Path::canonicalize(path)
-                .map_err(|_| "Path normalized failed".to_string())
+                .map_err(ResolverError::Io)
                 .map(|result| PathBuf::from(Self::adjust(result)))
         } else {
             Ok(Self::normalize_path_without_link(path))

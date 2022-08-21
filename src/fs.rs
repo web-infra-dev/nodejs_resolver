@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time;
 
 use crate::RResult;
+use crate::ResolverError;
 
 #[derive(Default, Debug)]
 pub struct CacheFile {
@@ -27,9 +28,9 @@ impl CacheFile {
         path: P,
     ) -> RResult<time::SystemTime> {
         fs::metadata(path.as_ref())
-            .map_err(|_| format!("Open {} failed", path.as_ref().display()))?
+            .map_err(ResolverError::Io)?
             .modified()
-            .map_err(|_| format!("Get modified time of {} failed", path.as_ref().display()))
+            .map_err(ResolverError::Io)
     }
 
     #[tracing::instrument]
@@ -45,7 +46,10 @@ impl CacheFile {
                 let duration = Self::get_last_modified_time_from_file(path.as_ref())?
                     .duration_since(stored_last_modify_time)
                     .map_err(|_| {
-                        format!("Compare SystemTime failed in {}", path.as_ref().display())
+                        ResolverError::UnexpectedValue(format!(
+                            "Compare SystemTime failed in {}",
+                            path.as_ref().display()
+                        ))
                     })?;
                 Ok(duration >= self.duration)
             })
@@ -54,10 +58,7 @@ impl CacheFile {
 
     #[tracing::instrument]
     pub fn read_to_string<P: AsRef<Path> + Debug>(&self, path: P) -> RResult<Arc<String>> {
-        let str = Arc::new(
-            fs::read_to_string(path.as_ref())
-                .map_err(|_| format!("Open {} failed", path.as_ref().display()))?,
-        );
+        let str = Arc::new(fs::read_to_string(path.as_ref()).map_err(ResolverError::Io)?);
         let last_modified_time = Self::get_last_modified_time_from_file(path.as_ref())?;
         self.cached_file.insert(
             path.as_ref().to_path_buf(),

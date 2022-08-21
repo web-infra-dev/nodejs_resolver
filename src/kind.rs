@@ -1,7 +1,6 @@
 use crate::Resolver;
-use daachorse::{DoubleArrayAhoCorasick, DoubleArrayAhoCorasickBuilder, MatchKind};
+use daachorse::{CharwiseDoubleArrayAhoCorasick, CharwiseDoubleArrayAhoCorasickBuilder, MatchKind};
 use once_cell::sync::Lazy;
-use phf::{phf_set, Set};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum PathKind {
@@ -11,75 +10,6 @@ pub(crate) enum PathKind {
     Internal,
     Normal,
 }
-
-const BUILT_IN_MODULE_SET: Set<&'static str> = phf_set! {
-   "_http_agent",
-   "_http_client",
-   "_http_common",
-   "_http_incoming",
-   "_http_outgoing",
-   "_http_server",
-   "_stream_duplex",
-   "_stream_passthrough",
-   "_stream_readable",
-   "_stream_transform",
-   "_stream_wrap",
-   "_stream_writable",
-   "_tls_common",
-   "_tls_wrap",
-   "assert",
-   "assert/,strict",
-   "async_hooks",
-   "buffer",
-   "child_process",
-   "cluster",
-   "console",
-   "constants",
-   "crypto",
-   "dgram",
-   "diagnostics_channel",
-   "dns",
-   "dns/promises",
-   "domain",
-   "events",
-   "fs",
-   "fs/promises",
-   "http",
-   "http2",
-   "https",
-   "inspector",
-   "module",
-   "net",
-   "os",
-   "path",
-   "path/posix",
-   "path/win32",
-   "perf_hooks",
-   "process",
-   "punycode",
-   "querystring",
-   "readline",
-   "repl",
-   "stream",
-   "stream/consumers",
-   "stream/promises",
-   "stream/web",
-   "string_decoder",
-   "sys",
-   "timers",
-   "timers/promises",
-   "tls",
-   "trace_events",
-   "tty",
-   "url",
-   "util",
-   "util/types",
-   "v8",
-   "vm",
-   "wasi",
-   "worker_threads",
-   "zlib",
-};
 
 static ABSOLUTE_WIN_PATTERN_LENGTH_TWO: [&str; 52] = [
     "a:", "b:", "c:", "d:", "e:", "f:", "g:", "h:", "i:", "j:", "k:", "l:", "m:", "n:", "o:", "p:",
@@ -100,8 +30,8 @@ static ABSOLUTE_WIN_PATTERN_REST: [&str; 104] = [
     "W:/", "X:/", "Y:/", "Z:/",
 ];
 
-static PMA: Lazy<DoubleArrayAhoCorasick> = Lazy::new(|| {
-    DoubleArrayAhoCorasickBuilder::new()
+static PMA: Lazy<CharwiseDoubleArrayAhoCorasick<usize>> = Lazy::new(|| {
+    CharwiseDoubleArrayAhoCorasickBuilder::new()
         .match_kind(MatchKind::LeftmostLongest)
         .build(&ABSOLUTE_WIN_PATTERN_REST)
         .unwrap()
@@ -138,16 +68,10 @@ impl Resolver {
         };
         path_kind
     }
-
-    pub fn is_build_in_module(target: &str) -> bool {
-        BUILT_IN_MODULE_SET.contains(target)
-    }
 }
 
 #[test]
 fn test_resolver() {
-    assert!(Resolver::is_build_in_module("fs"));
-    assert!(!Resolver::is_build_in_module("a"));
     assert!(matches!(Resolver::get_target_kind(""), PathKind::Relative));
     assert!(matches!(Resolver::get_target_kind("."), PathKind::Relative));
     assert!(matches!(

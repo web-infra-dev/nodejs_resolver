@@ -3,16 +3,15 @@ use std::sync::Arc;
 
 use super::Plugin;
 use crate::{
-    description::PkgFileInfo, AliasMap, PathKind, ResolveInfo, ResolveResult, Resolver,
-    ResolverStats,
+    description::PkgInfo, AliasMap, PathKind, ResolveInfo, ResolveResult, Resolver, ResolverStats,
 };
 
 pub struct AliasFieldPlugin<'a> {
-    pkg_info: &'a Option<Arc<PkgFileInfo>>,
+    pkg_info: &'a Option<Arc<PkgInfo>>,
 }
 
 impl<'a> AliasFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a Option<Arc<PkgFileInfo>>) -> Self {
+    pub fn new(pkg_info: &'a Option<Arc<PkgInfo>>) -> Self {
         Self { pkg_info }
     }
 
