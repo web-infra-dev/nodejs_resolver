@@ -41,7 +41,6 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
                     };
 
                     let stats = resolver._resolve(main_field_info);
-
                     if stats.is_success() {
                         return stats;
                     } else {
