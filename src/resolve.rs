@@ -37,7 +37,7 @@ impl Resolver {
         let info = info.with_path(dir).with_target("");
         MainFieldPlugin::new(&pkg_info_wrap)
             .apply(self, info)
-            .and_then(|info| MainFilePlugin::new(&pkg_info_wrap).apply(self, info))
+            .and_then(|info| MainFilePlugin.apply(self, info))
     }
 
     #[tracing::instrument]
