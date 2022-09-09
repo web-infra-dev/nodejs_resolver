@@ -162,14 +162,13 @@ impl Resolver {
         let description_file_name = self.options.description_file.as_ref().unwrap();
         let description_file_path = path.join(description_file_name);
         let need_find_up = if let Some(r#ref) = self.cache.file_dir_to_pkg_info.get(path) {
-            // if pkg_info_cache contain this key
             if !self.fs.need_update(&description_file_path)? {
                 // and not modified, then return
                 return Ok(r#ref.clone());
             } else {
                 #[cfg(debug_assertions)]
                 {
-                    self.dbg_read_map.remove(&description_file_path);
+                    self.cache.debug_read_map.remove(&description_file_path);
                 }
 
                 false
@@ -202,20 +201,27 @@ impl Resolver {
             }
         }
 
+        // some bugs in multi thread
+        // std::thread::sleep(std::time::Duration::from_secs(5));
+
         #[cfg(debug_assertions)]
         {
             // ensure that the same package.json is not parsed twice
-            if self.dbg_read_map.contains_key(&description_file_path) {
+            if self
+                .cache
+                .debug_read_map
+                .contains_key(&description_file_path)
+            {
                 println!(
                     "Had try to parse parsed package.json, {}",
                     description_file_path.display()
                 );
-                println!("{:?}", self.cache.file_dir_to_pkg_info);
-                println!("{:?}", self.dbg_read_map);
+                // println!("{:?}", self.cache.file_dir_to_pkg_info);
+                // println!("{:?}", self.cache.debug_read_map);
                 // TODO: may panic under multi-thread
                 // panic!(
                 //     "Had try to parse same package.json, {}",
-                //     file_path.display()
+                //     description_file_path.display()
                 // )
             }
         }
@@ -230,7 +236,9 @@ impl Resolver {
 
         #[cfg(debug_assertions)]
         {
-            self.dbg_read_map.insert(&description_file_path, true);
+            self.cache
+                .debug_read_map
+                .insert(&description_file_path, true);
         }
 
         Ok(pkg_info)
