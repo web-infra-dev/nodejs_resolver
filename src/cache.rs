@@ -4,12 +4,14 @@ use dashmap::DashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug)]
 pub struct ResolverCache {
     /// file_directory -> the closet package.json info
     pub file_dir_to_pkg_info: DashMap<PathBuf, Option<Arc<PkgInfo>>>,
     pub exports_content_to_tree: DashMap<String, Arc<PathTreeNode>>,
     pub imports_content_to_tree: DashMap<String, Arc<PathTreeNode>>,
+    #[cfg(debug_assertions)]
+    pub(crate) debug_read_map: DebugReadMap,
 }
 
 #[cfg(debug_assertions)]

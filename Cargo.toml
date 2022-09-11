@@ -1,6 +1,6 @@
 [package]
 name = "nodejs-resolver"
-version = "0.0.36"
+version = "0.0.37"
 edition = "2021"
 license = "MIT"
 description = "nodejs resolve"
@@ -10,13 +10,14 @@ repository = "https://github.com/bvanjoi/nodejs_resolver"
 [dependencies]
 serde_json = { version = "1.0.85", features = ["preserve_order"] }
 indexmap = "1.9.1"
-dashmap = "5.3.4"
+dashmap = "5.4.0"
 daachorse = "1.0.0"
-once_cell = "1.13.1"
+once_cell = "1.14.0"
 smol_str = "0.1.23"
 tracing = "0.1.36"
 jsonc-parser = { version = "0.21.0", features = ["serde"] }
 serde = { version = "1.0.144", features = ["derive"] }
+futures = "0.3.24"
 
 [dev-dependencies]
 tracing-subscriber = "0.3.15"

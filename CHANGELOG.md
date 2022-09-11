@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.37
+
+- expose `CacheFile`.
+
 ## 0.0.36
 
 - remove build in module support.

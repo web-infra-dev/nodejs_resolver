@@ -174,12 +174,12 @@ extern crate test;
 #[cfg(test)] 
 mod bench_test {
 
-    use nodejs_resolver::{Resolver, ResolverOptions, ResolveResult, RResult};
+    use nodejs_resolver::{Resolver, ResolverOptions, ResolveResult, RResult, CacheFile};
     use std::env::current_dir;
     use std::path::PathBuf;
     use test::Bencher;
     use std::time::Instant;
-
+    use std::sync::Arc;
     fn is_ok(result: RResult<ResolveResult>) {
       assert!(result.is_ok())
     }
@@ -188,6 +188,7 @@ mod bench_test {
     fn ant_design_bench(b: &mut Bencher) {
         b.iter(|| {
           let resolver = Resolver::new(ResolverOptions {
+            fs: Some(Arc::new(CacheFile::new(1000))),
             extensions: vec![
               ".web.tsx",
               ".web.ts",

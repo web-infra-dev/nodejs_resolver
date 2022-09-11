@@ -55,12 +55,10 @@ mod tsconfig;
 mod tsconfig_path;
 mod utils;
 
-#[cfg(debug_assertions)]
-use cache::DebugReadMap;
-
 pub use cache::ResolverCache;
 pub use description::SideEffects;
 pub use error::*;
+pub use fs::CacheFile;
 use kind::PathKind;
 pub use options::{AliasMap, ResolverOptions};
 use parse::Request;
@@ -75,9 +73,7 @@ use std::{
 pub struct Resolver {
     pub options: ResolverOptions,
     cache: Arc<ResolverCache>,
-    fs: fs::CacheFile,
-    #[cfg(debug_assertions)]
-    dbg_read_map: DebugReadMap,
+    fs: Arc<CacheFile>,
 }
 
 #[derive(Debug, Clone)]
@@ -173,14 +169,10 @@ impl Resolver {
             enforce_extension,
             ..options
         };
-        let fs = fs::CacheFile::new(1000);
-        Self {
-            fs,
-            cache,
-            options,
-            #[cfg(debug_assertions)]
-            dbg_read_map: Default::default(),
-        }
+        let fs = options.fs.clone().unwrap_or_else(|| {
+            panic!("fs in resolverOptions can't be None");
+        });
+        Self { fs, cache, options }
     }
 
     pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolveResult> {
@@ -269,10 +261,13 @@ mod test {
     #[test]
     fn pkg_info_cache_test() {
         let fixture_path = p(vec![]);
-
+        let fs = Arc::new(CacheFile::new(500));
         // show tracing tree
         tracing_span_tree::span_tree().aggregate(true).enable();
-        let resolver = Resolver::new(Default::default());
+        let resolver = Resolver::new(ResolverOptions {
+            fs: Some(fs.clone()),
+            ..Default::default()
+        });
         assert!(resolver
             .resolve(&fixture_path, "./browser-module/lib/browser")
             .is_ok());
@@ -311,11 +306,13 @@ mod test {
     }
 
     #[test]
-    fn share_cache_test() {
+    fn shared_cache_test1() {
         let cache = Arc::new(ResolverCache::default());
         let fixture_path = p(vec![]);
+        let fs = Arc::new(CacheFile::new(500));
 
         let resolver = Resolver::new(ResolverOptions {
+            fs: Some(fs.clone()),
             external_cache: Some(cache.clone()),
             ..Default::default()
         });
@@ -324,6 +321,7 @@ mod test {
         assert_eq!(resolver.cache.file_dir_to_pkg_info.len(), 1);
 
         let resolver = Resolver::new(ResolverOptions {
+            fs: Some(fs.clone()),
             external_cache: Some(cache.clone()),
             ..Default::default()
         });
