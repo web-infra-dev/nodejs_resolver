@@ -26,7 +26,7 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
             for user_main_field in &resolver.options.main_fields {
                 if let Some(main_field) = pkg_info
                     .raw
-                    .get(&user_main_field)
+                    .get(user_main_field)
                     .and_then(|value| value.as_str())
                 {
                     if main_field == "." || main_field == "./" {

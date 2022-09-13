@@ -14,7 +14,7 @@
 //! use nodejs_resolver::Resolver;
 //!
 //! let cwd = std::env::current_dir().unwrap();
-//! let resolver = Resolver::default();
+//! let resolver = Resolver::new(Default::default());
 //!
 //! resolver.resolve(&cwd.join("./src"), "foo");
 //! // -> ResolveResult::Info(ResolveInfo {
@@ -68,7 +68,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Resolver {
     pub options: ResolverOptions,
     cache: Arc<ResolverCache>,
