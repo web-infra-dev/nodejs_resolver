@@ -58,7 +58,6 @@ mod utils;
 pub use cache::ResolverCache;
 pub use description::SideEffects;
 pub use error::*;
-pub use fs::CacheFile;
 use kind::PathKind;
 pub use options::{AliasMap, ResolverOptions};
 use parse::Request;
@@ -73,7 +72,7 @@ use std::{
 pub struct Resolver {
     pub options: ResolverOptions,
     cache: Arc<ResolverCache>,
-    fs: Arc<CacheFile>,
+    fs: fs::FileSystem,
 }
 
 #[derive(Debug, Clone)]
@@ -169,9 +168,9 @@ impl Resolver {
             enforce_extension,
             ..options
         };
-        let fs = options.fs.clone().unwrap_or_else(|| {
-            panic!("fs in resolverOptions can't be None");
-        });
+        // if a file changed in 3 seconds,
+        // it will reread this file.
+        let fs = fs::FileSystem::new(3);
         Self { fs, cache, options }
     }
 
@@ -261,11 +260,9 @@ mod test {
     #[test]
     fn pkg_info_cache_test() {
         let fixture_path = p(vec![]);
-        let fs = Arc::new(CacheFile::new(500));
         // show tracing tree
         tracing_span_tree::span_tree().aggregate(true).enable();
         let resolver = Resolver::new(ResolverOptions {
-            fs: Some(fs.clone()),
             ..Default::default()
         });
         assert!(resolver
@@ -309,10 +306,8 @@ mod test {
     fn shared_cache_test1() {
         let cache = Arc::new(ResolverCache::default());
         let fixture_path = p(vec![]);
-        let fs = Arc::new(CacheFile::new(500));
 
         let resolver = Resolver::new(ResolverOptions {
-            fs: Some(fs.clone()),
             external_cache: Some(cache.clone()),
             ..Default::default()
         });
@@ -321,7 +316,6 @@ mod test {
         assert_eq!(resolver.cache.file_dir_to_pkg_info.len(), 1);
 
         let resolver = Resolver::new(ResolverOptions {
-            fs: Some(fs.clone()),
             external_cache: Some(cache.clone()),
             ..Default::default()
         });

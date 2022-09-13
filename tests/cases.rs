@@ -1,7 +1,6 @@
 use nodejs_resolver::test_helper::{p, vec_to_set};
 use nodejs_resolver::{
-    AliasMap, CacheFile, ResolveResult, Resolver, ResolverCache, ResolverError, ResolverOptions,
-    SideEffects,
+    AliasMap, ResolveResult, Resolver, ResolverCache, ResolverError, ResolverOptions, SideEffects,
 };
 
 use std::path::{Path, PathBuf};
@@ -84,10 +83,8 @@ fn should_unexpected_value_error(
 #[test]
 fn extensions_test() {
     let extensions_cases_path = p(vec!["extensions"]);
-    let fs = Arc::new(CacheFile::new(500));
     let resolver = Resolver::new(ResolverOptions {
         extensions: vec![String::from(".ts"), String::from(".js")],
-        fs: Some(fs.clone()),
         ..Default::default()
     });
 
@@ -153,7 +150,6 @@ fn extensions_test() {
     should_resolve_failed_error(&resolver, &extensions_cases_path, "./a.js/");
     should_resolve_failed_error(&resolver, &extensions_cases_path, "m.js/");
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![String::from("ts"), String::from(".js")],
         ..Default::default()
     });
@@ -227,7 +223,6 @@ fn extensions_test() {
 
     let extensions_cases_path = p(vec!["extensions2"]);
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![String::from(".js"), String::from(""), String::from(".ts")], // `extensions` can start with `.` or not.
         ..Default::default()
     });
@@ -263,7 +258,6 @@ fn extensions_test() {
     );
 
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![String::from(".js"), String::from(""), String::from(".ts")], // `extensions` can start with `.` or not.
         enforce_extension: Some(false),
         ..Default::default()
@@ -303,9 +297,7 @@ fn extensions_test() {
 #[test]
 fn alias_test() {
     let alias_cases_path = p(vec!["alias"]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         alias: vec![
             (
                 String::from("aliasA"),
@@ -541,7 +533,6 @@ fn alias_test() {
 
     // test alias ordered
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         alias: vec![
             (
                 String::from("@A/index"),
@@ -558,7 +549,6 @@ fn alias_test() {
         p(vec!["alias", "a", "index"]),
     );
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         alias: vec![
             (String::from("@A"), AliasMap::Target(String::from("./b"))),
             (
@@ -579,9 +569,7 @@ fn alias_test() {
 #[test]
 fn symlink_test() {
     let symlink_cases_path = p(vec!["symlink"]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         ..Default::default()
     });
 
@@ -739,7 +727,6 @@ fn symlink_test() {
 
     let linked_path = symlink_cases_path.join("linked");
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         symlinks: false,
         ..Default::default()
     });
@@ -761,9 +748,7 @@ fn symlink_test() {
 #[test]
 fn simple_test() {
     let simple_case_path = p(vec!["simple"]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         ..Default::default()
     });
     should_equal(
@@ -817,9 +802,7 @@ fn simple_test() {
 #[test]
 fn pnpm_structure_test() {
     let case_path = p(vec!["pnpm-structure", "node_modules"]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         ..Default::default()
     });
 
@@ -917,9 +900,7 @@ fn pnpm_structure_test() {
 #[test]
 fn resolve_test() {
     let fixture_path = p(vec![]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         ..Default::default()
     });
 
@@ -1066,9 +1047,7 @@ fn resolve_test() {
 
 #[test]
 fn browser_filed_test() {
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         browser_field: true,
         ..Default::default()
     });
@@ -1163,7 +1142,6 @@ fn browser_filed_test() {
 
     // browser with alias
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         browser_field: true,
         alias: vec![(
             String::from("./lib/toString.js"),
@@ -1261,9 +1239,7 @@ fn browser_filed_test() {
 #[test]
 fn dependencies_test() {
     let dep_case_path = p(vec!["dependencies"]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![String::from(".json"), String::from(".js")],
         ..Default::default()
     });
@@ -1348,9 +1324,7 @@ fn dependencies_test() {
 fn full_specified_test() {
     // TODO: should I need add `fullSpecified` flag?
     let full_cases_path = p(vec!["full", "a"]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         alias: vec![
             (
                 String::from("alias1"),
@@ -1477,9 +1451,7 @@ fn full_specified_test() {
 #[test]
 fn missing_test() {
     let fixture_path = p(vec![]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         ..Default::default()
     });
     // TODO: optimize error
@@ -1501,9 +1473,7 @@ fn missing_test() {
 #[test]
 fn incorrect_package_test() {
     let incorrect_package_path = p(vec!["incorrect-package"]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         ..Default::default()
     });
     should_unexpected_json_error(
@@ -1523,9 +1493,7 @@ fn incorrect_package_test() {
 #[test]
 fn scoped_packages_test() {
     let scoped_path = p(vec!["scoped"]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         browser_field: true,
         ..Default::default()
     });
@@ -1573,9 +1541,7 @@ fn exports_fields_test() {
     // TODO: [`exports_fields`](https://github.com/webpack/enhanced-resolve/blob/main/test/exportsField.js#L2280) flag
 
     let export_cases_path = p(vec!["exports-field"]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         condition_names: vec_to_set(vec!["import"]),
         ..Default::default()
     });
@@ -1611,7 +1577,6 @@ fn exports_fields_test() {
     );
 
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![String::from(".js")],
         condition_names: vec_to_set(vec!["require"]),
         ..Default::default()
@@ -1648,7 +1613,6 @@ fn exports_fields_test() {
     );
 
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![String::from(".js")],
         condition_names: vec_to_set(vec!["webpack"]),
         ..Default::default()
@@ -1871,7 +1835,6 @@ fn exports_fields_test() {
     );
 
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![String::from(".js")],
         browser_field: true,
         condition_names: vec_to_set(vec!["webpack"]),
@@ -1903,7 +1866,6 @@ fn exports_fields_test() {
     );
 
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![String::from(".js")],
         browser_field: true,
         condition_names: vec_to_set(vec!["node"]),
@@ -1926,7 +1888,6 @@ fn exports_fields_test() {
     let export_cases_path4 = p(vec!["exports-field-error"]);
 
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![String::from(".js")],
         condition_names: vec_to_set(vec!["webpack"]),
         ..Default::default()
@@ -1944,9 +1905,7 @@ fn exports_fields_test() {
 fn imports_fields_test() {
     // TODO: ['imports_fields`](https://github.com/webpack/enhanced-resolve/blob/main/test/importsField.js#L1228)
     let import_cases_path = p(vec!["imports-field"]);
-    let fs = Arc::new(CacheFile::new(500));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![String::from(".js")],
         condition_names: vec_to_set(vec!["webpack"]),
         ..Default::default()
@@ -2026,9 +1985,7 @@ fn imports_fields_test() {
 #[test]
 fn without_description_file_test() {
     let fixture_path = p(vec![]);
-    let fs = Arc::new(CacheFile::new(500));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![String::from(".js")],
         description_file: None,
         ..Default::default()
@@ -2052,9 +2009,7 @@ fn without_description_file_test() {
 #[test]
 fn prefer_relative_test() {
     let fixture_path = p(vec![]);
-    let fs = Arc::new(CacheFile::new(500));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         prefer_relative: true,
         ..Default::default()
     });
@@ -2074,9 +2029,7 @@ fn cache_fs() {
     use std::time::Duration;
 
     let fixture_path = p(vec!["cache-fs"]);
-    let fs = Arc::new(CacheFile::new(500));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         ..Default::default()
     });
     should_equal(
@@ -2086,12 +2039,12 @@ fn cache_fs() {
         p(vec!["cache-fs", "src", "index.js"]),
     );
 
-    sleep(Duration::from_secs(3));
     write(
         &fixture_path.join("package.json"),
         "{\"main\": \"./src/module.js\"}",
     )
     .expect("write failed");
+    sleep(Duration::from_secs(1));
 
     should_equal(
         &resolver,
@@ -2100,12 +2053,13 @@ fn cache_fs() {
         p(vec!["cache-fs", "src", "module.js"]),
     );
 
-    sleep(Duration::from_secs(3));
     write(
         &fixture_path.join("package.json"),
         "{\"main\": \"./src/index.js\"}",
     )
     .expect("write failed");
+
+    sleep(Duration::from_secs(1));
 
     should_equal(
         &resolver,
@@ -2118,9 +2072,7 @@ fn cache_fs() {
 #[test]
 fn main_fields_test() {
     let fixture_path = p(vec![]);
-    let fs = Arc::new(CacheFile::new(500));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         ..Default::default()
     });
 
@@ -2162,7 +2114,6 @@ fn main_fields_test() {
     );
 
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         main_fields: vec![String::from("module")],
         ..Default::default()
     });
@@ -2187,7 +2138,6 @@ fn main_fields_test() {
     );
 
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         main_fields: vec![String::from("main"), String::from("module")],
 
         ..Default::default()
@@ -2201,7 +2151,6 @@ fn main_fields_test() {
     );
 
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         main_fields: vec![String::from("module"), String::from("main")],
         ..Default::default()
     });
@@ -2217,9 +2166,7 @@ fn main_fields_test() {
 #[test]
 fn tsconfig_paths_test() {
     let tsconfig_paths = p(vec!["tsconfig-paths"]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![".ts".to_string()],
         tsconfig: Some(tsconfig_paths.join("tsconfig.json")),
         ..Default::default()
@@ -2330,9 +2277,7 @@ fn tsconfig_paths_test() {
 #[test]
 fn tsconfig_paths_nested() {
     let tsconfig_paths = p(vec!["tsconfig-paths-nested"]);
-    let fs = Arc::new(CacheFile::new(1000));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![".ts".to_string()],
         tsconfig: Some(tsconfig_paths.join("tsconfig.json")),
         ..Default::default()
@@ -2407,9 +2352,7 @@ fn tsconfig_paths_nested() {
 #[test]
 fn tsconfig_paths_without_base_url_test() {
     let case_path = p(vec!["tsconfig-paths-without-baseURL"]);
-    let fs = Arc::new(CacheFile::new(500));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![".ts".to_string()],
         tsconfig: Some(case_path.join("tsconfig.json")),
         ..Default::default()
@@ -2420,9 +2363,7 @@ fn tsconfig_paths_without_base_url_test() {
 #[test]
 fn tsconfig_paths_overridden_base_url() {
     let case_path = p(vec!["tsconfig-paths-override-baseURL"]);
-    let fs = Arc::new(CacheFile::new(500));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![".ts".to_string()],
         tsconfig: Some(case_path.join("tsconfig.json")),
         ..Default::default()
@@ -2438,9 +2379,7 @@ fn tsconfig_paths_overridden_base_url() {
 #[test]
 fn tsconfig_paths_missing_base_url() {
     let case_path = p(vec!["tsconfig-paths-missing-baseURL"]);
-    let fs = Arc::new(CacheFile::new(500));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![".ts".to_string()],
         tsconfig: Some(case_path.join("tsconfig.json")),
         ..Default::default()
@@ -2451,9 +2390,7 @@ fn tsconfig_paths_missing_base_url() {
 #[test]
 fn tsconfig_paths_extends_from_node_modules() {
     let case_path = p(vec!["tsconfig-paths-extends-from-module"]);
-    let fs = Arc::new(CacheFile::new(500));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![".ts".to_string()],
         tsconfig: Some(case_path.join("tsconfig.json")),
         ..Default::default()
@@ -2466,7 +2403,6 @@ fn tsconfig_paths_extends_from_node_modules() {
     );
 
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         extensions: vec![".ts".to_string()],
         tsconfig: Some(case_path.join("tsconfig.scope.json")),
         ..Default::default()
@@ -2482,9 +2418,7 @@ fn tsconfig_paths_extends_from_node_modules() {
 #[test]
 fn load_side_effects_test() {
     let case_path = p(vec!["exports-field"]);
-    let fs = Arc::new(CacheFile::new(500));
     let resolver = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         ..Default::default()
     });
     let scope_import_require_path = if let ResolveResult::Info(info) = resolver
@@ -2589,18 +2523,15 @@ fn load_side_effects_test() {
 #[test]
 fn shared_cache_test2() {
     let case_path = p(vec!["browser-module"]);
-    let fs = Arc::new(CacheFile::new(500));
     let cache = Arc::new(ResolverCache::default());
     let resolver1 = Resolver::new(ResolverOptions {
         browser_field: true,
-        fs: Some(fs.clone()),
         external_cache: Some(cache.clone()),
         ..Default::default()
     });
     should_ignored(&resolver1, &case_path, "./lib/ignore.js");
 
     let resolver2 = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         external_cache: Some(cache.clone()),
         ..Default::default()
     });
@@ -2612,7 +2543,6 @@ fn shared_cache_test2() {
     );
 
     let resolver3 = Resolver::new(ResolverOptions {
-        fs: Some(fs.clone()),
         external_cache: Some(cache.clone()),
         main_fields: vec!["module".to_string()],
         ..Default::default()
@@ -2628,15 +2558,12 @@ fn shared_cache_test2() {
 // #[test]
 // fn thread() {
 //     let cache = Arc::new(ResolverCache::default());
-//     let fs = Arc::new(CacheFile::new(500));
 //     let resolver1 = Resolver::new(ResolverOptions {
 //         external_cache: Some(cache.clone()),
-//         fs: Some(fs.clone()),
 //         ..Default::default()
 //     });
 //     let resolver2 = Resolver::new(ResolverOptions {
 //         external_cache: Some(cache.clone()),
-//         fs: Some(fs.clone()),
 //         ..Default::default()
 //     });
 

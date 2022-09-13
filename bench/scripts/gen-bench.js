@@ -174,7 +174,7 @@ extern crate test;
 #[cfg(test)] 
 mod bench_test {
 
-    use nodejs_resolver::{Resolver, ResolverOptions, ResolveResult, RResult, CacheFile};
+    use nodejs_resolver::{Resolver, ResolverOptions, ResolveResult, RResult};
     use std::env::current_dir;
     use std::path::PathBuf;
     use test::Bencher;
@@ -188,7 +188,6 @@ mod bench_test {
     fn ant_design_bench(b: &mut Bencher) {
         b.iter(|| {
           let resolver = Resolver::new(ResolverOptions {
-            fs: Some(Arc::new(CacheFile::new(1000))),
             extensions: vec![
               ".web.tsx",
               ".web.ts",
