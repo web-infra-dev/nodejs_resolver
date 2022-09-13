@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.39
+
+- remove `Resolver::Default()`;
+
 ## 0.0.38
 
 - rename `CacheFile` to `FileSystem`.

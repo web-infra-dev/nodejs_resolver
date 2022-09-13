@@ -33,7 +33,7 @@ static ABSOLUTE_WIN_PATTERN_REST: [&str; 104] = [
 static PMA: Lazy<CharwiseDoubleArrayAhoCorasick<usize>> = Lazy::new(|| {
     CharwiseDoubleArrayAhoCorasickBuilder::new()
         .match_kind(MatchKind::LeftmostLongest)
-        .build(&ABSOLUTE_WIN_PATTERN_REST)
+        .build(ABSOLUTE_WIN_PATTERN_REST)
         .unwrap()
 });
 

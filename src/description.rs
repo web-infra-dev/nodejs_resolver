@@ -28,7 +28,7 @@ impl Resolver {
     #[tracing::instrument]
     fn parse_description_file(&self, dir: &Path, file_path: &Path) -> RResult<PkgInfo> {
         let str = tracing::debug_span!("read_to_string")
-            .in_scope(|| self.fs.read_to_string(&file_path))?;
+            .in_scope(|| self.fs.read_to_string(file_path))?;
         let json: serde_json::Value =
             tracing::debug_span!("serde_json_from_str").in_scope(|| {
                 serde_json::from_str(&str).map_err(|error| {
