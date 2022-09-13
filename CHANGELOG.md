@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.0.38
+
+- rename `CacheFile` to `FileSystem`.
+- hidden `CacheFile` in `ResolverOptions`.
+
+This PR has changed the caching policy for modified files.
+
+Before:
+
+```
+          Timeline
+-------------------------------------->>>>
+     file_a                      file_a
+  [stored_modified_time]        if duration > CUSTOM_DURATION then reread
+                                else then use cache.
+  |----- duration = last_modified_time - stored_modified_time -----|
+```
+
+
+Now:
+
+```
+Timeline
+-------------------------------------->>>>
+  file_a                      file_a
+  [last_modified_time]        if duration < CUSTOM_DURATION then reread
+                              else then use cache.
+  |----- duration = now_time - last_modified_time -----|
+```
+
 ## 0.0.37
 
 - expose `CacheFile`.

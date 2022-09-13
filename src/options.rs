@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
-use crate::{fs::CacheFile, ResolverCache};
+use crate::ResolverCache;
 
 #[derive(Debug, Clone)]
 pub enum AliasMap {
@@ -10,7 +10,6 @@ pub enum AliasMap {
 
 #[derive(Debug, Clone)]
 pub struct ResolverOptions {
-    pub fs: Option<Arc<CacheFile>>,
     /// Tried detect file with this extension.
     /// Default is `[".js", ".json", ".node"]`
     pub extensions: Vec<String>,
@@ -82,9 +81,7 @@ impl Default for ResolverOptions {
         let enforce_extension = None;
         let tsconfig = None;
         let external_cache = None;
-        let fs = None;
         Self {
-            fs,
             prefer_relative,
             extensions,
             main_files,
