@@ -195,8 +195,8 @@ impl Resolver {
         // }
         match result {
             ResolverStats::Success(result) => self.normalize_result(result),
-            ResolverStats::Error((err_msg, _)) => Err(err_msg),
-            _ => unreachable!(),
+            ResolverStats::Error((err, _)) => Err(err),
+            ResolverStats::Resolving(_) => Err(ResolverError::ResolveFailedTag),
         }
     }
 

@@ -1335,7 +1335,7 @@ fn full_specified_test() {
         browser_field: true,
         ..Default::default()
     });
-
+    should_resolve_failed_error(&resolver, &full_cases_path.join(".."), ".");
     should_equal(
         &resolver,
         &full_cases_path,
