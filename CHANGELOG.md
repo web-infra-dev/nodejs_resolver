@@ -3,6 +3,7 @@
 ## 0.0.39
 
 - remove `Resolver::Default()`;
+- remove `unreachable!()` in `resolve`.
 
 ## 0.0.38
 
