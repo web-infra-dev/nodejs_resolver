@@ -2555,6 +2555,14 @@ fn shared_cache_test2() {
     );
 }
 
+#[test]
+fn empty_test() {
+    let case_path = p(vec!["empty"]);
+    let resolver = Resolver::new(ResolverOptions::default());
+    should_resolve_failed_error(&resolver, &case_path, ".");
+    should_resolve_failed_error(&resolver, &p(vec![]), "./empty");
+}
+
 // #[test]
 // fn thread() {
 //     let cache = Arc::new(ResolverCache::default());
