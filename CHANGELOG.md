@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.0.40
+
+- remove unnecessary `Resolver::adjust` in `normalized`.
+- remove `FileSystem`.
+- change cache policy for modified files.
+
+Now: 
+
+
+if 
+
+then reread
+```
+              Timeline
+-------------------------------------->>>>
+     file_a                      file_a
+  [last_read_time]        if
+                            (modify_time > last_read_time)
+                            && (now_time - modify_time > duration)
+                          then reread.
+```
+
 ## 0.0.39
 
 - remove `Resolver::Default()`;

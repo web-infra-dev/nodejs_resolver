@@ -3,6 +3,7 @@ use crate::map::PathTreeNode;
 use dashmap::DashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 #[derive(Default, Debug)]
 pub struct ResolverCache {
@@ -10,6 +11,7 @@ pub struct ResolverCache {
     pub file_dir_to_pkg_info: DashMap<PathBuf, Option<Arc<PkgInfo>>>,
     pub exports_content_to_tree: DashMap<String, Arc<PathTreeNode>>,
     pub imports_content_to_tree: DashMap<String, Arc<PathTreeNode>>,
+    pub file_snapshot: DashMap<PathBuf, SystemTime>,
     #[cfg(debug_assertions)]
     pub(crate) debug_read_map: DebugReadMap,
 }

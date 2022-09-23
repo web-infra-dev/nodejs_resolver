@@ -576,6 +576,12 @@ fn symlink_test() {
     should_equal(
         &resolver,
         &symlink_cases_path.join("linked"),
+        "./this/lib/index.js",
+        p(vec!["symlink", "lib", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &symlink_cases_path.join("linked"),
         "./index.js",
         p(vec!["symlink", "lib", "index.js"]),
     );
@@ -589,12 +595,6 @@ fn symlink_test() {
         &resolver,
         &symlink_cases_path.join("linked"),
         "./node.relative.sym.js",
-        p(vec!["symlink", "lib", "index.js"]),
-    );
-    should_equal(
-        &resolver,
-        &symlink_cases_path.join("linked"),
-        "./this/lib/index.js",
         p(vec!["symlink", "lib", "index.js"]),
     );
     should_equal(
@@ -2039,11 +2039,14 @@ fn cache_fs() {
         p(vec!["cache-fs", "src", "index.js"]),
     );
 
+    sleep(Duration::from_secs(1));
+
     write(
         &fixture_path.join("package.json"),
         "{\"main\": \"./src/module.js\"}",
     )
     .expect("write failed");
+
     sleep(Duration::from_secs(1));
 
     should_equal(
@@ -2052,6 +2055,8 @@ fn cache_fs() {
         ".",
         p(vec!["cache-fs", "src", "module.js"]),
     );
+
+    sleep(Duration::from_secs(1));
 
     write(
         &fixture_path.join("package.json"),
