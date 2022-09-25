@@ -1,53 +1,47 @@
-use std::fmt::Debug;
 use std::fs;
 use std::path::Path;
-use std::time;
 use std::time::SystemTime;
 
-use crate::RResult;
-use crate::ResolverError;
+use crate::{RResult, Resolver, ResolverError};
 
-#[derive(Default, Debug)]
-pub struct FileSystem {
-    duration: time::Duration,
-}
-
-impl FileSystem {
-    /// the unit of `duration` is millisecond.
-    pub fn new(duration: u64) -> Self {
-        Self {
-            duration: time::Duration::from_secs(duration),
-        }
-    }
-
-    fn get_last_modified_time<P: AsRef<Path> + Debug>(path: P) -> RResult<time::SystemTime> {
-        fs::metadata(path.as_ref())
+impl Resolver {
+    fn get_last_modified_time(path: &Path) -> RResult<SystemTime> {
+        fs::metadata(path)
             .map_err(ResolverError::Io)?
             .modified()
             .map_err(ResolverError::Io)
     }
 
     #[tracing::instrument]
-    pub fn need_update<P: AsRef<Path> + Debug>(&self, path: P) -> RResult<bool> {
-        if !path.as_ref().is_file() {
+    pub fn need_update(&self, path: &Path) -> RResult<bool> {
+        if !path.is_file() {
             // no need update if `p` pointed file dose not exist
-            return Ok(false);
+            Ok(false)
+        } else if let Some(last_read_time) = self.cache.file_snapshot.get(path) {
+            let last_modified_time = Self::get_last_modified_time(path)?;
+            if *last_read_time > last_modified_time {
+                return Ok(false);
+            }
+            let now_time = SystemTime::now();
+            let duration = now_time.duration_since(last_modified_time).map_err(|_| {
+                ResolverError::UnexpectedValue(format!(
+                    "Compare SystemTime failed in {}",
+                    path.display()
+                ))
+            })?;
+            Ok(duration > self.duration)
+        } else {
+            Ok(true)
         }
-        let last_modified_time = Self::get_last_modified_time(path.as_ref())?;
-        let now_time = SystemTime::now();
-        let duration = now_time.duration_since(last_modified_time).map_err(|_| {
-            ResolverError::UnexpectedValue(format!(
-                "Compare SystemTime failed in {}",
-                path.as_ref().display()
-            ))
-        })?;
-        // if a file changed in `self.duration` seconds,
-        // it will reread this file.
-        Ok(duration <= self.duration)
     }
 
     #[tracing::instrument]
-    pub fn read_to_string<P: AsRef<Path> + Debug>(&self, path: P) -> RResult<String> {
-        fs::read_to_string(path.as_ref()).map_err(ResolverError::Io)
+    pub fn read_to_string(&self, path: &Path) -> RResult<String> {
+        let now_time = SystemTime::now();
+        let content = fs::read_to_string(path).map_err(ResolverError::Io);
+        self.cache
+            .file_snapshot
+            .insert(path.to_path_buf(), now_time);
+        content
     }
 }

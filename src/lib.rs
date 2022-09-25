@@ -66,13 +66,14 @@ use plugin::{AliasFieldPlugin, AliasPlugin, ImportsFieldPlugin, Plugin, PreferRe
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
+    time::Duration,
 };
 
 #[derive(Debug)]
 pub struct Resolver {
     pub options: ResolverOptions,
     cache: Arc<ResolverCache>,
-    fs: fs::FileSystem,
+    duration: Duration,
 }
 
 #[derive(Debug, Clone)]
@@ -168,12 +169,16 @@ impl Resolver {
             enforce_extension,
             ..options
         };
-        // if a file changed in 3 seconds,
-        // it will reread this file.
-        let fs = fs::FileSystem::new(3);
-        Self { fs, cache, options }
+        // debounce time
+        let duration = Duration::from_millis(500);
+        Self {
+            cache,
+            duration,
+            options,
+        }
     }
 
+    #[tracing::instrument]
     pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolveResult> {
         // let start = std::time::Instant::now();
         let info = ResolveInfo::from(path.to_path_buf(), self.parse(request));
@@ -202,7 +207,6 @@ impl Resolver {
 
     #[tracing::instrument]
     fn _resolve(&self, info: ResolveInfo) -> ResolverStats {
-        // let resolve_err_msg = Self::raise_resolve_failed_message(&info);
         AliasPlugin::default()
             .apply(self, info)
             .and_then(|info| PreferRelativePlugin::default().apply(self, info))

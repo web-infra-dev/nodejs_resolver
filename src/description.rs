@@ -27,8 +27,8 @@ pub struct PkgInfo {
 impl Resolver {
     #[tracing::instrument]
     fn parse_description_file(&self, dir: &Path, file_path: &Path) -> RResult<PkgInfo> {
-        let str = tracing::debug_span!("read_to_string")
-            .in_scope(|| self.fs.read_to_string(file_path))?;
+        let str =
+            tracing::debug_span!("read_to_string").in_scope(|| self.read_to_string(file_path))?;
         let json: serde_json::Value =
             tracing::debug_span!("serde_json_from_str").in_scope(|| {
                 serde_json::from_str(&str).map_err(|error| {
@@ -162,7 +162,7 @@ impl Resolver {
         let description_file_name = self.options.description_file.as_ref().unwrap();
         let description_file_path = path.join(description_file_name);
         let need_find_up = if let Some(r#ref) = self.cache.file_dir_to_pkg_info.get(path) {
-            if !self.fs.need_update(&description_file_path)? {
+            if !self.need_update(&description_file_path)? {
                 // and not modified, then return
                 return Ok(r#ref.clone());
             } else {

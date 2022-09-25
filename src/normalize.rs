@@ -3,14 +3,8 @@ use std::path::{Component, Path, PathBuf};
 use crate::{RResult, ResolveResult, Resolver, ResolverError};
 
 impl Resolver {
-    #[cfg(not(target_os = "windows"))]
-    fn adjust(p: PathBuf) -> String {
-        p.display().to_string()
-    }
-
     /// Eliminate `\\?\` prefix in windows.
     /// reference: https://stackoverflow.com/questions/41233684/why-does-my-canonicalized-path-get-prefixed-with
-    #[cfg(target_os = "windows")]
     fn adjust(p: PathBuf) -> String {
         const VERBATIM_PREFIX: &str = r#"\\?\"#;
         let p = p.display().to_string();
@@ -37,11 +31,18 @@ impl Resolver {
             })
     }
 
+    #[tracing::instrument]
     fn normalize_path(&self, path: &Path) -> RResult<PathBuf> {
         if self.options.symlinks {
             Path::canonicalize(path)
                 .map_err(ResolverError::Io)
-                .map(|result| PathBuf::from(Self::adjust(result)))
+                .map(|result| {
+                    if cfg!(windows) {
+                        PathBuf::from(Self::adjust(result))
+                    } else {
+                        result
+                    }
+                })
         } else {
             Ok(Self::normalize_path_without_link(path))
         }
