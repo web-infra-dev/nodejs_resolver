@@ -180,7 +180,7 @@ impl Resolver {
 
     #[tracing::instrument]
     pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolveResult> {
-        // let start = std::time::Instant::now();
+        let start = std::time::Instant::now();
         let info = ResolveInfo::from(path.to_path_buf(), self.parse(request));
 
         let result = if let Some(tsconfig_location) = self.options.tsconfig.as_ref() {
@@ -188,16 +188,16 @@ impl Resolver {
         } else {
             self._resolve(info)
         };
-        // let duration = start.elapsed().as_micros();
+        let duration = start.elapsed().as_millis();
         // println!("time cost: {:?} us", duration); // us
-        // if duration > 5000 {
-        //     println!(
-        //         "{:?}us, path: {:?}, request: {:?}",
-        //         duration,
-        //         path.display(),
-        //         request,
-        //     );
-        // }
+        if duration > 10 {
+            println!(
+                "{:?}ms, path: {:?}, request: {:?}",
+                duration,
+                path.display(),
+                request,
+            );
+        }
         match result {
             ResolverStats::Success(result) => self.normalize_result(result),
             ResolverStats::Error((err, _)) => Err(err),

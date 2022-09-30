@@ -13,7 +13,7 @@ impl Resolver {
     }
 
     #[tracing::instrument]
-    pub fn need_update(&self, path: &Path) -> RResult<bool> {
+    pub(super) fn need_update(&self, path: &Path) -> RResult<bool> {
         if !path.is_file() {
             // no need update if `p` pointed file dose not exist
             Ok(false)
@@ -36,7 +36,7 @@ impl Resolver {
     }
 
     #[tracing::instrument]
-    pub fn read_to_string(&self, path: &Path) -> RResult<String> {
+    pub(super) fn read_to_string(&self, path: &Path) -> RResult<String> {
         let now_time = SystemTime::now();
         let content = fs::read_to_string(path).map_err(ResolverError::Io);
         self.cache

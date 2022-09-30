@@ -1,6 +1,7 @@
 use nodejs_resolver::test_helper::{p, vec_to_set};
 use nodejs_resolver::{
-    AliasMap, ResolveResult, Resolver, ResolverCache, ResolverError, ResolverOptions, SideEffects,
+    AliasMap, RResult, ResolveResult, Resolver, ResolverCache, ResolverError, ResolverOptions,
+    SideEffects,
 };
 
 use std::path::{Path, PathBuf};
@@ -2595,3 +2596,1104 @@ fn empty_test() {
 //     handle.join().unwrap();
 //     handle2.join().unwrap();
 // }
+
+fn run(resolver: Resolver) {
+    use std::env::current_dir;
+
+    fn is_ok(result: RResult<ResolveResult>) {
+        assert!(result.is_ok())
+    }
+
+    // let start = Instant::now();
+
+    is_ok(resolver.resolve(
+        &PathBuf::from(current_dir().unwrap().join("bench/ant-design/components")),
+        "./affix",
+    ));
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(
+                current_dir()
+                    .unwrap()
+                    .join("bench/ant-design/components/affix"),
+            ),
+            "classnames",
+        ),
+    );
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(
+                current_dir()
+                    .unwrap()
+                    .join("bench/ant-design/components/affix"),
+            ),
+            "rc-resize-observer",
+        ),
+    );
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./typeof.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib")), 
+            "@babel/runtime/helpers/extends",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib")), 
+            "react",
+        ));
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(
+                current_dir()
+                    .unwrap()
+                    .join("bench/ant-design/node_modules/.pnpm/react@16.14.0/node_modules/react"),
+            ),
+            "./cjs/react.production.min.js",
+        ),
+    );
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(
+                current_dir().unwrap().join(
+                    "bench/ant-design/node_modules/.pnpm/react@16.14.0/node_modules/react/cjs",
+                ),
+            ),
+            "object-assign",
+        ),
+    );
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(
+                current_dir()
+                    .unwrap()
+                    .join("bench/ant-design/node_modules/.pnpm/react@16.14.0/node_modules/react"),
+            ),
+            "./cjs/react.development.js",
+        ),
+    );
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(
+                current_dir().unwrap().join(
+                    "bench/ant-design/node_modules/.pnpm/react@16.14.0/node_modules/react/cjs",
+                ),
+            ),
+            "object-assign",
+        ),
+    );
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(
+                current_dir().unwrap().join(
+                    "bench/ant-design/node_modules/.pnpm/react@16.14.0/node_modules/react/cjs",
+                ),
+            ),
+            "prop-types/checkPropTypes",
+        ),
+    );
+
+    is_ok(resolver.resolve(
+        &PathBuf::from(
+            current_dir().unwrap().join(
+                "bench/ant-design/node_modules/.pnpm/prop-types@15.8.1/node_modules/prop-types",
+            ),
+        ),
+        "./lib/ReactPropTypesSecret",
+    ));
+
+    is_ok(resolver.resolve(
+        &PathBuf::from(
+            current_dir().unwrap().join(
+                "bench/ant-design/node_modules/.pnpm/prop-types@15.8.1/node_modules/prop-types",
+            ),
+        ),
+        "./lib/has",
+    ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib")), 
+            "rc-util/lib/Children/toArray",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib/Children")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib/Children")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib/Children")), 
+            "react-is",
+        ));
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join(
+                "bench/ant-design/node_modules/.pnpm/react-is@16.13.1/node_modules/react-is",
+            )),
+            "./cjs/react-is.production.min.js",
+        ),
+    );
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join(
+                "bench/ant-design/node_modules/.pnpm/react-is@16.13.1/node_modules/react-is",
+            )),
+            "./cjs/react-is.development.js",
+        ),
+    );
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib")), 
+            "rc-util/lib/warning",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib")), 
+            "./SingleObserver",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "@babel/runtime/helpers/objectSpread2",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./defineProperty.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "rc-util/lib/ref",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib")), 
+            "@babel/runtime/helpers/typeof",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib")), 
+            "react-is",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib")), 
+            "./hooks/useMemo",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib/hooks")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib/hooks")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "rc-util/lib/Dom/findDOMNode",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib/Dom")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib/Dom")), 
+            "react-dom",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/react-dom@16.14.0_react@16.14.0/node_modules/react-dom")), 
+            "./cjs/react-dom.production.min.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/react-dom@16.14.0_react@16.14.0/node_modules/react-dom/cjs")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/react-dom@16.14.0_react@16.14.0/node_modules/react-dom/cjs")), 
+            "object-assign",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/react-dom@16.14.0_react@16.14.0/node_modules/react-dom/cjs")), 
+            "scheduler",
+        ));
+
+    is_ok(resolver.resolve(
+        &PathBuf::from(
+            current_dir().unwrap().join(
+                "bench/ant-design/node_modules/.pnpm/scheduler@0.19.1/node_modules/scheduler",
+            ),
+        ),
+        "./cjs/scheduler.production.min.js",
+    ));
+
+    is_ok(resolver.resolve(
+        &PathBuf::from(
+            current_dir().unwrap().join(
+                "bench/ant-design/node_modules/.pnpm/scheduler@0.19.1/node_modules/scheduler",
+            ),
+        ),
+        "./cjs/scheduler.development.js",
+    ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/react-dom@16.14.0_react@16.14.0/node_modules/react-dom")), 
+            "./cjs/react-dom.development.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/react-dom@16.14.0_react@16.14.0/node_modules/react-dom/cjs")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/react-dom@16.14.0_react@16.14.0/node_modules/react-dom/cjs")), 
+            "object-assign",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/react-dom@16.14.0_react@16.14.0/node_modules/react-dom/cjs")), 
+            "scheduler",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/react-dom@16.14.0_react@16.14.0/node_modules/react-dom/cjs")), 
+            "prop-types/checkPropTypes",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/react-dom@16.14.0_react@16.14.0/node_modules/react-dom/cjs")), 
+            "scheduler/tracing",
+        ));
+
+    is_ok(resolver.resolve(
+        &PathBuf::from(
+            current_dir().unwrap().join(
+                "bench/ant-design/node_modules/.pnpm/scheduler@0.19.1/node_modules/scheduler",
+            ),
+        ),
+        "./cjs/scheduler-tracing.production.min.js",
+    ));
+
+    is_ok(resolver.resolve(
+        &PathBuf::from(
+            current_dir().unwrap().join(
+                "bench/ant-design/node_modules/.pnpm/scheduler@0.19.1/node_modules/scheduler",
+            ),
+        ),
+        "./cjs/scheduler-tracing.development.js",
+    ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "../utils/observerUtil",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/utils")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/utils")), 
+            "resize-observer-polyfill",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "./DomWrapper",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "@babel/runtime/helpers/classCallCheck",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "@babel/runtime/helpers/createClass",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "@babel/runtime/helpers/inherits",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./setPrototypeOf.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "@babel/runtime/helpers/createSuper",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./getPrototypeOf.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./isNativeReflectConstruct.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./possibleConstructorReturn.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./typeof.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./assertThisInitialized.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib/SingleObserver")), 
+            "../Collection",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-resize-observer@1.2.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-resize-observer/lib")), 
+            "./Collection",
+        ));
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(
+                current_dir()
+                    .unwrap()
+                    .join("bench/ant-design/components/affix"),
+            ),
+            "rc-util/lib/omit",
+        ),
+    );
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib")), 
+            "@babel/runtime/helpers/objectSpread2",
+        ));
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(
+                current_dir()
+                    .unwrap()
+                    .join("bench/ant-design/components/affix"),
+            ),
+            "react",
+        ),
+    );
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(
+                current_dir()
+                    .unwrap()
+                    .join("bench/ant-design/components/affix"),
+            ),
+            "../config-provider",
+        ),
+    );
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(
+                current_dir()
+                    .unwrap()
+                    .join("bench/ant-design/components/config-provider"),
+            ),
+            "@ant-design/icons/lib/components/Context",
+        ),
+    );
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@ant-design+icons@4.7.0_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/@ant-design/icons/lib/components")), 
+            "react",
+        ));
+
+    is_ok(
+        resolver.resolve(
+            &PathBuf::from(
+                current_dir()
+                    .unwrap()
+                    .join("bench/ant-design/components/config-provider"),
+            ),
+            "rc-field-form",
+        ),
+    );
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./Field",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/extends",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/objectWithoutProperties",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./objectWithoutPropertiesLoose.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/defineProperty",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/objectSpread2",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/toConsumableArray",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./arrayWithoutHoles.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./arrayLikeToArray.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./iterableToArray.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./unsupportedIterableToArray.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./arrayLikeToArray.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./nonIterableSpread.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/classCallCheck",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/createClass",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/assertThisInitialized",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/inherits",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/createSuper",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "rc-util/lib/Children/toArray",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "rc-util/lib/warning",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./FieldContext",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "rc-util/lib/warning",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./utils/typeUtil",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./utils/validateUtil",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/toConsumableArray",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/defineProperty",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/regenerator",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/regenerator")), 
+            "../helpers/regeneratorRuntime",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./typeof.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/objectSpread2",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/asyncToGenerator",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "async-validator",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "rc-util/lib/warning",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "./messages",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "./valueUtil",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/objectSpread2",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/toConsumableArray",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/typeof",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "rc-util/lib/utils/get",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "rc-util/lib/utils/set",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib/utils")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib/utils")), 
+            "@babel/runtime/helpers/objectSpread2",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib/utils")), 
+            "@babel/runtime/helpers/toConsumableArray",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib/utils")), 
+            "@babel/runtime/helpers/toArray",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./arrayWithHoles.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./iterableToArray.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./unsupportedIterableToArray.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./nonIterableRest.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-util@5.22.5_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-util/lib/utils")), 
+            "./get",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "./typeUtil",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "../utils/cloneDeep",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/typeof",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./utils/valueUtil",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./List",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/objectSpread2",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/toConsumableArray",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "rc-util/lib/warning",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./FieldContext",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./Field",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./utils/valueUtil",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./ListContext",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./useForm",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/slicedToArray",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./arrayWithHoles.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./iterableToArrayLimit.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./unsupportedIterableToArray.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/@babel+runtime@7.18.3/node_modules/@babel/runtime/helpers")), 
+            "./nonIterableRest.js",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/objectSpread2",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/objectWithoutProperties",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/toConsumableArray",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/createClass",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/classCallCheck",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "react",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "rc-util/lib/warning",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./FieldContext",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./utils/asyncUtil",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./utils/NameMap",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/slicedToArray",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/toConsumableArray",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/classCallCheck",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/createClass",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib/utils")), 
+            "@babel/runtime/helpers/typeof",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./utils/messages",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./utils/valueUtil",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./utils/cloneDeep",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "./Form",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireDefault",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/interopRequireWildcard",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/extends",
+        ));
+
+    is_ok(resolver.resolve(
+            &PathBuf::from(current_dir().unwrap().join("bench/ant-design/node_modules/.pnpm/rc-field-form@1.26.1_wcqkhtmu7mswc6yz4uyexck3ty/node_modules/rc-field-form/lib")), 
+            "@babel/runtime/helpers/objectSpread2",
+        ));
+}
+#[test]
+fn thread_test() {
+    let cache = Arc::new(ResolverCache::default());
+
+    std::thread::scope(|s| {
+        for _ in 0..10 {
+            let resolver = Resolver::new(ResolverOptions {
+                extensions: vec![
+                    ".web.tsx", ".web.ts", ".web.jsx", ".web.js", ".ts", ".tsx", ".js", ".jsx",
+                    ".json",
+                ]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+                external_cache: Some(cache.clone()),
+                ..Default::default()
+            });
+            s.spawn(|| run(resolver));
+            // run(resolver)
+        }
+    });
+}
