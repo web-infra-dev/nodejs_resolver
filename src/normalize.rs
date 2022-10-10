@@ -8,8 +8,8 @@ impl Resolver {
     fn adjust(p: PathBuf) -> String {
         const VERBATIM_PREFIX: &str = r#"\\?\"#;
         let p = p.display().to_string();
-        if p.starts_with(VERBATIM_PREFIX) {
-            p[VERBATIM_PREFIX.len()..].to_string()
+        if let Some(stripped) = p.strip_prefix(VERBATIM_PREFIX) {
+            stripped.to_string()
         } else {
             p
         }

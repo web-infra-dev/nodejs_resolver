@@ -1,5 +1,9 @@
 # Changelog
 
+## unreleased
+
+- rewrite cache.
+
 ## 0.0.40
 
 - remove unnecessary `Resolver::adjust` in `normalized`.

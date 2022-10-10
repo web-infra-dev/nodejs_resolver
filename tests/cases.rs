@@ -1055,6 +1055,7 @@ fn browser_filed_test() {
     should_ignored(&resolver, &p(vec![]), "./browser-after-main");
 
     let browser_module_case_path = p(vec!["browser-module"]);
+
     should_ignored(&resolver, &browser_module_case_path, ".");
     should_ignored(&resolver, &browser_module_case_path, "./lib/ignore");
     should_ignored(&resolver, &browser_module_case_path, "./lib/ignore.js");

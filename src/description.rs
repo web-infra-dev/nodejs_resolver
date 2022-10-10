@@ -11,12 +11,10 @@ pub enum SideEffects {
 }
 
 #[derive(Clone, Debug)]
-pub struct PkgInfo {
-    /// The path to the directory where the description file located.
-    /// It not a property in package.json.
-    pub abs_dir_path: PathBuf,
+pub struct PkgInfoInner {
     pub name: Option<String>,
     pub version: Option<String>,
+    // TODO: use `IndexMap`
     pub alias_fields: HashMap<String, AliasMap>,
     pub exports_field_tree: Option<Arc<PathTreeNode>>,
     pub imports_field_tree: Option<Arc<PathTreeNode>>,
@@ -24,14 +22,11 @@ pub struct PkgInfo {
     pub raw: serde_json::Value,
 }
 
-impl Resolver {
-    #[tracing::instrument]
-    fn parse_description_file(&self, dir: &Path, file_path: &Path) -> RResult<PkgInfo> {
-        let str =
-            tracing::debug_span!("read_to_string").in_scope(|| self.read_to_string(file_path))?;
+impl PkgInfoInner {
+    fn parse(content: &str, file_path: &Path) -> RResult<Self> {
         let json: serde_json::Value =
             tracing::debug_span!("serde_json_from_str").in_scope(|| {
-                serde_json::from_str(&str).map_err(|error| {
+                serde_json::from_str(content).map_err(|error| {
                     ResolverError::UnexpectedJson((file_path.to_path_buf(), error))
                 })
             })?;
@@ -52,31 +47,15 @@ impl Resolver {
         }
 
         let exports_field_tree = if let Some(value) = json.get("exports") {
-            let key = serde_json::to_string(&value).unwrap_or_else(|_| {
-                panic!("Parse {}/exports to hash key failed", file_path.display())
-            });
-            if let Some(tree) = self.cache.exports_content_to_tree.get(&key) {
-                Some(tree.clone())
-            } else {
-                let tree = Arc::new(ExportsField::build_field_path_tree(value)?);
-                self.cache.exports_content_to_tree.insert(key, tree.clone());
-                Some(tree)
-            }
+            let tree = Arc::new(ExportsField::build_field_path_tree(value)?);
+            Some(tree)
         } else {
             None
         };
 
         let imports_field_tree = if let Some(value) = json.get("imports") {
-            let key = serde_json::to_string(&value).unwrap_or_else(|_| {
-                panic!("Parse {}/imports to hash key failed", file_path.display())
-            });
-            if let Some(tree) = self.cache.imports_content_to_tree.get(&key) {
-                Some(tree.clone())
-            } else {
-                let tree = Arc::new(ImportsField::build_field_path_tree(value)?);
-                self.cache.exports_content_to_tree.insert(key, tree.clone());
-                Some(tree)
-            }
+            let tree = Arc::new(ImportsField::build_field_path_tree(value)?);
+            Some(tree)
         } else {
             None
         };
@@ -119,10 +98,9 @@ impl Resolver {
             .and_then(|value| value.as_str())
             .map(|str| str.to_string());
 
-        Ok(PkgInfo {
+        Ok(Self {
             name,
             version,
-            abs_dir_path: dir.to_path_buf(),
             alias_fields,
             exports_field_tree,
             imports_field_tree,
@@ -130,6 +108,26 @@ impl Resolver {
             raw: json,
         })
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct PkgInfo {
+    /// The path to the directory where the description file located.
+    /// It not a property in package.json.
+    pub abs_dir_path: PathBuf,
+    pub inner: Arc<PkgInfoInner>,
+}
+
+impl Resolver {
+    // #[tracing::instrument]
+    // fn parse_description_file(&self, dir: &Path, file_path: &Path) -> RResult<PkgInfo> {
+    //     let str = self.read_file(file_path)?;
+    //     let inner = PkgInfoInner::parse(&str, file_path);
+    //     Ok(PkgInfo {
+    //         abs_dir_path: dir.to_path_buf(),
+    //         inner: Arc,
+    //     })
+    // }
 
     pub fn load_side_effects(
         &self,
@@ -140,17 +138,17 @@ impl Resolver {
                 pkg_info
                     .abs_dir_path
                     .join(self.options.description_file.as_ref().unwrap()),
-                pkg_info.side_effects.clone(),
+                pkg_info.inner.side_effects.clone(),
             )
         }))
     }
 
     #[tracing::instrument]
-    pub(crate) fn load_pkg_file(&self, path: &Path) -> RResult<Option<Arc<PkgInfo>>> {
+    pub(crate) fn load_pkg_file(&self, path: &Path) -> RResult<Option<PkgInfo>> {
         if self.options.description_file.is_none() {
             return Ok(None);
         }
-        // Because the key in `self.cache.file_dir_to_pkg_info` represents directory.
+        // Because the key in `self.cache.pkg_info` represents directory.
         // So this step is ensure `path` pointed to directory.
         if !path.is_dir() {
             return match path.parent() {
@@ -161,86 +159,32 @@ impl Resolver {
 
         let description_file_name = self.options.description_file.as_ref().unwrap();
         let description_file_path = path.join(description_file_name);
-        let need_find_up = if let Some(r#ref) = self.cache.file_dir_to_pkg_info.get(path) {
-            if !self.need_update(&description_file_path)? {
-                // and not modified, then return
-                return Ok(r#ref.clone());
-            } else {
-                #[cfg(debug_assertions)]
-                {
-                    self.cache.debug_read_map.remove(&description_file_path);
-                }
-
-                false
-            }
-        } else {
-            !description_file_path.is_file()
-        };
-
-        // pkg_info_cache do **not** contain this key
-        // or this file had modified
+        let need_find_up = !description_file_path.is_file();
+        // TODO: dir_info_cache
         if need_find_up {
             // find the closest directory witch contains description file
             if let Some(target_dir) = Self::find_up(path, description_file_name) {
                 return self.load_pkg_file(&target_dir);
             } else {
-                // it means all paths during from the `path` to root pointed None.
-                // cache it
-                let mut path = path;
-                loop {
-                    if path.is_dir() {
-                        self.cache
-                            .file_dir_to_pkg_info
-                            .insert(path.to_path_buf(), None);
-                        match path.parent() {
-                            Some(parent) => path = parent,
-                            None => return Ok(None),
-                        }
-                    }
-                }
+                return Ok(None);
             }
         }
 
-        // some bugs in multi thread
-        // std::thread::sleep(std::time::Duration::from_secs(5));
-
-        #[cfg(debug_assertions)]
-        {
-            // ensure that the same package.json is not parsed twice
-            if self
-                .cache
-                .debug_read_map
-                .contains_key(&description_file_path)
-            {
-                println!(
-                    "Had try to parse parsed package.json, {}",
-                    description_file_path.display()
-                );
-                // println!("{:?}", self.cache.file_dir_to_pkg_info);
-                // println!("{:?}", self.cache.debug_read_map);
-                // TODO: may panic under multi-thread
-                // panic!(
-                //     "Had try to parse same package.json, {}",
-                //     description_file_path.display()
-                // )
+        let content = self.read_file(&description_file_path)?;
+        let pkg_info = if let Some(inner) = self.cache.pkg_info.get(&content) {
+            PkgInfo {
+                abs_dir_path: path.to_path_buf(),
+                inner: inner.clone(),
             }
-        }
+        } else {
+            let inner = Arc::new(PkgInfoInner::parse(&content, &description_file_path)?);
 
-        let pkg_info = Some(Arc::new(
-            self.parse_description_file(path, &description_file_path)?,
-        ));
-
-        self.cache
-            .file_dir_to_pkg_info
-            .insert(path.to_path_buf(), pkg_info.clone());
-
-        #[cfg(debug_assertions)]
-        {
-            self.cache
-                .debug_read_map
-                .insert(&description_file_path, true);
-        }
-
-        Ok(pkg_info)
+            self.cache.pkg_info.insert(content, inner.clone());
+            PkgInfo {
+                abs_dir_path: path.to_path_buf(),
+                inner,
+            }
+        };
+        Ok(Some(pkg_info))
     }
 }

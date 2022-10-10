@@ -1,15 +1,13 @@
-use std::sync::Arc;
-
 use crate::{description::PkgInfo, Resolver};
 
 use super::{Plugin, ResolveInfo, ResolverStats};
 
 pub struct MainFieldPlugin<'a> {
-    pkg_info: &'a Option<Arc<PkgInfo>>,
+    pkg_info: &'a Option<PkgInfo>,
 }
 
 impl<'a> MainFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a Option<Arc<PkgInfo>>) -> Self {
+    pub fn new(pkg_info: &'a Option<PkgInfo>) -> Self {
         Self { pkg_info }
     }
 }
@@ -25,6 +23,7 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
 
             for user_main_field in &resolver.options.main_fields {
                 if let Some(main_field) = pkg_info
+                    .inner
                     .raw
                     .get(user_main_field)
                     .and_then(|value| value.as_str())
