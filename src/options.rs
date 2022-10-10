@@ -37,8 +37,8 @@ pub struct ResolverOptions {
     /// Default is `true`.
     pub symlinks: bool,
     /// A JSON file to describing this lib information.
-    /// Default is `Some("package.json")`.
-    pub description_file: Option<String>,
+    /// Default is `"package.json"`.
+    pub description_file: String,
     /// Main file in this directory.
     /// Default is `["index"]`.
     pub main_files: Vec<String>,
@@ -71,7 +71,7 @@ impl Default for ResolverOptions {
         ];
         let main_files = vec![String::from("index")];
         let main_fields = vec![String::from("main")];
-        let description_file = Some(String::from("package.json"));
+        let description_file = String::from("package.json");
         let alias = vec![];
         let symlinks = true;
         let browser_field = false;

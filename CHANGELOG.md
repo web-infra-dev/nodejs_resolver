@@ -2,6 +2,7 @@
 
 ## unreleased
 
+- change the type of `options.description_file` to `String`.
 - use `IndexMap` in `pkgInfo.alias_fields`.
 - rewrite cache.
 
