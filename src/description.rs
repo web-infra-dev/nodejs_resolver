@@ -135,9 +135,7 @@ impl Resolver {
     ) -> RResult<Option<(PathBuf, Option<SideEffects>)>> {
         Ok(self.load_pkg_file(path)?.map(|pkg_info| {
             (
-                pkg_info
-                    .abs_dir_path
-                    .join(self.options.description_file.as_ref().unwrap()),
+                pkg_info.abs_dir_path.join(&self.options.description_file),
                 pkg_info.inner.side_effects.clone(),
             )
         }))
@@ -145,9 +143,6 @@ impl Resolver {
 
     #[tracing::instrument]
     pub(crate) fn load_pkg_file(&self, path: &Path) -> RResult<Option<PkgInfo>> {
-        if self.options.description_file.is_none() {
-            return Ok(None);
-        }
         // Because the key in `self.cache.pkg_info` represents directory.
         // So this step is ensure `path` pointed to directory.
         if !path.is_dir() {
@@ -157,7 +152,7 @@ impl Resolver {
             };
         }
 
-        let description_file_name = self.options.description_file.as_ref().unwrap();
+        let description_file_name = &self.options.description_file;
         let description_file_path = path.join(description_file_name);
         let need_find_up = !description_file_path.is_file();
         // TODO: dir_info_cache

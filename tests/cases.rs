@@ -1984,30 +1984,6 @@ fn imports_fields_test() {
 }
 
 #[test]
-fn without_description_file_test() {
-    let fixture_path = p(vec![]);
-    let resolver = Resolver::new(ResolverOptions {
-        extensions: vec![String::from(".js")],
-        description_file: None,
-        ..Default::default()
-    });
-    should_equal(&resolver, &fixture_path, "./a", p(vec!["a.js"]));
-    let export_cases_path = p(vec!["exports-field"]);
-    should_equal(
-        &resolver,
-        &export_cases_path,
-        "exports-field/lib",
-        p(vec![
-            "exports-field",
-            "node_modules",
-            "exports-field",
-            "lib",
-            "index.js",
-        ]),
-    );
-}
-
-#[test]
 fn prefer_relative_test() {
     let fixture_path = p(vec![]);
     let resolver = Resolver::new(ResolverOptions {
