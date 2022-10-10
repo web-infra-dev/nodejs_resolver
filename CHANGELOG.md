@@ -2,6 +2,7 @@
 
 ## unreleased
 
+- use `IndexMap` in `pkgInfo.alias_fields`.
 - rewrite cache.
 
 ## 0.0.40
