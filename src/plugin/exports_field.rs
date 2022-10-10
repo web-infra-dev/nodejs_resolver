@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{description::PkgInfo, kind::PathKind, Resolver, ResolverError, MODULE};
 
 use super::Plugin;
@@ -9,11 +7,11 @@ use crate::{
 };
 
 pub struct ExportsFieldPlugin<'a> {
-    pkg_info: &'a Option<Arc<PkgInfo>>,
+    pkg_info: &'a Option<PkgInfo>,
 }
 
 impl<'a> ExportsFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a Option<Arc<PkgInfo>>) -> Self {
+    pub fn new(pkg_info: &'a Option<PkgInfo>) -> Self {
         Self { pkg_info }
     }
 
@@ -23,6 +21,7 @@ impl<'a> ExportsFieldPlugin<'a> {
 
     pub(crate) fn is_resolve_self(pkg_info: &PkgInfo, info: &ResolveInfo) -> bool {
         pkg_info
+            .inner
             .name
             .as_ref()
             .map(|pkg_name| info.request.target.starts_with(pkg_name))
@@ -43,7 +42,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 return ResolverStats::Resolving(info);
             }
 
-            let list = if let Some(root) = &pkg_info.exports_field_tree {
+            let list = if let Some(root) = &pkg_info.inner.exports_field_tree {
                 let query = &info.request.query;
                 let fragment = &info.request.fragment;
                 let chars: String = if target.starts_with('@') {
@@ -59,7 +58,8 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                     Some(target) => format!(".{target}"),
                     None => {
                         let target = target.to_string();
-                        if info.path.join(&target).exists() || pkg_info.name.eq(&Some(target)) {
+                        if info.path.join(&target).exists() || pkg_info.inner.name.eq(&Some(target))
+                        {
                             ".".to_string()
                         } else {
                             return ResolverStats::Error((ResolverError::ResolveFailedTag, info));

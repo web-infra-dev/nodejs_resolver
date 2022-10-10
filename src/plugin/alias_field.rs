@@ -1,17 +1,15 @@
-use std::path::PathBuf;
-use std::sync::Arc;
-
 use super::Plugin;
 use crate::{
     description::PkgInfo, AliasMap, PathKind, ResolveInfo, ResolveResult, Resolver, ResolverStats,
 };
+use std::path::PathBuf;
 
 pub struct AliasFieldPlugin<'a> {
-    pkg_info: &'a Option<Arc<PkgInfo>>,
+    pkg_info: &'a Option<PkgInfo>,
 }
 
 impl<'a> AliasFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a Option<Arc<PkgInfo>>) -> Self {
+    pub fn new(pkg_info: &'a Option<PkgInfo>) -> Self {
         Self { pkg_info }
     }
 
@@ -42,7 +40,7 @@ impl<'a> Plugin for AliasFieldPlugin<'a> {
             return ResolverStats::Resolving(info);
         }
         if let Some(pkg_info) = self.pkg_info.as_ref() {
-            for (alias_key, alias_target) in &pkg_info.alias_fields {
+            for (alias_key, alias_target) in &pkg_info.inner.alias_fields {
                 let should_deal_alias = match matches!(info.request.kind, PathKind::Normal) {
                     true => Self::request_target_is_module_and_equal_alias_key(alias_key, &info),
                     false => Self::request_path_is_equal_alias_key_path(

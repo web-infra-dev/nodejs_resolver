@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::Plugin;
 use crate::{
     description::PkgInfo,
@@ -8,11 +6,11 @@ use crate::{
 };
 
 pub struct ImportsFieldPlugin<'a> {
-    pkg_info: &'a Option<Arc<PkgInfo>>,
+    pkg_info: &'a Option<PkgInfo>,
 }
 
 impl<'a> ImportsFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a Option<Arc<PkgInfo>>) -> Self {
+    pub fn new(pkg_info: &'a Option<PkgInfo>) -> Self {
         Self { pkg_info }
     }
 
@@ -36,7 +34,7 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
             }
 
             let target = &info.request.target;
-            let list = if let Some(root) = &pkg_info.imports_field_tree {
+            let list = if let Some(root) = &pkg_info.inner.imports_field_tree {
                 match ImportsField::field_process(root, target, &resolver.options.condition_names) {
                     Ok(list) => list,
                     Err(err) => return ResolverStats::Error((err, info)),
