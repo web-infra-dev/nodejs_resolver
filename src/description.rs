@@ -1,6 +1,6 @@
 use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
 use crate::{AliasMap, RResult, Resolver, ResolverError};
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -15,9 +15,9 @@ pub struct PkgInfoInner {
     pub name: Option<String>,
     pub version: Option<String>,
     // TODO: use `IndexMap`
-    pub alias_fields: HashMap<String, AliasMap>,
-    pub exports_field_tree: Option<Arc<PathTreeNode>>,
-    pub imports_field_tree: Option<Arc<PathTreeNode>>,
+    pub alias_fields: IndexMap<String, AliasMap>,
+    pub exports_field_tree: Option<PathTreeNode>,
+    pub imports_field_tree: Option<PathTreeNode>,
     pub side_effects: Option<SideEffects>,
     pub raw: serde_json::Value,
 }
@@ -31,7 +31,7 @@ impl PkgInfoInner {
                 })
             })?;
 
-        let mut alias_fields = HashMap::new();
+        let mut alias_fields = IndexMap::new();
 
         if let Some(value) = json.get("browser") {
             if let Some(map) = value.as_object() {
@@ -47,14 +47,14 @@ impl PkgInfoInner {
         }
 
         let exports_field_tree = if let Some(value) = json.get("exports") {
-            let tree = Arc::new(ExportsField::build_field_path_tree(value)?);
+            let tree = ExportsField::build_field_path_tree(value)?;
             Some(tree)
         } else {
             None
         };
 
         let imports_field_tree = if let Some(value) = json.get("imports") {
-            let tree = Arc::new(ImportsField::build_field_path_tree(value)?);
+            let tree = ImportsField::build_field_path_tree(value)?;
             Some(tree)
         } else {
             None
