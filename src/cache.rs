@@ -1,4 +1,4 @@
-use crate::description::PkgInfoInner;
+use crate::description::PkgJSON;
 use crate::fs::CachedFS;
 use dashmap::DashMap;
 use std::sync::Arc;
@@ -6,8 +6,8 @@ use std::sync::Arc;
 #[derive(Debug, Default)]
 pub struct ResolverCache {
     pub fs: CachedFS,
-    pub pkg_info: CachedPkgInfo,
+    pub pkg_json: CachedPkgJSON,
 }
 
 type Content = String;
-type CachedPkgInfo = DashMap<Content, Arc<PkgInfoInner>>;
+type CachedPkgJSON = DashMap<Content, Arc<PkgJSON>>;

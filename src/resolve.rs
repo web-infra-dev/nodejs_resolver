@@ -29,15 +29,17 @@ impl Resolver {
         if !dir.is_dir() {
             return ResolverStats::Error((ResolverError::ResolveFailedTag, info));
         }
-        let pkg_info_wrap = match self.load_pkg_file(&dir) {
-            Ok(pkg_info) => pkg_info,
+        let pkg_info = match self.load_entry(&dir) {
+            Ok(entry) => entry.pkg_info.clone(),
             Err(err) => return ResolverStats::Error((err, info)),
         };
-
         let info = info.with_path(dir).with_target("");
-        MainFieldPlugin::new(&pkg_info_wrap)
-            .apply(self, info)
-            .and_then(|info| MainFilePlugin.apply(self, info))
+        if let Some(pkg_info) = pkg_info {
+            MainFieldPlugin::new(&pkg_info).apply(self, info)
+        } else {
+            ResolverStats::Resolving(info)
+        }
+        .and_then(|info| MainFilePlugin.apply(self, info))
     }
 
     #[tracing::instrument]
@@ -64,8 +66,8 @@ impl Resolver {
             let module_path = module_root_path.join(&*module_name);
 
             let module_info = ResolveInfo::from(module_root_path, info.request.clone());
-            let pkg_info = match self.load_pkg_file(&module_info.path.join(&**target)) {
-                Ok(pkg_info) => pkg_info,
+            let pkg_info = match self.load_entry(&module_info.path.join(&**target)) {
+                Ok(entry) => entry.pkg_info.clone(),
                 Err(err) => return ResolverStats::Error((err, info)),
             };
             let is_resolve_self = pkg_info.as_ref().map_or(false, |pkg_info| {
@@ -79,21 +81,25 @@ impl Resolver {
                     ResolverStats::Resolving(info)
                 }
             } else {
-                let stats = ExportsFieldPlugin::new(&pkg_info)
-                    .apply(self, module_info)
-                    .and_then(|info| ImportsFieldPlugin::new(&pkg_info).apply(self, info))
-                    .and_then(|info| {
-                        let info = if matches!(info.request.kind, PathKind::Normal) {
-                            let target = format!("./{}", info.request.target);
-                            info.with_target(&target)
-                        } else {
-                            info
-                        };
+                let stats = if let Some(pkg_info) = pkg_info {
+                    ExportsFieldPlugin::new(&pkg_info)
+                        .apply(self, module_info)
+                        .and_then(|info| ImportsFieldPlugin::new(&pkg_info).apply(self, info))
+                        .and_then(|info| {
+                            let info = if matches!(info.request.kind, PathKind::Normal) {
+                                let target = format!("./{}", info.request.target);
+                                info.with_target(&target)
+                            } else {
+                                info
+                            };
 
-                        AliasFieldPlugin::new(&pkg_info).apply(self, info)
-                    })
-                    .and_then(|info| self.resolve_as_file(info))
-                    .and_then(|info| self.resolve_as_dir(info));
+                            AliasFieldPlugin::new(&pkg_info).apply(self, info)
+                        })
+                } else {
+                    ResolverStats::Resolving(module_info)
+                }
+                .and_then(|info| self.resolve_as_file(info))
+                .and_then(|info| self.resolve_as_dir(info));
 
                 match stats {
                     ResolverStats::Error((error, err_info)) => {

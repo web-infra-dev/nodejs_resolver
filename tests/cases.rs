@@ -2016,14 +2016,13 @@ fn cache_fs() {
         p(vec!["cache-fs", "src", "index.js"]),
     );
 
-    sleep(Duration::from_secs(1));
-
     write(
         &fixture_path.join("package.json"),
         "{\"main\": \"./src/module.js\"}",
     )
     .expect("write failed");
 
+    resolver.clear_entries();
     sleep(Duration::from_secs(1));
 
     should_equal(
@@ -2033,14 +2032,13 @@ fn cache_fs() {
         p(vec!["cache-fs", "src", "module.js"]),
     );
 
-    sleep(Duration::from_secs(1));
-
     write(
         &fixture_path.join("package.json"),
         "{\"main\": \"./src/index.js\"}",
     )
     .expect("write failed");
 
+    resolver.clear_entries();
     sleep(Duration::from_secs(1));
 
     should_equal(

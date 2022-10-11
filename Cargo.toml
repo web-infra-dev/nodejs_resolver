@@ -17,7 +17,6 @@ smol_str = "0.1.23"
 tracing = "0.1.36"
 jsonc-parser = { version = "0.21.0", features = ["serde"] }
 serde = { version = "1.0.144", features = ["derive"] }
-futures = "0.3.24"
 
 [dev-dependencies]
 tracing-subscriber = "0.3.15"
