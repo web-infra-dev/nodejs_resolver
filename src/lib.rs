@@ -42,6 +42,7 @@
 
 mod cache;
 mod description;
+mod entry;
 mod error;
 mod fs;
 mod kind;
@@ -53,13 +54,12 @@ mod plugin;
 mod resolve;
 mod tsconfig;
 mod tsconfig_path;
-mod utils;
 
 pub use cache::ResolverCache;
+use dashmap::DashMap;
 pub use description::SideEffects;
+use entry::Entry;
 pub use error::*;
-pub use fs::FileSystem;
-use fs::FS;
 use kind::PathKind;
 pub use options::{AliasMap, ResolverOptions};
 use parse::Request;
@@ -74,7 +74,7 @@ use std::{
 pub struct Resolver {
     pub options: ResolverOptions,
     pub(crate) cache: Arc<ResolverCache>,
-    pub(crate) fs: FS,
+    pub(crate) entries: DashMap<PathBuf, Arc<Entry>>,
 }
 
 #[derive(Debug, Clone)]
@@ -170,8 +170,12 @@ impl Resolver {
             enforce_extension,
             ..options
         };
-        let fs = FS::default();
-        Self { cache, options, fs }
+        let entries = Default::default();
+        Self {
+            cache,
+            options,
+            entries,
+        }
     }
 
     #[tracing::instrument]
@@ -212,13 +216,17 @@ impl Resolver {
                 } else {
                     info.get_path()
                 };
-                let pkg_info_wrap = match self.load_pkg_file(&request) {
-                    Ok(pkg_info_wrap) => pkg_info_wrap,
+                let pkg_info = match self.load_entry(&request) {
+                    Ok(entry) => entry.pkg_info.clone(),
                     Err(error) => return ResolverStats::Error((error, info)),
                 };
-                ImportsFieldPlugin::new(&pkg_info_wrap)
-                    .apply(self, info)
-                    .and_then(|info| AliasFieldPlugin::new(&pkg_info_wrap).apply(self, info))
+                if let Some(pkg_info) = pkg_info {
+                    ImportsFieldPlugin::new(&pkg_info)
+                        .apply(self, info)
+                        .and_then(|info| AliasFieldPlugin::new(&pkg_info).apply(self, info))
+                } else {
+                    ResolverStats::Resolving(info)
+                }
             })
             .and_then(|info| {
                 if matches!(
@@ -249,80 +257,4 @@ pub mod test_helper {
     pub fn vec_to_set(vec: Vec<&str>) -> std::collections::HashSet<String> {
         std::collections::HashSet::from_iter(vec.into_iter().map(|s| s.to_string()))
     }
-}
-
-#[cfg(test)]
-mod test {
-
-    use super::test_helper::p;
-    use super::*;
-
-    // #[test]
-    // fn pkg_info_cache_test() {
-    //     let fixture_path = p(vec![]);
-    //     // show tracing tree
-    //     tracing_span_tree::span_tree().aggregate(true).enable();
-    //     let resolver = Resolver::new(ResolverOptions {
-    //         ..Default::default()
-    //     });
-    //     assert!(resolver
-    //         .resolve(&fixture_path, "./browser-module/lib/browser")
-    //         .is_ok());
-
-    //     let full_path = fixture_path.join("full").join("a");
-    //     assert!(resolver.resolve(&full_path, "package3").is_ok());
-
-    //     assert_eq!(resolver.cache.pkg_info.len(), 2);
-
-    //     assert_eq!(
-    //         resolver
-    //             .cache
-    //             .pkg_info
-    //             .get(&p(vec!["browser-module"]))
-    //             .unwrap()
-    //             .as_ref()
-    //             .unwrap()
-    //             .abs_dir_path,
-    //         p(vec!["browser-module"])
-    //     );
-    //     assert_eq!(
-    //         resolver
-    //             .cache
-    //             .pkg_info
-    //             .get(&p(vec!["full", "a", "node_modules", "package3"]))
-    //             .unwrap()
-    //             .as_ref()
-    //             .unwrap()
-    //             .abs_dir_path,
-    //         p(vec!["full", "a", "node_modules", "package3"])
-    //     );
-
-    //     // should hit `cache.pkg_info`.
-    //     let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
-    //     let _ = resolver.resolve(&full_path, "package3");
-    // }
-
-    // #[test]
-    // fn shared_cache_test1() {
-    //     let cache = Arc::new(ResolverCache::default());
-    //     let fixture_path = p(vec![]);
-
-    //     let resolver = Resolver::new(ResolverOptions {
-    //         external_cache: Some(cache.clone()),
-    //         ..Default::default()
-    //     });
-    //     let _ = resolver.resolve(&fixture_path, "./browser-module/lib/browser");
-    //     assert_eq!(cache.pkg_info.len(), 1);
-    //     assert_eq!(resolver.cache.pkg_info.len(), 1);
-
-    //     let resolver = Resolver::new(ResolverOptions {
-    //         external_cache: Some(cache.clone()),
-    //         ..Default::default()
-    //     });
-
-    //     let full_path = p(vec!["full", "a"]);
-    //     let _ = resolver.resolve(&full_path, "package3");
-    //     assert_eq!(cache.pkg_info.len(), 2);
-    //     assert_eq!(resolver.cache.pkg_info.len(), 2);
-    // }
 }

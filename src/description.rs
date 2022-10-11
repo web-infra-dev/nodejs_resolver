@@ -10,11 +10,10 @@ pub enum SideEffects {
     Array(Vec<String>),
 }
 
-#[derive(Clone, Debug)]
-pub struct PkgInfoInner {
+#[derive(Debug)]
+pub struct PkgJSON {
     pub name: Option<String>,
     pub version: Option<String>,
-    // TODO: use `IndexMap`
     pub alias_fields: IndexMap<String, AliasMap>,
     pub exports_field_tree: Option<PathTreeNode>,
     pub imports_field_tree: Option<PathTreeNode>,
@@ -22,8 +21,16 @@ pub struct PkgInfoInner {
     pub raw: serde_json::Value,
 }
 
-impl PkgInfoInner {
-    fn parse(content: &str, file_path: &Path) -> RResult<Self> {
+#[derive(Debug)]
+pub struct PkgInfo {
+    pub json: Arc<PkgJSON>,
+    /// The path to the directory where the description file located.
+    /// It not a property in package.json.
+    pub dir_path: PathBuf,
+}
+
+impl PkgJSON {
+    pub(crate) fn parse(content: &str, file_path: &Path) -> RResult<Self> {
         let json: serde_json::Value =
             tracing::debug_span!("serde_json_from_str").in_scope(|| {
                 serde_json::from_str(content).map_err(|error| {
@@ -110,76 +117,20 @@ impl PkgInfoInner {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct PkgInfo {
-    /// The path to the directory where the description file located.
-    /// It not a property in package.json.
-    pub abs_dir_path: PathBuf,
-    pub inner: Arc<PkgInfoInner>,
-}
-
 impl Resolver {
-    // #[tracing::instrument]
-    // fn parse_description_file(&self, dir: &Path, file_path: &Path) -> RResult<PkgInfo> {
-    //     let str = self.read_file(file_path)?;
-    //     let inner = PkgInfoInner::parse(&str, file_path);
-    //     Ok(PkgInfo {
-    //         abs_dir_path: dir.to_path_buf(),
-    //         inner: Arc,
-    //     })
-    // }
-
     pub fn load_side_effects(
         &self,
         path: &Path,
     ) -> RResult<Option<(PathBuf, Option<SideEffects>)>> {
-        Ok(self.load_pkg_file(path)?.map(|pkg_info| {
-            (
-                pkg_info.abs_dir_path.join(&self.options.description_file),
-                pkg_info.inner.side_effects.clone(),
-            )
-        }))
-    }
-
-    #[tracing::instrument]
-    pub(crate) fn load_pkg_file(&self, path: &Path) -> RResult<Option<PkgInfo>> {
-        // Because the key in `self.cache.pkg_info` represents directory.
-        // So this step is ensure `path` pointed to directory.
-        if !path.is_dir() {
-            return match path.parent() {
-                Some(dir) => self.load_pkg_file(dir),
-                None => Err(ResolverError::ResolveFailedTag),
-            };
-        }
-
-        let description_file_name = &self.options.description_file;
-        let description_file_path = path.join(description_file_name);
-        let need_find_up = !description_file_path.is_file();
-        // TODO: dir_info_cache
-        if need_find_up {
-            // find the closest directory witch contains description file
-            if let Some(target_dir) = Self::find_up(path, description_file_name) {
-                return self.load_pkg_file(&target_dir);
-            } else {
-                return Ok(None);
-            }
-        }
-
-        let content = self.read_file(&description_file_path)?;
-        let pkg_info = if let Some(inner) = self.cache.pkg_info.get(&content) {
-            PkgInfo {
-                abs_dir_path: path.to_path_buf(),
-                inner: inner.clone(),
-            }
+        let entry = self.load_entry(path)?;
+        let ans = if let Some(pkg_info) = &entry.pkg_info {
+            Some((
+                pkg_info.dir_path.join(&self.options.description_file),
+                pkg_info.json.side_effects.clone(),
+            ))
         } else {
-            let inner = Arc::new(PkgInfoInner::parse(&content, &description_file_path)?);
-
-            self.cache.pkg_info.insert(content, inner.clone());
-            PkgInfo {
-                abs_dir_path: path.to_path_buf(),
-                inner,
-            }
+            None
         };
-        Ok(Some(pkg_info))
+        Ok(ans)
     }
 }
