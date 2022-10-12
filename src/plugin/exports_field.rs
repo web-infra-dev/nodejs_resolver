@@ -91,7 +91,12 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
         for item in list {
             let request = resolver.parse(&item);
             let info = ResolveInfo::from(self.pkg_info.dir_path.to_path_buf(), request);
-            if info.get_path().is_file() && ExportsField::check_target(&info.request.target) {
+            let path = info.get_path();
+            let is_file = match resolver.load_entry(&path) {
+                Ok(entry) => entry.is_file(),
+                Err(err) => return ResolverStats::Error((err, info)),
+            };
+            if is_file && ExportsField::check_target(&info.request.target) {
                 let stats = resolver._resolve(info);
                 if stats.is_success() {
                     return stats;

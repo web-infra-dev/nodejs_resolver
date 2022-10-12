@@ -74,7 +74,10 @@ use std::{
 pub struct Resolver {
     pub options: ResolverOptions,
     pub(crate) cache: Arc<ResolverCache>,
-    pub(crate) entries: DashMap<PathBuf, Arc<Entry>>,
+    // In `PathBuf::from('/a/b/')` is equal `PathBuf::from('/a/b')`,
+    // It may cause some problem.
+    // So use normalized Path string to instead.
+    pub(crate) entries: DashMap<(PathBuf, bool), Arc<Entry>>,
 }
 
 #[derive(Debug, Clone)]

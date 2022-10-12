@@ -1,6 +1,6 @@
-use std::path::{Component, Path, PathBuf};
-
 use crate::{RResult, ResolveResult, Resolver, ResolverError};
+
+use std::path::{Component, Path, PathBuf};
 
 impl Resolver {
     /// Eliminate `\\?\` prefix in windows.
@@ -15,7 +15,7 @@ impl Resolver {
         }
     }
 
-    pub fn normalize_path_without_link(path: &Path) -> PathBuf {
+    fn normalize_path_without_link(path: &Path) -> PathBuf {
         path.components()
             .fold(PathBuf::new(), |mut acc, path_component| {
                 match path_component {
@@ -34,15 +34,15 @@ impl Resolver {
     #[tracing::instrument]
     fn normalize_path(&self, path: &Path) -> RResult<PathBuf> {
         if self.options.symlinks {
-            Path::canonicalize(path)
-                .map_err(ResolverError::Io)
-                .map(|result| {
-                    if cfg!(windows) {
-                        PathBuf::from(Self::adjust(result))
-                    } else {
-                        result
-                    }
-                })
+            let entry = self.load_entry(path)?;
+            let symlink = entry.symlink().map_err(ResolverError::Io);
+            symlink.map(|result| {
+                if cfg!(windows) {
+                    PathBuf::from(Self::adjust(result))
+                } else {
+                    result
+                }
+            })
         } else {
             Ok(Self::normalize_path_without_link(path))
         }

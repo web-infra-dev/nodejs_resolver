@@ -19,7 +19,11 @@ impl Plugin for ExtensionsPlugin {
     fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats {
         for extension in &resolver.options.extensions {
             let path = Resolver::append_ext_for_path(&self.path, extension);
-            if path.is_file() {
+            let is_file = match resolver.load_entry(&path) {
+                Ok(entry) => entry.is_file(),
+                Err(err) => return ResolverStats::Error((err, info)),
+            };
+            if is_file {
                 return ResolverStats::Success(ResolveResult::Info(
                     info.with_path(path).with_target(""),
                 ));

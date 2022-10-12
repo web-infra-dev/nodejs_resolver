@@ -14,8 +14,13 @@ impl<'a> ImportsFieldPlugin<'a> {
         Self { pkg_info }
     }
 
-    fn check_target(info: ResolveInfo, target: &str) -> ResolverStats {
-        if info.get_path().is_file() && ImportsField::check_target(&info.request.target) {
+    fn check_target(resolver: &Resolver, info: ResolveInfo, target: &str) -> ResolverStats {
+        let path = info.get_path();
+        let is_file = match resolver.load_entry(&path) {
+            Ok(entry) => entry.is_file(),
+            Err(err) => return ResolverStats::Error((err, info)),
+        };
+        if is_file && ImportsField::check_target(&info.request.target) {
             ResolverStats::Resolving(info)
         } else {
             ResolverStats::Error((
@@ -77,7 +82,7 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
             } else if is_internal_kind {
                 self.apply(resolver, info)
             } else {
-                ImportsFieldPlugin::check_target(info, target)
+                ImportsFieldPlugin::check_target(resolver, info, target)
             }
         } else {
             ResolverStats::Error((

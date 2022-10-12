@@ -1,6 +1,6 @@
 use crate::entry::{EntryKind, EntryStat};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::{fmt::Debug, path::PathBuf};
 
 use dashmap::DashMap;
@@ -9,7 +9,6 @@ use std::time::Duration;
 
 #[derive(Debug, Default)]
 pub struct CachedFS {
-    mutex: Mutex<()>,
     entries: DashMap<PathBuf, Arc<FileEntry>>,
 }
 
@@ -20,7 +19,7 @@ pub struct FileEntry {
 }
 
 impl CachedFS {
-    pub fn stat(&self, path: &Path) -> std::io::Result<EntryStat> {
+    pub(crate) fn stat(path: &Path) -> std::io::Result<EntryStat> {
         let stat = if let Ok(meta) = std::fs::metadata(path) {
             let kind = if meta.is_file() {
                 EntryKind::File

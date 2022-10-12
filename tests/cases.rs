@@ -87,6 +87,13 @@ fn extensions_test() {
         extensions: vec![String::from(".ts"), String::from(".js")],
         ..Default::default()
     });
+    should_equal(
+        &resolver,
+        &extensions_cases_path,
+        "./a.js",
+        p(vec!["extensions", "a.js"]),
+    );
+    should_resolve_failed_error(&resolver, &extensions_cases_path, "./a.js/");
 
     should_equal(
         &resolver,
@@ -777,7 +784,6 @@ fn simple_test() {
         "",
         p(vec!["simple", "lib", "index.js"]),
     );
-
     should_equal(
         &resolver,
         &simple_case_path.join(".."),
