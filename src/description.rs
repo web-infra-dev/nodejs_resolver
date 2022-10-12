@@ -123,14 +123,12 @@ impl Resolver {
         path: &Path,
     ) -> RResult<Option<(PathBuf, Option<SideEffects>)>> {
         let entry = self.load_entry(path)?;
-        let ans = if let Some(pkg_info) = &entry.pkg_info {
-            Some((
+        let ans = entry.pkg_info.as_ref().map(|pkg_info| {
+            (
                 pkg_info.dir_path.join(&self.options.description_file),
                 pkg_info.json.side_effects.clone(),
-            ))
-        } else {
-            None
-        };
+            )
+        });
         Ok(ans)
     }
 }

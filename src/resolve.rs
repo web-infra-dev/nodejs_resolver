@@ -16,7 +16,15 @@ impl Resolver {
     #[tracing::instrument]
     pub(crate) fn resolve_as_file(&self, info: ResolveInfo) -> ResolverStats {
         let path = info.get_path();
-        if !(*self.options.enforce_extension.as_ref().unwrap_or(&false)) && path.is_file() {
+        let enforce = *self.options.enforce_extension.as_ref().unwrap_or(&false);
+        if enforce {
+            return ExtensionsPlugin::new(path).apply(self, info);
+        }
+        let is_file = match self.load_entry(&path) {
+            Ok(entry) => entry.is_file(),
+            Err(err) => return ResolverStats::Error((err, info)),
+        };
+        if is_file {
             ResolverStats::Success(ResolveResult::Info(info.with_path(path).with_target("")))
         } else {
             ExtensionsPlugin::new(path).apply(self, info)
@@ -26,16 +34,17 @@ impl Resolver {
     #[tracing::instrument]
     pub(crate) fn resolve_as_dir(&self, info: ResolveInfo) -> ResolverStats {
         let dir = info.get_path();
-        if !dir.is_dir() {
-            return ResolverStats::Error((ResolverError::ResolveFailedTag, info));
-        }
-        let pkg_info = match self.load_entry(&dir) {
-            Ok(entry) => entry.pkg_info.clone(),
+        let entry = match self.load_entry(&dir) {
+            Ok(entry) => entry,
             Err(err) => return ResolverStats::Error((err, info)),
         };
+        if !entry.is_dir() {
+            return ResolverStats::Error((ResolverError::ResolveFailedTag, info));
+        }
+        let pkg_info = &entry.pkg_info;
         let info = info.with_path(dir).with_target("");
         if let Some(pkg_info) = pkg_info {
-            MainFieldPlugin::new(&pkg_info).apply(self, info)
+            MainFieldPlugin::new(pkg_info).apply(self, info)
         } else {
             ResolverStats::Resolving(info)
         }
@@ -46,7 +55,11 @@ impl Resolver {
     pub(crate) fn resolve_as_modules(&self, info: ResolveInfo) -> ResolverStats {
         let original_dir = info.path.clone();
         let module_root_path = original_dir.join(MODULE);
-        let stats = if module_root_path.is_dir() {
+        let is_dir = match self.load_entry(&module_root_path) {
+            Ok(entry) => entry.is_dir(),
+            Err(err) => return ResolverStats::Error((err, info)),
+        };
+        let stats = if is_dir {
             let target = &info.request.target;
             // join request part
             let has_namespace_scope = target.starts_with('@');
@@ -64,7 +77,6 @@ impl Resolver {
             let module_name =
                 last_start_index.map_or(target.clone(), |&index| SmolStr::new(&target[0..index]));
             let module_path = module_root_path.join(&*module_name);
-
             let module_info = ResolveInfo::from(module_root_path, info.request.clone());
             let pkg_info = match self.load_entry(&module_info.path.join(&**target)) {
                 Ok(entry) => entry.pkg_info.clone(),
@@ -73,7 +85,11 @@ impl Resolver {
             let is_resolve_self = pkg_info.as_ref().map_or(false, |pkg_info| {
                 ExportsFieldPlugin::is_resolve_self(pkg_info, &module_info)
             });
-            if !module_path.is_dir() && !is_resolve_self {
+            let module_path_is_dir = match self.load_entry(&module_path) {
+                Ok(entry) => entry.is_dir(),
+                Err(err) => return ResolverStats::Error((err, info)),
+            };
+            if !module_path_is_dir && !is_resolve_self {
                 let stats = self.resolve_as_file(module_info);
                 if stats.is_success() {
                     stats

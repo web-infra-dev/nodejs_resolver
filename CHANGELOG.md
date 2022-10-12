@@ -5,7 +5,7 @@
 - change the type of `options.description_file` to `String`.
 - use `IndexMap` in `pkgInfo.alias_fields`.
 - rewrite cache.
-- cache `Entry`.
+- cache `Entry`, and use `Entry.Stats` to reduce IO operation.
 
 ## 0.0.40
 
