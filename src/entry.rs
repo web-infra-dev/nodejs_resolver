@@ -124,24 +124,20 @@ impl Entry {
 
 impl Resolver {
     pub(super) fn load_entry(&self, path: &Path) -> RResult<Arc<Entry>> {
-        self.load_entry_inner(path)
-    }
-
-    fn load_entry_inner(&self, path: &Path) -> RResult<Arc<Entry>> {
         let key = Entry::path_to_key(path);
         if let Some(cached) = self.entries.get(&key) {
             Ok(cached.clone())
         } else {
-            let entry = self.load_entry_uncached(path)?;
-            let entry = Arc::new(entry);
-            self.entries.insert(key, entry.clone());
+            // TODO: how to mutex that?
+            let entry = Arc::new(self.load_entry_uncached(path)?);
+            self.entries.entry(key).or_insert(entry.clone());
             Ok(entry)
         }
     }
 
     fn load_entry_uncached(&self, path: &Path) -> RResult<Entry> {
         let parent = if let Some(parent) = path.parent() {
-            let entry = self.load_entry_inner(parent)?;
+            let entry = self.load_entry(parent)?;
             Some(entry)
         } else {
             None
