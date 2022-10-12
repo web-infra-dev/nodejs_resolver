@@ -1,4 +1,4 @@
-use crate::entry::{EntryKind, EntryStat};
+use crate::entry::EntryStat;
 use std::path::Path;
 use std::sync::Arc;
 use std::{fmt::Debug, path::PathBuf};
@@ -19,26 +19,6 @@ pub struct FileEntry {
 }
 
 impl CachedFS {
-    pub(crate) fn stat(path: &Path) -> std::io::Result<EntryStat> {
-        let stat = if let Ok(meta) = std::fs::metadata(path) {
-            let kind = if meta.is_file() {
-                EntryKind::File
-            } else if meta.is_dir() {
-                EntryKind::Dir
-            } else {
-                EntryKind::Unknown
-            };
-            let mtime = Some(meta.modified()?);
-            EntryStat { kind, mtime }
-        } else {
-            EntryStat {
-                kind: EntryKind::NonExist,
-                mtime: None,
-            }
-        };
-        Ok(stat)
-    }
-
     pub fn read_file(&self, path: &Path, file_stat: &EntryStat) -> std::io::Result<String> {
         if let Some(cached) = self.entries.get(path) {
             // check cache

@@ -1,12 +1,11 @@
 use std::{
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
     time::SystemTime,
 };
 
 use crate::{
     description::{PkgInfo, PkgJSON},
-    fs::CachedFS,
     RResult, Resolver, ResolverError,
 };
 #[cfg(unix)]
@@ -38,57 +37,73 @@ pub struct EntryStat {
     pub mtime: Option<SystemTime>,
 }
 
+impl EntryStat {
+    pub fn stat(path: &Path) -> std::io::Result<Self> {
+        let stat = if let Ok(meta) = std::fs::metadata(path) {
+            let kind = if meta.is_file() {
+                EntryKind::File
+            } else if meta.is_dir() {
+                EntryKind::Dir
+            } else {
+                EntryKind::Unknown
+            };
+            let mtime = Some(meta.modified()?);
+            EntryStat { kind, mtime }
+        } else {
+            EntryStat {
+                kind: EntryKind::NonExist,
+                mtime: None,
+            }
+        };
+        Ok(stat)
+    }
+}
+
 #[derive(Debug)]
 pub struct Entry {
     pub parent: Option<Arc<Entry>>,
     path: PathBuf,
     pub pkg_info: Option<Arc<PkgInfo>>,
-    stat: Mutex<Option<EntryStat>>,
-    symlink: Mutex<Option<PathBuf>>,
+    stat: RwLock<Option<EntryStat>>,
+    symlink: RwLock<Option<PathBuf>>,
 }
 
 impl Entry {
     pub fn symlink(&self) -> std::io::Result<PathBuf> {
-        let mut value = self.symlink.lock().unwrap();
-        match value.as_ref() {
-            Some(symlink) => Ok(symlink.to_path_buf()),
-            None => {
-                let real_path = std::fs::canonicalize(&self.path)?;
-                *value = Some(real_path.clone());
-                Ok(real_path)
-            }
+        if let Some(symlink) = self.symlink.read().unwrap().as_ref() {
+            return Ok(symlink.to_path_buf());
         }
+        let real_path = std::fs::canonicalize(&self.path)?;
+        let mut writer = self.symlink.write().unwrap();
+        *writer = Some(real_path.clone());
+        Ok(real_path)
     }
 
     pub fn is_file(&self) -> bool {
-        let mut value = self.stat.lock().unwrap();
-        match value.as_ref() {
-            Some(stat) => stat.kind.is_file(),
-            None => {
-                if let Ok(stat) = CachedFS::stat(&self.path) {
-                    let is_file = stat.kind.is_file();
-                    *value = Some(stat);
-                    is_file
-                } else {
-                    false
-                }
-            }
+        if let Some(stat) = self.stat.read().unwrap().as_ref() {
+            return stat.kind.is_file();
+        }
+        if let Ok(stat) = EntryStat::stat(&self.path) {
+            let is_file = stat.kind.is_file();
+            let mut writer = self.stat.write().unwrap();
+            *writer = Some(stat);
+            is_file
+        } else {
+            false
         }
     }
 
     pub fn is_dir(&self) -> bool {
-        let mut value = self.stat.lock().unwrap();
-        match value.as_ref() {
-            Some(stat) => stat.kind.is_dir(),
-            None => {
-                if let Ok(stat) = CachedFS::stat(&self.path) {
-                    let is_dir = stat.kind.is_dir();
-                    *value = Some(stat);
-                    is_dir
-                } else {
-                    false
-                }
-            }
+        if let Some(stat) = self.stat.read().unwrap().as_ref() {
+            return stat.kind.is_dir();
+        }
+        if let Ok(stat) = EntryStat::stat(&self.path) {
+            let is_dir = stat.kind.is_dir();
+            let mut writer = self.stat.write().unwrap();
+            *writer = Some(stat);
+            is_dir
+        } else {
+            false
         }
     }
 
@@ -109,6 +124,10 @@ impl Entry {
 
 impl Resolver {
     pub(super) fn load_entry(&self, path: &Path) -> RResult<Arc<Entry>> {
+        self.load_entry_inner(path)
+    }
+
+    fn load_entry_inner(&self, path: &Path) -> RResult<Arc<Entry>> {
         let key = Entry::path_to_key(path);
         if let Some(cached) = self.entries.get(&key) {
             Ok(cached.clone())
@@ -122,7 +141,7 @@ impl Resolver {
 
     fn load_entry_uncached(&self, path: &Path) -> RResult<Entry> {
         let parent = if let Some(parent) = path.parent() {
-            let entry = self.load_entry(parent)?;
+            let entry = self.load_entry_inner(parent)?;
             Some(entry)
         } else {
             None
@@ -130,7 +149,7 @@ impl Resolver {
         let path = path.to_path_buf();
         let pkg_file_name = &self.options.description_file;
         let maybe_pkg_path = path.join(pkg_file_name);
-        let pkg_file_stat = CachedFS::stat(&maybe_pkg_path).map_err(ResolverError::Io)?;
+        let pkg_file_stat = EntryStat::stat(&maybe_pkg_path).map_err(ResolverError::Io)?;
         let pkg_info = if pkg_file_stat.kind.is_file() {
             let content = self
                 .cache
@@ -165,8 +184,8 @@ impl Resolver {
             true
         };
 
-        let stat = Mutex::new(if need_stat { None } else { Some(pkg_file_stat) });
-        let symlink = Mutex::new(None);
+        let stat = RwLock::new(if need_stat { None } else { Some(pkg_file_stat) });
+        let symlink = RwLock::new(None);
         Ok(Entry {
             parent,
             path,

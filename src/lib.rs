@@ -56,7 +56,6 @@ mod tsconfig;
 mod tsconfig_path;
 
 pub use cache::ResolverCache;
-use dashmap::DashMap;
 pub use description::SideEffects;
 use entry::Entry;
 pub use error::*;
@@ -76,8 +75,7 @@ pub struct Resolver {
     pub(crate) cache: Arc<ResolverCache>,
     // In `PathBuf::from('/a/b/')` is equal `PathBuf::from('/a/b')`,
     // It may cause some problem.
-    // So use normalized Path string to instead.
-    pub(crate) entries: DashMap<(PathBuf, bool), Arc<Entry>>,
+    pub(crate) entries: dashmap::DashMap<(PathBuf, bool), Arc<Entry>>,
 }
 
 #[derive(Debug, Clone)]
@@ -191,11 +189,11 @@ impl Resolver {
         } else {
             self._resolve(info)
         };
-        // let duration = start.elapsed().as_micros();
+        // let duration = start.elapsed().as_millis();
         // println!("time cost: {:?} us", duration); // us
-        // if duration > 5000 {
+        // if duration > 10 {
         //     println!(
-        //         "{:?}us, path: {:?}, request: {:?}",
+        //         "{:?}ms, path: {:?}, request: {:?}",
         //         duration,
         //         path.display(),
         //         request,

@@ -1,6 +1,7 @@
 use nodejs_resolver::test_helper::{p, vec_to_set};
 use nodejs_resolver::{
-    AliasMap, ResolveResult, Resolver, ResolverCache, ResolverError, ResolverOptions, SideEffects,
+    AliasMap, RResult, ResolveResult, Resolver, ResolverCache, ResolverError, ResolverOptions,
+    SideEffects,
 };
 
 use std::path::{Path, PathBuf};
@@ -2548,31 +2549,3 @@ fn empty_test() {
     should_resolve_failed_error(&resolver, &case_path, ".");
     should_resolve_failed_error(&resolver, &p(vec![]), "./empty");
 }
-
-// #[test]
-// fn thread() {
-//     let cache = Arc::new(ResolverCache::default());
-//     let resolver1 = Resolver::new(ResolverOptions {
-//         external_cache: Some(cache.clone()),
-//         ..Default::default()
-//     });
-//     let resolver2 = Resolver::new(ResolverOptions {
-//         external_cache: Some(cache.clone()),
-//         ..Default::default()
-//     });
-
-//     dbg!("before spawn");
-//     let handle = std::thread::spawn(move || {
-//         std::thread::sleep(std::time::Duration::from_secs(3));
-//         dbg!("first spawn");
-//         resolver1.resolve(p(vec!["big-pkg"]).as_ref(), "big-exports");
-//         dbg!("first end");
-//     });
-//     let handle2 = std::thread::spawn(move || {
-//         dbg!("second spawn");
-//         resolver2.resolve(p(vec!["big-pkg"]).as_ref(), "big-exports");
-//         dbg!("second end");
-//     });
-//     handle.join().unwrap();
-//     handle2.join().unwrap();
-// }
