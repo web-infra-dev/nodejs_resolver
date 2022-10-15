@@ -2,7 +2,7 @@ use super::Plugin;
 use crate::{
     description::PkgInfo,
     map::{Field, ImportsField},
-    PathKind, ResolveInfo, Resolver, ResolverError, ResolverStats, MODULE,
+    Error, Info, PathKind, Resolver, State, MODULE,
 };
 
 pub struct ImportsFieldPlugin<'a> {
@@ -14,44 +14,43 @@ impl<'a> ImportsFieldPlugin<'a> {
         Self { pkg_info }
     }
 
-    fn check_target(resolver: &Resolver, info: ResolveInfo, target: &str) -> ResolverStats {
+    fn check_target(resolver: &Resolver, info: Info, target: &str) -> State {
         let path = info.get_path();
         let is_file = match resolver.load_entry(&path) {
             Ok(entry) => entry.is_file(),
-            Err(err) => return ResolverStats::Error((err, info)),
+            Err(err) => return State::Error(err),
         };
         if is_file && ImportsField::check_target(&info.request.target) {
-            ResolverStats::Resolving(info)
+            State::Resolving(info)
         } else {
-            ResolverStats::Error((
-                ResolverError::UnexpectedValue(format!("Package path {target} is not exported")),
-                info,
-            ))
+            State::Error(Error::UnexpectedValue(format!(
+                "Package path {target} is not exported"
+            )))
         }
     }
 }
 
 impl<'a> Plugin for ImportsFieldPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats {
+    fn apply(&self, resolver: &Resolver, info: Info) -> State {
         if !info.request.target.starts_with('#') {
-            return ResolverStats::Resolving(info);
+            return State::Resolving(info);
         }
 
         let target = &info.request.target;
         let list = if let Some(root) = &self.pkg_info.json.imports_field_tree {
             match ImportsField::field_process(root, target, &resolver.options.condition_names) {
                 Ok(list) => list,
-                Err(err) => return ResolverStats::Error((err, info)),
+                Err(err) => return State::Error(err),
             }
         } else {
-            return ResolverStats::Resolving(info);
+            return State::Resolving(info);
         };
 
         if let Some(item) = list.first() {
             let request = resolver.parse(item);
             let is_normal_kind = matches!(request.kind, PathKind::Normal);
             let is_internal_kind = matches!(request.kind, PathKind::Internal);
-            let info = ResolveInfo::from(
+            let info = Info::from(
                 if is_normal_kind {
                     self.pkg_info.dir_path.join(MODULE)
                 } else {
@@ -65,11 +64,11 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
                 // TODO: should optimized
                 let pkg_info = match resolver.load_entry(&path) {
                     Ok(entry) => entry.pkg_info.clone(),
-                    Err(err) => return ResolverStats::Error((err, info)),
+                    Err(err) => return State::Error(err),
                 };
                 if let Some(ref pkg_info) = pkg_info {
                     if !pkg_info.dir_path.display().to_string().contains(MODULE) {
-                        return ResolverStats::Resolving(info);
+                        return State::Resolving(info);
                     }
                 }
 
@@ -77,7 +76,7 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
                 if stats.is_success() {
                     stats
                 } else {
-                    ResolverStats::Resolving(info)
+                    State::Resolving(info)
                 }
             } else if is_internal_kind {
                 self.apply(resolver, info)
@@ -85,10 +84,9 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
                 ImportsFieldPlugin::check_target(resolver, info, target)
             }
         } else {
-            ResolverStats::Error((
-                ResolverError::UnexpectedValue(format!("Package path {target} is not exported")),
-                info,
-            ))
+            State::Error(Error::UnexpectedValue(format!(
+                "Package path {target} is not exported"
+            )))
         }
     }
 }

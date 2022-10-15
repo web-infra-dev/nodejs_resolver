@@ -41,10 +41,12 @@
 //!
 
 mod cache;
+mod context;
 mod description;
 mod entry;
 mod error;
 mod fs;
+mod info;
 mod kind;
 mod map;
 mod normalize;
@@ -52,17 +54,19 @@ mod options;
 mod parse;
 mod plugin;
 mod resolve;
+mod state;
 mod tsconfig;
 mod tsconfig_path;
 
 pub use cache::ResolverCache;
 pub use description::SideEffects;
 use entry::Entry;
-pub use error::*;
+pub use error::Error;
+pub use info::Info;
 use kind::PathKind;
-pub use options::{AliasMap, ResolverOptions};
-use parse::Request;
+pub use options::{AliasMap, Options};
 use plugin::{AliasFieldPlugin, AliasPlugin, ImportsFieldPlugin, Plugin, PreferRelativePlugin};
+use state::State;
 
 use std::{
     path::{Path, PathBuf},
@@ -71,92 +75,25 @@ use std::{
 
 #[derive(Debug)]
 pub struct Resolver {
-    pub options: ResolverOptions,
+    pub options: Options,
     pub(crate) cache: Arc<ResolverCache>,
     // In `PathBuf::from('/a/b/')` is equal `PathBuf::from('/a/b')`,
     // It may cause some problem.
     pub(crate) entries: dashmap::DashMap<(PathBuf, bool), Arc<Entry>>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ResolveInfo {
-    pub path: PathBuf,
-    pub request: Request,
-}
-
-impl ResolveInfo {
-    pub fn from(path: PathBuf, request: Request) -> Self {
-        Self { path, request }
-    }
-
-    pub fn get_path(&self) -> PathBuf {
-        if self.request.target.is_empty() || self.request.target == "." {
-            self.path.to_path_buf()
-        } else {
-            self.path.join(&*self.request.target)
-        }
-    }
-
-    pub fn with_path(self, path: PathBuf) -> Self {
-        Self { path, ..self }
-    }
-
-    pub fn with_target(self, target: &str) -> Self {
-        let request = self.request.with_target(target);
-        Self { request, ..self }
-    }
-
-    pub fn join(&self) -> PathBuf {
-        let buf = format!(
-            "{}{}{}",
-            self.path.display(),
-            self.request.query,
-            self.request.fragment,
-        );
-        PathBuf::from(buf)
-    }
-}
-
 #[derive(Debug)]
 pub enum ResolveResult {
-    Info(ResolveInfo),
+    Info(Info),
     Ignored,
-}
-
-#[derive(Debug)]
-pub(crate) enum ResolverStats {
-    Success(ResolveResult),
-    Resolving(ResolveInfo),
-    Error((ResolverError, ResolveInfo)),
-}
-
-impl ResolverStats {
-    pub fn and_then<F: FnOnce(ResolveInfo) -> ResolverStats>(self, op: F) -> ResolverStats {
-        match self {
-            ResolverStats::Resolving(info) => op(info),
-            _ => self,
-        }
-    }
-
-    pub fn is_success(&self) -> bool {
-        matches!(self, ResolverStats::Success(_))
-    }
-
-    pub fn extract_info(self) -> ResolveInfo {
-        match self {
-            ResolverStats::Resolving(info) => info,
-            ResolverStats::Error((_, info)) => info,
-            _ => unreachable!(),
-        }
-    }
 }
 
 pub(crate) static MODULE: &str = "node_modules";
 
-pub type RResult<T> = Result<T, ResolverError>;
+pub type RResult<T> = Result<T, Error>;
 
 impl Resolver {
-    pub fn new(options: ResolverOptions) -> Self {
+    pub fn new(options: Options) -> Self {
         let cache = if let Some(external_cache) = options.external_cache.as_ref() {
             external_cache.clone()
         } else {
@@ -167,7 +104,7 @@ impl Resolver {
         } else {
             options.enforce_extension
         };
-        let options = ResolverOptions {
+        let options = Options {
             enforce_extension,
             ..options
         };
@@ -182,7 +119,7 @@ impl Resolver {
     #[tracing::instrument]
     pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolveResult> {
         // let start = std::time::Instant::now();
-        let info = ResolveInfo::from(path.to_path_buf(), self.parse(request));
+        let info = Info::from(path.to_path_buf(), self.parse(request));
 
         let result = if let Some(tsconfig_location) = self.options.tsconfig.as_ref() {
             self._resolve_with_tsconfig(info, tsconfig_location)
@@ -200,14 +137,14 @@ impl Resolver {
         //     );
         // }
         match result {
-            ResolverStats::Success(result) => self.normalize_result(result),
-            ResolverStats::Error((err, _)) => Err(err),
-            ResolverStats::Resolving(_) => Err(ResolverError::ResolveFailedTag),
+            State::Success(result) => self.normalize_result(result),
+            State::Error(err) => Err(err),
+            State::Resolving(_) | State::Failed(_) => Err(Error::ResolveFailedTag),
         }
     }
 
     #[tracing::instrument]
-    fn _resolve(&self, info: ResolveInfo) -> ResolverStats {
+    fn _resolve(&self, info: Info) -> State {
         AliasPlugin::default()
             .apply(self, info)
             .and_then(|info| PreferRelativePlugin::default().apply(self, info))
@@ -219,14 +156,14 @@ impl Resolver {
                 };
                 let pkg_info = match self.load_entry(&request) {
                     Ok(entry) => entry.pkg_info.clone(),
-                    Err(error) => return ResolverStats::Error((error, info)),
+                    Err(error) => return State::Error(error),
                 };
                 if let Some(pkg_info) = pkg_info {
                     ImportsFieldPlugin::new(&pkg_info)
                         .apply(self, info)
                         .and_then(|info| AliasFieldPlugin::new(&pkg_info).apply(self, info))
                 } else {
-                    ResolverStats::Resolving(info)
+                    State::Resolving(info)
                 }
             })
             .and_then(|info| {

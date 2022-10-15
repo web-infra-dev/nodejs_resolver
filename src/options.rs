@@ -9,7 +9,7 @@ pub enum AliasMap {
 }
 
 #[derive(Debug, Clone)]
-pub struct ResolverOptions {
+pub struct Options {
     /// Tried detect file with this extension.
     /// Default is `[".js", ".json", ".node"]`
     pub extensions: Vec<String>,
@@ -62,7 +62,7 @@ pub struct ResolverOptions {
     pub tsconfig: Option<PathBuf>,
 }
 
-impl Default for ResolverOptions {
+impl Default for Options {
     fn default() -> Self {
         let extensions = vec![
             String::from(".js"),

@@ -7,7 +7,7 @@ mod main_field;
 mod main_file;
 mod prefer_relative;
 
-use crate::{ResolveInfo, Resolver, ResolverStats};
+use crate::{Info, Resolver, State};
 
 pub use alias::AliasPlugin;
 pub use alias_field::AliasFieldPlugin;
@@ -19,5 +19,5 @@ pub use main_file::MainFilePlugin;
 pub use prefer_relative::PreferRelativePlugin;
 
 pub(crate) trait Plugin {
-    fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats;
+    fn apply(&self, resolver: &Resolver, info: Info) -> State;
 }

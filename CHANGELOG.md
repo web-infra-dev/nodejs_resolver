@@ -2,6 +2,10 @@
 
 ## unreleased
 
+- add `state::Failed` for `forEachBail`.
+
+## 0.0.41
+
 - change the type of `options.description_file` to `String`.
 - use `IndexMap` in `pkgInfo.alias_fields`.
 - rewrite cache.

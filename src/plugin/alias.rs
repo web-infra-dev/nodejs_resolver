@@ -1,16 +1,16 @@
 use crate::{options::AliasMap, Resolver, MODULE};
 
 use super::Plugin;
-use crate::{ResolveInfo, ResolveResult, ResolverStats};
+use crate::{Info, ResolveResult, State};
 
 #[derive(Default)]
 pub struct AliasPlugin;
 
 impl Plugin for AliasPlugin {
-    fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats {
+    fn apply(&self, resolver: &Resolver, info: Info) -> State {
         let inner_target = &info.request.target;
         if info.path.display().to_string().contains(MODULE) {
-            return ResolverStats::Resolving(info);
+            return State::Resolving(info);
         }
         for (from, to) in &resolver.options.alias {
             if inner_target.starts_with(from) {
@@ -21,7 +21,7 @@ impl Plugin for AliasPlugin {
                             continue;
                         }
                         let normalized_target = inner_target.replacen(from, to, 1);
-                        let alias_info = ResolveInfo::from(
+                        let alias_info = Info::from(
                             info.path.to_path_buf(),
                             info.request.clone().with_target(&normalized_target),
                         );
@@ -30,11 +30,11 @@ impl Plugin for AliasPlugin {
                             return stats;
                         }
                     }
-                    AliasMap::Ignored => return ResolverStats::Success(ResolveResult::Ignored),
+                    AliasMap::Ignored => return State::Success(ResolveResult::Ignored),
                 }
             }
         }
 
-        ResolverStats::Resolving(info)
+        State::Resolving(info)
     }
 }

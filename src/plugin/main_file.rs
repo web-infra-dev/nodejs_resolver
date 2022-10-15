@@ -1,12 +1,11 @@
-use crate::{ResolveInfo, Resolver, ResolverStats};
-
 use super::Plugin;
+use crate::{Info, Resolver, State};
 
 pub struct MainFilePlugin;
 
 impl Plugin for MainFilePlugin {
-    fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats {
-        let mut main_file_info = ResolveInfo::from(info.path.to_owned(), info.request.clone());
+    fn apply(&self, resolver: &Resolver, info: Info) -> State {
+        let mut main_file_info = Info::from(info.path.to_owned(), info.request.clone());
         for main_file in &resolver.options.main_files {
             main_file_info = main_file_info.with_target(&format!("./{main_file}"));
             let stats = resolver._resolve(main_file_info);
@@ -16,6 +15,6 @@ impl Plugin for MainFilePlugin {
                 main_file_info = stats.extract_info();
             }
         }
-        ResolverStats::Resolving(info)
+        State::Resolving(info)
     }
 }

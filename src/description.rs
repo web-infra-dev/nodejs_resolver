@@ -1,5 +1,5 @@
 use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
-use crate::{AliasMap, RResult, Resolver, ResolverError};
+use crate::{AliasMap, Error, RResult, Resolver};
 use indexmap::IndexMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -33,9 +33,8 @@ impl PkgJSON {
     pub(crate) fn parse(content: &str, file_path: &Path) -> RResult<Self> {
         let json: serde_json::Value =
             tracing::debug_span!("serde_json_from_str").in_scope(|| {
-                serde_json::from_str(content).map_err(|error| {
-                    ResolverError::UnexpectedJson((file_path.to_path_buf(), error))
-                })
+                serde_json::from_str(content)
+                    .map_err(|error| Error::UnexpectedJson((file_path.to_path_buf(), error)))
             })?;
 
         let mut alias_fields = IndexMap::new();
@@ -83,7 +82,7 @@ impl PkgJSON {
                         if let Some(str) = value.as_str() {
                             ans.push(str.to_string());
                         } else {
-                            return Err(ResolverError::UnexpectedValue(format!(
+                            return Err(Error::UnexpectedValue(format!(
                                 "sideEffects in {} had unexpected value {}",
                                 file_path.display(),
                                 value
@@ -92,7 +91,7 @@ impl PkgJSON {
                     }
                     Ok(Some(SideEffects::Array(ans)))
                 } else {
-                    Err(ResolverError::UnexpectedValue(format!(
+                    Err(Error::UnexpectedValue(format!(
                         "sideEffects in {} had unexpected value {}",
                         file_path.display(),
                         value
