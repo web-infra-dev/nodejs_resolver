@@ -1,6 +1,6 @@
 // copy from https://github.com/drivasperez/tsconfig
 
-use crate::{RResult, ResolveInfo, ResolveResult, Resolver, ResolverError, ResolverStats};
+use crate::{Error, Info, RResult, ResolveResult, Resolver, State};
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::Path;
@@ -51,14 +51,11 @@ impl TsConfig {
 }
 
 fn parse_file_to_value(location: &Path, resolver: &Resolver) -> RResult<serde_json::Value> {
-    let json_str = read_to_string(location).map_err(ResolverError::Io)?;
+    let json_str = read_to_string(location).map_err(Error::Io)?;
     let mut json: serde_json::Value =
         jsonc_parser::parse_to_serde_value(&json_str, &Default::default())
             .map_err(|err| {
-                ResolverError::UnexpectedValue(format!(
-                    "Parse {} failed. Error: {err}",
-                    location.display()
-                ))
+                Error::UnexpectedValue(format!("Parse {} failed. Error: {err}", location.display()))
             })?
             .unwrap_or_else(|| panic!("Transfer {} to serde value failed", location.display()));
 
@@ -66,13 +63,13 @@ fn parse_file_to_value(location: &Path, resolver: &Resolver) -> RResult<serde_js
     if let serde_json::Value::String(s) = &json["extends"] {
         // `location` pointed to `dir/tsconfig.json`
         let dir = location.parent().unwrap().to_path_buf();
-        let stats = resolver._resolve(ResolveInfo::from(dir, resolver.parse(s)));
+        let stats = resolver._resolve(Info::from(dir, resolver.parse(s)));
         // Is it better to use cache?
-        if let ResolverStats::Success(result) = stats {
+        if let State::Success(result) = stats {
             let extends_tsconfig_json = match result {
                 ResolveResult::Info(info) => parse_file_to_value(&info.get_path(), resolver),
                 ResolveResult::Ignored => {
-                    return Err(ResolverError::UnexpectedValue(format!(
+                    return Err(Error::UnexpectedValue(format!(
                         "{s} had been ignored in {}",
                         location.display()
                     )))

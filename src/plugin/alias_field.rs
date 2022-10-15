@@ -1,7 +1,5 @@
 use super::Plugin;
-use crate::{
-    description::PkgInfo, AliasMap, PathKind, ResolveInfo, ResolveResult, Resolver, ResolverStats,
-};
+use crate::{description::PkgInfo, AliasMap, Info, PathKind, ResolveResult, Resolver, State};
 use std::path::PathBuf;
 
 pub struct AliasFieldPlugin<'a> {
@@ -15,14 +13,14 @@ impl<'a> AliasFieldPlugin<'a> {
 
     pub(super) fn request_target_is_module_and_equal_alias_key(
         alias_key: &String,
-        info: &ResolveInfo,
+        info: &Info,
     ) -> bool {
         info.request.target.eq(alias_key)
     }
 
     pub(super) fn request_path_is_equal_alias_key_path(
         alias_path: &PathBuf,
-        info: &ResolveInfo,
+        info: &Info,
         extensions: &[String],
     ) -> bool {
         let request_path = info.get_path();
@@ -35,9 +33,9 @@ impl<'a> AliasFieldPlugin<'a> {
 }
 
 impl<'a> Plugin for AliasFieldPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats {
+    fn apply(&self, resolver: &Resolver, info: Info) -> State {
         if !resolver.options.browser_field {
-            return ResolverStats::Resolving(info);
+            return State::Resolving(info);
         }
         for (alias_key, alias_target) in &self.pkg_info.json.alias_fields {
             let should_deal_alias = match matches!(info.request.kind, PathKind::Normal) {
@@ -58,9 +56,15 @@ impl<'a> Plugin for AliasFieldPlugin<'a> {
                         // {
                         //  "recursive": "recursive"
                         // }
-                        return ResolverStats::Resolving(info);
+                        // TODO:
+                        // {
+                        //   "a": "b",
+                        //   "b": "c",
+                        //   "c": "a"
+                        // }
+                        return State::Resolving(info);
                     }
-                    let alias_info = ResolveInfo::from(
+                    let alias_info = Info::from(
                         self.pkg_info.dir_path.to_path_buf(),
                         info.request.clone().with_target(converted),
                     );
@@ -69,9 +73,9 @@ impl<'a> Plugin for AliasFieldPlugin<'a> {
                         return stats;
                     }
                 }
-                AliasMap::Ignored => return ResolverStats::Success(ResolveResult::Ignored),
+                AliasMap::Ignored => return State::Success(ResolveResult::Ignored),
             };
         }
-        ResolverStats::Resolving(info)
+        State::Resolving(info)
     }
 }

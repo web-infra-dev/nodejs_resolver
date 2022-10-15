@@ -1,6 +1,5 @@
-use crate::{description::PkgInfo, Resolver};
-
-use super::{Plugin, ResolveInfo, ResolverStats};
+use super::Plugin;
+use crate::{description::PkgInfo, Info, Resolver, State};
 
 pub struct MainFieldPlugin<'a> {
     pkg_info: &'a PkgInfo,
@@ -13,12 +12,12 @@ impl<'a> MainFieldPlugin<'a> {
 }
 
 impl<'a> Plugin for MainFieldPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats {
+    fn apply(&self, resolver: &Resolver, info: Info) -> State {
         if !info.path.eq(&self.pkg_info.dir_path) {
-            return ResolverStats::Resolving(info);
+            return State::Resolving(info);
         }
 
-        let mut main_field_info = ResolveInfo::from(info.path.to_owned(), info.request.clone());
+        let mut main_field_info = Info::from(info.path.to_owned(), info.request.clone());
 
         for user_main_field in &resolver.options.main_fields {
             if let Some(main_field) = self
@@ -47,6 +46,6 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
                 }
             }
         }
-        ResolverStats::Resolving(info)
+        State::Resolving(info)
     }
 }

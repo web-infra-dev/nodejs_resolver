@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     description::{PkgInfo, PkgJSON},
-    RResult, Resolver, ResolverError,
+    Error, RResult, Resolver,
 };
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
@@ -145,13 +145,13 @@ impl Resolver {
         let path = path.to_path_buf();
         let pkg_file_name = &self.options.description_file;
         let maybe_pkg_path = path.join(pkg_file_name);
-        let pkg_file_stat = EntryStat::stat(&maybe_pkg_path).map_err(ResolverError::Io)?;
+        let pkg_file_stat = EntryStat::stat(&maybe_pkg_path).map_err(Error::Io)?;
         let pkg_info = if pkg_file_stat.kind.is_file() {
             let content = self
                 .cache
                 .fs
                 .read_file(&maybe_pkg_path, &pkg_file_stat)
-                .map_err(ResolverError::Io)?;
+                .map_err(Error::Io)?;
             let pkg_json = if let Some(cached) = self.cache.pkg_json.get(&content) {
                 cached.clone()
             } else {

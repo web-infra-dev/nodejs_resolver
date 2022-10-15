@@ -1,12 +1,12 @@
-use std::path::{Path, PathBuf};
-
-use smol_str::SmolStr;
-
-use crate::plugin::{
-    AliasFieldPlugin, ExportsFieldPlugin, ExtensionsPlugin, ImportsFieldPlugin, MainFieldPlugin,
-    MainFilePlugin, Plugin,
+use crate::{
+    plugin::{
+        AliasFieldPlugin, ExportsFieldPlugin, ExtensionsPlugin, ImportsFieldPlugin,
+        MainFieldPlugin, MainFilePlugin, Plugin,
+    },
+    Info, PathKind, ResolveResult, Resolver, State, MODULE,
 };
-use crate::{PathKind, ResolveInfo, ResolveResult, Resolver, ResolverError, ResolverStats, MODULE};
+use smol_str::SmolStr;
+use std::path::{Path, PathBuf};
 
 impl Resolver {
     pub(crate) fn append_ext_for_path(path: &Path, ext: &str) -> PathBuf {
@@ -14,7 +14,7 @@ impl Resolver {
     }
 
     #[tracing::instrument]
-    pub(crate) fn resolve_as_file(&self, info: ResolveInfo) -> ResolverStats {
+    pub(crate) fn resolve_as_file(&self, info: Info) -> State {
         let path = info.get_path();
         let enforce = *self.options.enforce_extension.as_ref().unwrap_or(&false);
         if enforce {
@@ -22,42 +22,42 @@ impl Resolver {
         }
         let is_file = match self.load_entry(&path) {
             Ok(entry) => entry.is_file(),
-            Err(err) => return ResolverStats::Error((err, info)),
+            Err(err) => return State::Error(err),
         };
         if is_file {
-            ResolverStats::Success(ResolveResult::Info(info.with_path(path).with_target("")))
+            State::Success(ResolveResult::Info(info.with_path(path).with_target("")))
         } else {
             ExtensionsPlugin::new(path).apply(self, info)
         }
     }
 
     #[tracing::instrument]
-    pub(crate) fn resolve_as_dir(&self, info: ResolveInfo) -> ResolverStats {
+    pub(crate) fn resolve_as_dir(&self, info: Info) -> State {
         let dir = info.get_path();
         let entry = match self.load_entry(&dir) {
             Ok(entry) => entry,
-            Err(err) => return ResolverStats::Error((err, info)),
+            Err(err) => return State::Error(err),
         };
         if !entry.is_dir() {
-            return ResolverStats::Error((ResolverError::ResolveFailedTag, info));
+            return State::Failed(info);
         }
         let pkg_info = &entry.pkg_info;
         let info = info.with_path(dir).with_target("");
         if let Some(pkg_info) = pkg_info {
             MainFieldPlugin::new(pkg_info).apply(self, info)
         } else {
-            ResolverStats::Resolving(info)
+            State::Resolving(info)
         }
         .and_then(|info| MainFilePlugin.apply(self, info))
     }
 
     #[tracing::instrument]
-    pub(crate) fn resolve_as_modules(&self, info: ResolveInfo) -> ResolverStats {
+    pub(crate) fn resolve_as_modules(&self, info: Info) -> State {
         let original_dir = info.path.clone();
         let module_root_path = original_dir.join(MODULE);
         let is_dir = match self.load_entry(&module_root_path) {
             Ok(entry) => entry.is_dir(),
-            Err(err) => return ResolverStats::Error((err, info)),
+            Err(err) => return State::Error(err),
         };
         let stats = if is_dir {
             let target = &info.request.target;
@@ -77,24 +77,24 @@ impl Resolver {
             let module_name =
                 last_start_index.map_or(target.clone(), |&index| SmolStr::new(&target[0..index]));
             let module_path = module_root_path.join(&*module_name);
-            let module_info = ResolveInfo::from(module_root_path, info.request.clone());
+            let module_info = Info::from(module_root_path, info.request.clone());
             let pkg_info = match self.load_entry(&module_info.path.join(&**target)) {
                 Ok(entry) => entry.pkg_info.clone(),
-                Err(err) => return ResolverStats::Error((err, info)),
+                Err(err) => return State::Error(err),
             };
             let is_resolve_self = pkg_info.as_ref().map_or(false, |pkg_info| {
                 ExportsFieldPlugin::is_resolve_self(pkg_info, &module_info)
             });
             let module_path_is_dir = match self.load_entry(&module_path) {
                 Ok(entry) => entry.is_dir(),
-                Err(err) => return ResolverStats::Error((err, info)),
+                Err(err) => return State::Error(err),
             };
             if !module_path_is_dir && !is_resolve_self {
                 let stats = self.resolve_as_file(module_info);
                 if stats.is_success() {
                     stats
                 } else {
-                    ResolverStats::Resolving(info)
+                    State::Resolving(info)
                 }
             } else {
                 let stats = if let Some(pkg_info) = pkg_info {
@@ -112,39 +112,30 @@ impl Resolver {
                             AliasFieldPlugin::new(&pkg_info).apply(self, info)
                         })
                 } else {
-                    ResolverStats::Resolving(module_info)
+                    State::Resolving(module_info)
                 }
                 .and_then(|info| self.resolve_as_file(info))
                 .and_then(|info| self.resolve_as_dir(info));
 
                 match stats {
-                    ResolverStats::Error((error, err_info)) => {
-                        if matches!(error, ResolverError::ResolveFailedTag) {
-                            ResolverStats::Resolving(info)
-                        } else {
-                            ResolverStats::Error((error, err_info))
-                        }
-                    }
+                    State::Failed(info) => State::Resolving(info),
                     _ => stats,
                 }
             }
         } else {
-            ResolverStats::Resolving(info)
+            State::Resolving(info)
         }
         .and_then(|info| {
             if let Some(parent_dir) = original_dir.parent() {
                 self.resolve_as_modules(info.with_path(parent_dir.to_path_buf()))
             } else {
-                ResolverStats::Resolving(info)
+                State::Resolving(info)
             }
         });
 
         match stats {
-            ResolverStats::Success(success) => ResolverStats::Success(success),
-            ResolverStats::Resolving(info) => {
-                ResolverStats::Error((ResolverError::ResolveFailedTag, info))
-            }
-            ResolverStats::Error(err) => ResolverStats::Error(err),
+            State::Resolving(info) => State::Failed(info),
+            _ => stats,
         }
     }
 }

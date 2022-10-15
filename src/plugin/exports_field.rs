@@ -1,10 +1,11 @@
-use crate::{description::PkgInfo, kind::PathKind, Resolver, ResolverError, MODULE};
+use crate::{
+    description::PkgInfo,
+    kind::PathKind,
+    map::{ExportsField, Field},
+    Error, Info, Resolver, State, MODULE,
+};
 
 use super::Plugin;
-use crate::{
-    map::{ExportsField, Field},
-    ResolveInfo, ResolverStats,
-};
 
 pub struct ExportsFieldPlugin<'a> {
     pkg_info: &'a PkgInfo,
@@ -19,7 +20,7 @@ impl<'a> ExportsFieldPlugin<'a> {
         pkg_info.dir_path.to_string_lossy().contains(MODULE)
     }
 
-    pub(crate) fn is_resolve_self(pkg_info: &PkgInfo, info: &ResolveInfo) -> bool {
+    pub(crate) fn is_resolve_self(pkg_info: &PkgInfo, info: &Info) -> bool {
         pkg_info
             .json
             .name
@@ -30,15 +31,15 @@ impl<'a> ExportsFieldPlugin<'a> {
 }
 
 impl<'a> Plugin for ExportsFieldPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: ResolveInfo) -> ResolverStats {
+    fn apply(&self, resolver: &Resolver, info: Info) -> State {
         let target = &info.request.target;
 
         if !info.request.kind.eq(&PathKind::Normal) {
-            return ResolverStats::Resolving(info);
+            return State::Resolving(info);
         }
 
         if !self.is_in_module(self.pkg_info) && !Self::is_resolve_self(self.pkg_info, &info) {
-            return ResolverStats::Resolving(info);
+            return State::Resolving(info);
         }
 
         let list = if let Some(root) = &self.pkg_info.json.exports_field_tree {
@@ -61,7 +62,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                     {
                         ".".to_string()
                     } else {
-                        return ResolverStats::Error((ResolverError::ResolveFailedTag, info));
+                        return State::Failed(info);
                     }
                 }
             };
@@ -82,19 +83,19 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 &resolver.options.condition_names,
             ) {
                 Ok(list) => list,
-                Err(err) => return ResolverStats::Error((err, info)),
+                Err(err) => return State::Error(err),
             }
         } else {
-            return ResolverStats::Resolving(info);
+            return State::Resolving(info);
         };
 
         for item in list {
             let request = resolver.parse(&item);
-            let info = ResolveInfo::from(self.pkg_info.dir_path.to_path_buf(), request);
+            let info = Info::from(self.pkg_info.dir_path.to_path_buf(), request);
             let path = info.get_path();
             let is_file = match resolver.load_entry(&path) {
                 Ok(entry) => entry.is_file(),
-                Err(err) => return ResolverStats::Error((err, info)),
+                Err(err) => return State::Error(err),
             };
             if is_file && ExportsField::check_target(&info.request.target) {
                 let stats = resolver._resolve(info);
@@ -104,10 +105,9 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
             }
         }
 
-        ResolverStats::Error((
-            ResolverError::UnexpectedValue(format!("Package path {target} is not exported")),
-            info,
-        ))
+        State::Error(Error::UnexpectedValue(format!(
+            "Package path {target} is not exported"
+        )))
         // TODO: `info.abs_dir_path.as_os_str().to_str().unwrap(),` has abs_path
     }
 }

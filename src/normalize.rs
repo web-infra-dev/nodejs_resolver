@@ -1,4 +1,4 @@
-use crate::{RResult, ResolveResult, Resolver, ResolverError};
+use crate::{Error, RResult, ResolveResult, Resolver};
 
 use std::path::{Component, Path, PathBuf};
 
@@ -35,7 +35,7 @@ impl Resolver {
     fn normalize_path(&self, path: &Path) -> RResult<PathBuf> {
         if self.options.symlinks {
             let entry = self.load_entry(path)?;
-            let symlink = entry.symlink().map_err(ResolverError::Io);
+            let symlink = entry.symlink().map_err(Error::Io);
             symlink.map(|result| {
                 if cfg!(windows) {
                     PathBuf::from(Self::adjust(result))

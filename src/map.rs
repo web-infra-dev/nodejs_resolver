@@ -1,5 +1,5 @@
 /// port from https://github.com/webpack/enhanced-resolve/blob/main/lib/util/entrypoints.js
-use crate::{RResult, ResolverError};
+use crate::{Error, RResult};
 use indexmap::IndexMap;
 use std::collections::HashSet;
 type DirectMapping = String;
@@ -33,7 +33,7 @@ fn conditional_mapping<'a>(
         let len = conditions.len();
         for (i, condition) in conditions.iter().enumerate().skip(*j) {
             if i != len - 1 && condition == "default" {
-                return Err(ResolverError::UnexpectedValue(
+                return Err(Error::UnexpectedValue(
                     "Default condition should be last one".to_string(),
                 ));
             }
@@ -148,10 +148,10 @@ pub trait Field {
         if let Some(request) = remaining_request {
             match (subpath_mapping, is_folder) {
                 (true, true) => Ok(format!("{target}{request}")),
-                (true, false) => Err(ResolverError::UnexpectedValue(format!(
+                (true, false) => Err(Error::UnexpectedValue(format!(
                     "Expected {target} is folder mapping"
                 ))),
-                (false, true) => Err(ResolverError::UnexpectedValue(format!(
+                (false, true) => Err(Error::UnexpectedValue(format!(
                     "Expected {target} is file mapping"
                 ))),
                 (false, false) => {
@@ -163,9 +163,7 @@ pub trait Field {
         } else if !is_folder {
             Ok(target.to_string())
         } else {
-            Err(ResolverError::UnexpectedValue(format!(
-                "{target} had some wrong"
-            )))
+            Err(Error::UnexpectedValue(format!("{target} had some wrong")))
         }
     }
 
@@ -258,17 +256,17 @@ pub trait Field {
 impl Field for ExportsField {
     fn assert_request(request: &str) -> RResult<Vec<char>> {
         if !request.starts_with('.') {
-            Err(ResolverError::UnexpectedValue(format!(
+            Err(Error::UnexpectedValue(format!(
                 "Request should be relative path and start with '.', but got {request}"
             )))
         } else if request.len() == 1 {
             Ok(vec![])
         } else if !request.starts_with("./") {
-            Err(ResolverError::UnexpectedValue(format!(
+            Err(Error::UnexpectedValue(format!(
                 "Request should be relative path and start with '.', but got {request}"
             )))
         } else if request.ends_with('/') {
-            Err(ResolverError::UnexpectedValue(
+            Err(Error::UnexpectedValue(
                 "Only requesting file allowed".to_string(),
             ))
         } else {
@@ -280,7 +278,7 @@ impl Field for ExportsField {
     fn assert_target(exp: &str, expect_folder: bool) -> RResult<bool> {
         if exp.len() < 2 || exp.starts_with('/') || (exp.starts_with('.') && !exp.starts_with("./"))
         {
-            Err(ResolverError::UnexpectedValue(format!(
+            Err(Error::UnexpectedValue(format!(
                 "Export should be relative path and start with \"./\", but got {exp}"
             )))
         } else if exp.ends_with('/') != expect_folder {
@@ -307,7 +305,7 @@ impl Field for ExportsField {
                         (pre.0 & is_conditional, pre.1 & is_direct)
                     });
                 if !all_keys_are_conditional && !all_keys_are_direct {
-                    return Err(ResolverError::UnexpectedValue(
+                    return Err(Error::UnexpectedValue(
                         "Export field key can't mixed relative path and conditional object"
                             .to_string(),
                     ));
@@ -320,7 +318,7 @@ impl Field for ExportsField {
                             // key eq "."
                             root.files.insert("".to_string(), value);
                         } else if !key.starts_with("./") {
-                            return Err(ResolverError::UnexpectedValue(format!(
+                            return Err(Error::UnexpectedValue(format!(
                                 "Export field key should be relative path and start with \"./\", but got {key}",
                             )));
                         } else {
@@ -345,19 +343,19 @@ impl Field for ExportsField {
 impl Field for ImportsField {
     fn assert_request(request: &str) -> RResult<Vec<char>> {
         if !request.starts_with('#') {
-            Err(ResolverError::UnexpectedValue(format!(
+            Err(Error::UnexpectedValue(format!(
                 "Request should start with #, but got {request}"
             )))
         } else if request.len() == 1 {
-            Err(ResolverError::UnexpectedValue(
+            Err(Error::UnexpectedValue(
                 "Request should have at least 2 characters".to_string(),
             ))
         } else if request.starts_with("#/") {
-            Err(ResolverError::UnexpectedValue(format!(
+            Err(Error::UnexpectedValue(format!(
                 "Import field key should not start with #/, but got {request}"
             )))
         } else if request.ends_with('/') {
-            Err(ResolverError::UnexpectedValue(
+            Err(Error::UnexpectedValue(
                 "Only requesting file allowed".to_string(),
             ))
         } else {
@@ -384,16 +382,16 @@ impl Field for ImportsField {
         let mut root = PathTreeNode::default();
         for (key, value) in field {
             if !key.starts_with('#') {
-                return Err(ResolverError::UnexpectedValue(format!(
+                return Err(Error::UnexpectedValue(format!(
                     "Imports field key should start with #, but got {key}"
                 )));
             } else if key.len() == 1 {
                 // key eq "#"
-                return Err(ResolverError::UnexpectedValue(format!(
+                return Err(Error::UnexpectedValue(format!(
                     "Imports field key should have at least 2 characters, but got {key}"
                 )));
             } else if key.starts_with("#/") {
-                return Err(ResolverError::UnexpectedValue(format!(
+                return Err(Error::UnexpectedValue(format!(
                     "Import field key should not start with #/, but got {key}"
                 )));
             }
@@ -604,7 +602,7 @@ fn exports_field_map_test() {
         assert!(actual.is_err());
         let error = actual.unwrap_err();
         match error {
-            ResolverError::UnexpectedValue(message) => assert_eq!(expected_error_message, message),
+            Error::UnexpectedValue(message) => assert_eq!(expected_error_message, message),
             _ => unreachable!(),
         }
     }
@@ -2126,7 +2124,7 @@ fn imports_field_map_test() {
         assert!(actual.is_err());
         let error = actual.unwrap_err();
         match error {
-            ResolverError::UnexpectedValue(message) => assert_eq!(expected_error_message, message),
+            Error::UnexpectedValue(message) => assert_eq!(expected_error_message, message),
             _ => unreachable!(),
         }
     }
