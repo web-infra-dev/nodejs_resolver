@@ -1,8 +1,9 @@
 # Changelog
 
-## unreleased
+## 0.0.42
 
 - add `state::Failed` for `forEachBail`.
+- support `Error:Overflow`
 
 ## 0.0.41
 

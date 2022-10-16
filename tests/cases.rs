@@ -1,6 +1,6 @@
-use nodejs_resolver::test_helper::{p, vec_to_set};
 use nodejs_resolver::{
-    AliasMap, Error, Options, ResolveResult, Resolver, ResolverCache, SideEffects,
+    test_helper::{p, vec_to_set},
+    AliasMap, Cache, Error, Options, ResolveResult, Resolver, SideEffects,
 };
 
 use std::path::{Path, PathBuf};
@@ -26,6 +26,14 @@ fn should_ignored(resolver: &Resolver, path: &Path, request: &str) {
 fn should_resolve_failed_error(resolver: &Resolver, path: &Path, request: &str) {
     let result = resolver.resolve(path, request);
     if !matches!(result, Err(Error::ResolveFailedTag)) {
+        println!("{:?}", result);
+        unreachable!();
+    }
+}
+
+fn should_overflow(resolver: &Resolver, path: &Path, request: &str) {
+    let result = resolver.resolve(path, request);
+    if !matches!(result, Err(Error::Overflow)) {
         println!("{:?}", result);
         unreachable!();
     }
@@ -314,9 +322,8 @@ fn alias_test() {
             //     String::from("./b$"),
             //     AliasMap::Target(String::from("./a/index")),
             // ), // TODO: should we use trailing?
-            // TODO: recursion error tips
-            // (String::from("./e"), AliasMap::Target(String::from("./d"))),
-            // (String::from("./d"), AliasMap::Target(String::from("./e"))),
+            (String::from("./e"), AliasMap::Target(String::from("./d"))),
+            (String::from("./d"), AliasMap::Target(String::from("./e"))),
             (String::from("./f"), AliasMap::Target(String::from("./g"))),
             (String::from("./g"), AliasMap::Target(String::from("./h"))),
             (
@@ -346,6 +353,8 @@ fn alias_test() {
         ],
         ..Default::default()
     });
+
+    should_overflow(&resolver, &alias_cases_path, "./e");
 
     should_equal(
         &resolver,
@@ -2509,7 +2518,7 @@ fn load_side_effects_test() {
 #[test]
 fn shared_cache_test2() {
     let case_path = p(vec!["browser-module"]);
-    let cache = Arc::new(ResolverCache::default());
+    let cache = Arc::new(Cache::default());
     let resolver1 = Resolver::new(Options {
         browser_field: true,
         external_cache: Some(cache.clone()),

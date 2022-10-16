@@ -18,8 +18,8 @@ impl State {
         }
     }
 
-    pub fn is_success(&self) -> bool {
-        matches!(self, State::Success(_))
+    pub fn is_finished(&self) -> bool {
+        matches!(self, State::Success(_) | State::Error(_))
     }
 
     pub fn extract_info(self) -> Info {

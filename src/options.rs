@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
-use crate::ResolverCache;
+use crate::Cache;
 
 #[derive(Debug, Clone)]
 pub enum AliasMap {
@@ -31,7 +31,7 @@ pub struct Options {
     /// - If `external_cache.is_some()` is true, use this cache.
     ///
     /// Default is `None`.
-    pub external_cache: Option<Arc<ResolverCache>>,
+    pub external_cache: Option<Arc<Cache>>,
     /// Whether to resolve the real path when the result
     /// is a symlink.
     /// Default is `true`.

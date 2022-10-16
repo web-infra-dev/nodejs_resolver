@@ -1,11 +1,11 @@
 use super::Plugin;
-use crate::{Info, Resolver, State};
+use crate::{Context, Info, Resolver, State};
 
 #[derive(Default)]
 pub struct PreferRelativePlugin;
 
 impl Plugin for PreferRelativePlugin {
-    fn apply(&self, resolver: &Resolver, info: Info) -> State {
+    fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         if info.request.target.starts_with("../") || info.request.target.starts_with("./") {
             return State::Resolving(info);
         }
@@ -16,8 +16,8 @@ impl Plugin for PreferRelativePlugin {
                 info.path.to_owned(),
                 info.request.clone().with_target(&target),
             );
-            let stats = resolver._resolve(info);
-            if stats.is_success() {
+            let stats = resolver._resolve(info, context);
+            if stats.is_finished() {
                 return stats;
             }
         }

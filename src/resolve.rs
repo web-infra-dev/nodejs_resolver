@@ -1,7 +1,8 @@
 use crate::{
+    context::Context,
     plugin::{
-        AliasFieldPlugin, ExportsFieldPlugin, ExtensionsPlugin, ImportsFieldPlugin,
-        MainFieldPlugin, MainFilePlugin, Plugin,
+        AliasFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin, MainFilePlugin,
+        Plugin,
     },
     Info, PathKind, ResolveResult, Resolver, State, MODULE,
 };
@@ -13,12 +14,26 @@ impl Resolver {
         PathBuf::from(&format!("{}{ext}", path.display()))
     }
 
+    fn resolve_file_with_ext(&self, path: PathBuf, info: Info) -> State {
+        for ext in &self.options.extensions {
+            let path = Self::append_ext_for_path(&path, ext);
+            let is_file = match self.load_entry(&path) {
+                Ok(entry) => entry.is_file(),
+                Err(err) => return State::Error(err),
+            };
+            if is_file {
+                return State::Success(ResolveResult::Info(info.with_path(path).with_target("")));
+            }
+        }
+        State::Resolving(info)
+    }
+
     #[tracing::instrument]
     pub(crate) fn resolve_as_file(&self, info: Info) -> State {
         let path = info.get_path();
         let enforce = *self.options.enforce_extension.as_ref().unwrap_or(&false);
         if enforce {
-            return ExtensionsPlugin::new(path).apply(self, info);
+            return self.resolve_file_with_ext(path, info);
         }
         let is_file = match self.load_entry(&path) {
             Ok(entry) => entry.is_file(),
@@ -27,12 +42,12 @@ impl Resolver {
         if is_file {
             State::Success(ResolveResult::Info(info.with_path(path).with_target("")))
         } else {
-            ExtensionsPlugin::new(path).apply(self, info)
+            self.resolve_file_with_ext(path, info)
         }
     }
 
     #[tracing::instrument]
-    pub(crate) fn resolve_as_dir(&self, info: Info) -> State {
+    pub(crate) fn resolve_as_dir(&self, info: Info, context: &mut Context) -> State {
         let dir = info.get_path();
         let entry = match self.load_entry(&dir) {
             Ok(entry) => entry,
@@ -44,15 +59,15 @@ impl Resolver {
         let pkg_info = &entry.pkg_info;
         let info = info.with_path(dir).with_target("");
         if let Some(pkg_info) = pkg_info {
-            MainFieldPlugin::new(pkg_info).apply(self, info)
+            MainFieldPlugin::new(pkg_info).apply(self, info, context)
         } else {
             State::Resolving(info)
         }
-        .and_then(|info| MainFilePlugin.apply(self, info))
+        .and_then(|info| MainFilePlugin.apply(self, info, context))
     }
 
     #[tracing::instrument]
-    pub(crate) fn resolve_as_modules(&self, info: Info) -> State {
+    pub(crate) fn resolve_as_modules(&self, info: Info, context: &mut Context) -> State {
         let original_dir = info.path.clone();
         let module_root_path = original_dir.join(MODULE);
         let is_dir = match self.load_entry(&module_root_path) {
@@ -90,17 +105,19 @@ impl Resolver {
                 Err(err) => return State::Error(err),
             };
             if !module_path_is_dir && !is_resolve_self {
-                let stats = self.resolve_as_file(module_info);
-                if stats.is_success() {
-                    stats
+                let state = self.resolve_as_file(module_info);
+                if state.is_finished() {
+                    state
                 } else {
                     State::Resolving(info)
                 }
             } else {
-                let stats = if let Some(pkg_info) = pkg_info {
+                let state = if let Some(pkg_info) = pkg_info {
                     ExportsFieldPlugin::new(&pkg_info)
-                        .apply(self, module_info)
-                        .and_then(|info| ImportsFieldPlugin::new(&pkg_info).apply(self, info))
+                        .apply(self, module_info, context)
+                        .and_then(|info| {
+                            ImportsFieldPlugin::new(&pkg_info).apply(self, info, context)
+                        })
                         .and_then(|info| {
                             let info = if matches!(info.request.kind, PathKind::Normal) {
                                 let target = format!("./{}", info.request.target);
@@ -109,17 +126,17 @@ impl Resolver {
                                 info
                             };
 
-                            AliasFieldPlugin::new(&pkg_info).apply(self, info)
+                            AliasFieldPlugin::new(&pkg_info).apply(self, info, context)
                         })
                 } else {
                     State::Resolving(module_info)
                 }
                 .and_then(|info| self.resolve_as_file(info))
-                .and_then(|info| self.resolve_as_dir(info));
+                .and_then(|info| self.resolve_as_dir(info, context));
 
-                match stats {
+                match state {
                     State::Failed(info) => State::Resolving(info),
-                    _ => stats,
+                    _ => state,
                 }
             }
         } else {
@@ -127,7 +144,7 @@ impl Resolver {
         }
         .and_then(|info| {
             if let Some(parent_dir) = original_dir.parent() {
-                self.resolve_as_modules(info.with_path(parent_dir.to_path_buf()))
+                self.resolve_as_modules(info.with_path(parent_dir.to_path_buf()), context)
             } else {
                 State::Resolving(info)
             }

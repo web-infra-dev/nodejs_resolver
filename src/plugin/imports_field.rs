@@ -1,5 +1,6 @@
 use super::Plugin;
 use crate::{
+    context::Context,
     description::PkgInfo,
     map::{Field, ImportsField},
     Error, Info, PathKind, Resolver, State, MODULE,
@@ -31,7 +32,7 @@ impl<'a> ImportsFieldPlugin<'a> {
 }
 
 impl<'a> Plugin for ImportsFieldPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: Info) -> State {
+    fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         if !info.request.target.starts_with('#') {
             return State::Resolving(info);
         }
@@ -72,14 +73,14 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
                     }
                 }
 
-                let stats = resolver._resolve(info.clone());
-                if stats.is_success() {
+                let stats = resolver._resolve(info.clone(), context);
+                if stats.is_finished() {
                     stats
                 } else {
                     State::Resolving(info)
                 }
             } else if is_internal_kind {
-                self.apply(resolver, info)
+                self.apply(resolver, info, context)
             } else {
                 ImportsFieldPlugin::check_target(resolver, info, target)
             }
