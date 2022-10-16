@@ -4,7 +4,7 @@ use dashmap::DashMap;
 use std::sync::Arc;
 
 #[derive(Debug, Default)]
-pub struct ResolverCache {
+pub struct Cache {
     pub fs: CachedFS,
     pub pkg_json: CachedPkgJSON,
 }

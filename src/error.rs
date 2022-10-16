@@ -6,4 +6,5 @@ pub enum Error {
     UnexpectedJson((PathBuf, serde_json::Error)),
     UnexpectedValue(String),
     ResolveFailedTag,
+    Overflow,
 }

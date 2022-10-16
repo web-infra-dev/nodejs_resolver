@@ -1,5 +1,6 @@
 // copy from https://github.com/drivasperez/tsconfig
 
+use crate::context::Context;
 use crate::{Error, Info, RResult, ResolveResult, Resolver, State};
 use std::collections::HashMap;
 use std::fs::read_to_string;
@@ -17,9 +18,13 @@ pub struct CompilerOptions {
     pub paths: Option<HashMap<String, Vec<String>>>,
 }
 
-impl TsConfig {
-    pub fn parse_file(location: &Path, resolver: &Resolver) -> RResult<TsConfig> {
-        let json = parse_file_to_value(location, resolver)?;
+impl Resolver {
+    pub(super) fn parse_ts_file(
+        &self,
+        location: &Path,
+        context: &mut Context,
+    ) -> RResult<TsConfig> {
+        let json = self.parse_file_to_value(location, context)?;
         let compiler_options = json.get("compilerOptions").map(|options| {
             // TODO: should optimized
             let base_url = options
@@ -48,37 +53,47 @@ impl TsConfig {
             compiler_options,
         })
     }
-}
 
-fn parse_file_to_value(location: &Path, resolver: &Resolver) -> RResult<serde_json::Value> {
-    let json_str = read_to_string(location).map_err(Error::Io)?;
-    let mut json: serde_json::Value =
-        jsonc_parser::parse_to_serde_value(&json_str, &Default::default())
-            .map_err(|err| {
-                Error::UnexpectedValue(format!("Parse {} failed. Error: {err}", location.display()))
-            })?
-            .unwrap_or_else(|| panic!("Transfer {} to serde value failed", location.display()));
-
-    // merge `extends`.
-    if let serde_json::Value::String(s) = &json["extends"] {
-        // `location` pointed to `dir/tsconfig.json`
-        let dir = location.parent().unwrap().to_path_buf();
-        let stats = resolver._resolve(Info::from(dir, resolver.parse(s)));
-        // Is it better to use cache?
-        if let State::Success(result) = stats {
-            let extends_tsconfig_json = match result {
-                ResolveResult::Info(info) => parse_file_to_value(&info.get_path(), resolver),
-                ResolveResult::Ignored => {
-                    return Err(Error::UnexpectedValue(format!(
-                        "{s} had been ignored in {}",
+    fn parse_file_to_value(
+        &self,
+        location: &Path,
+        context: &mut Context,
+    ) -> RResult<serde_json::Value> {
+        let json_str = read_to_string(location).map_err(Error::Io)?;
+        let mut json: serde_json::Value =
+            jsonc_parser::parse_to_serde_value(&json_str, &Default::default())
+                .map_err(|err| {
+                    Error::UnexpectedValue(format!(
+                        "Parse {} failed. Error: {err}",
                         location.display()
-                    )))
-                }
-            }?;
-            merge(&mut json, extends_tsconfig_json);
+                    ))
+                })?
+                .unwrap_or_else(|| panic!("Transfer {} to serde value failed", location.display()));
+
+        // merge `extends`.
+        if let serde_json::Value::String(s) = &json["extends"] {
+            // `location` pointed to `dir/tsconfig.json`
+            let dir = location.parent().unwrap().to_path_buf();
+            let request = self.parse(s);
+            let state = self._resolve(Info::from(dir, request), context);
+            // Is it better to use cache?
+            if let State::Success(result) = state {
+                let extends_tsconfig_json = match result {
+                    ResolveResult::Info(info) => {
+                        self.parse_file_to_value(&info.get_path(), context)
+                    }
+                    ResolveResult::Ignored => {
+                        return Err(Error::UnexpectedValue(format!(
+                            "{s} had been ignored in {}",
+                            location.display()
+                        )))
+                    }
+                }?;
+                merge(&mut json, extends_tsconfig_json);
+            }
         }
+        Ok(json)
     }
-    Ok(json)
 }
 
 fn merge(a: &mut serde_json::Value, b: serde_json::Value) {

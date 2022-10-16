@@ -1,5 +1,7 @@
-use super::Plugin;
-use crate::{description::PkgInfo, AliasMap, Info, PathKind, ResolveResult, Resolver, State};
+use crate::{
+    context::Context, description::PkgInfo, AliasMap, Info, PathKind, Plugin, ResolveResult,
+    Resolver, State,
+};
 use std::path::PathBuf;
 
 pub struct AliasFieldPlugin<'a> {
@@ -33,7 +35,7 @@ impl<'a> AliasFieldPlugin<'a> {
 }
 
 impl<'a> Plugin for AliasFieldPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: Info) -> State {
+    fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         if !resolver.options.browser_field {
             return State::Resolving(info);
         }
@@ -56,21 +58,15 @@ impl<'a> Plugin for AliasFieldPlugin<'a> {
                         // {
                         //  "recursive": "recursive"
                         // }
-                        // TODO:
-                        // {
-                        //   "a": "b",
-                        //   "b": "c",
-                        //   "c": "a"
-                        // }
                         return State::Resolving(info);
                     }
                     let alias_info = Info::from(
                         self.pkg_info.dir_path.to_path_buf(),
                         info.request.clone().with_target(converted),
                     );
-                    let stats = resolver._resolve(alias_info);
-                    if stats.is_success() {
-                        return stats;
+                    let state = resolver._resolve(alias_info, context);
+                    if state.is_finished() {
+                        return state;
                     }
                 }
                 AliasMap::Ignored => return State::Success(ResolveResult::Ignored),

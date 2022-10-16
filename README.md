@@ -2,8 +2,6 @@
 
 TodoList:
 
-- [ ] context.
-- [ ] recursion error tip.
 - [ ] more exports/imports test cases.
 
 ## Benchmark

@@ -58,7 +58,8 @@ mod state;
 mod tsconfig;
 mod tsconfig_path;
 
-pub use cache::ResolverCache;
+pub use cache::Cache;
+use context::Context;
 pub use description::SideEffects;
 use entry::Entry;
 pub use error::Error;
@@ -76,7 +77,7 @@ use std::{
 #[derive(Debug)]
 pub struct Resolver {
     pub options: Options,
-    pub(crate) cache: Arc<ResolverCache>,
+    pub(crate) cache: Arc<Cache>,
     // In `PathBuf::from('/a/b/')` is equal `PathBuf::from('/a/b')`,
     // It may cause some problem.
     pub(crate) entries: dashmap::DashMap<(PathBuf, bool), Arc<Entry>>,
@@ -97,7 +98,7 @@ impl Resolver {
         let cache = if let Some(external_cache) = options.external_cache.as_ref() {
             external_cache.clone()
         } else {
-            Arc::new(ResolverCache::default())
+            Arc::new(Cache::default())
         };
         let enforce_extension = if options.enforce_extension.is_none() {
             Some(options.extensions.iter().any(|ext| ext.is_empty()))
@@ -120,11 +121,11 @@ impl Resolver {
     pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolveResult> {
         // let start = std::time::Instant::now();
         let info = Info::from(path.to_path_buf(), self.parse(request));
-
+        let mut context = Context::new();
         let result = if let Some(tsconfig_location) = self.options.tsconfig.as_ref() {
-            self._resolve_with_tsconfig(info, tsconfig_location)
+            self._resolve_with_tsconfig(info, tsconfig_location, &mut context)
         } else {
-            self._resolve(info)
+            self._resolve(info, &mut context)
         };
         // let duration = start.elapsed().as_millis();
         // println!("time cost: {:?} us", duration); // us
@@ -144,10 +145,15 @@ impl Resolver {
     }
 
     #[tracing::instrument]
-    fn _resolve(&self, info: Info) -> State {
-        AliasPlugin::default()
-            .apply(self, info)
-            .and_then(|info| PreferRelativePlugin::default().apply(self, info))
+    fn _resolve(&self, info: Info, context: &mut Context) -> State {
+        context.depth.increase();
+        if context.depth.cmp(127).is_ge() {
+            return State::Error(Error::Overflow);
+        }
+
+        let state = AliasPlugin::default()
+            .apply(self, info, context)
+            .and_then(|info| PreferRelativePlugin::default().apply(self, info, context))
             .and_then(|info| {
                 let request = if info.request.kind.eq(&PathKind::Normal) {
                     info.path.join(MODULE).join(&*info.request.target)
@@ -160,8 +166,10 @@ impl Resolver {
                 };
                 if let Some(pkg_info) = pkg_info {
                     ImportsFieldPlugin::new(&pkg_info)
-                        .apply(self, info)
-                        .and_then(|info| AliasFieldPlugin::new(&pkg_info).apply(self, info))
+                        .apply(self, info, context)
+                        .and_then(|info| {
+                            AliasFieldPlugin::new(&pkg_info).apply(self, info, context)
+                        })
                 } else {
                     State::Resolving(info)
                 }
@@ -172,11 +180,13 @@ impl Resolver {
                     PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
                 ) {
                     self.resolve_as_file(info)
-                        .and_then(|info| self.resolve_as_dir(info))
+                        .and_then(|info| self.resolve_as_dir(info, context))
                 } else {
-                    self.resolve_as_modules(info)
+                    self.resolve_as_modules(info, context)
                 }
-            })
+            });
+        context.depth.decrease();
+        state
     }
 }
 

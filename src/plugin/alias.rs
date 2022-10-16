@@ -1,13 +1,11 @@
-use crate::{options::AliasMap, Resolver, MODULE};
-
 use super::Plugin;
-use crate::{Info, ResolveResult, State};
+use crate::{AliasMap, Context, Info, ResolveResult, Resolver, State, MODULE};
 
 #[derive(Default)]
 pub struct AliasPlugin;
 
 impl Plugin for AliasPlugin {
-    fn apply(&self, resolver: &Resolver, info: Info) -> State {
+    fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         let inner_target = &info.request.target;
         if info.path.display().to_string().contains(MODULE) {
             return State::Resolving(info);
@@ -25,9 +23,9 @@ impl Plugin for AliasPlugin {
                             info.path.to_path_buf(),
                             info.request.clone().with_target(&normalized_target),
                         );
-                        let stats = resolver._resolve(alias_info);
-                        if stats.is_success() {
-                            return stats;
+                        let state = resolver._resolve(alias_info, context);
+                        if state.is_finished() {
+                            return state;
                         }
                     }
                     AliasMap::Ignored => return State::Success(ResolveResult::Ignored),

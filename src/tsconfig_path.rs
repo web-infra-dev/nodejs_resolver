@@ -1,7 +1,6 @@
 // Copy from https://github.com/dividab/tsconfig-paths
 
-use super::tsconfig::TsConfig;
-use crate::{parse::Request, Info, RResult, Resolver, State};
+use crate::{context::Context, parse::Request, Info, RResult, Resolver, State};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -38,8 +37,8 @@ impl Resolver {
             .collect()
     }
 
-    fn parse_tsconfig(location: &Path, resolver: &Resolver) -> RResult<TsConfigInfo> {
-        let tsconfig = TsConfig::parse_file(location, resolver)?;
+    fn parse_tsconfig(&self, location: &Path, context: &mut Context) -> RResult<TsConfigInfo> {
+        let tsconfig = self.parse_ts_file(location, context)?;
         let base_url = tsconfig
             .compiler_options
             .as_ref()
@@ -87,8 +86,13 @@ impl Resolver {
             .unwrap_or_default()
     }
 
-    pub(super) fn _resolve_with_tsconfig(&self, info: Info, location: &Path) -> State {
-        let tsconfig = match Self::parse_tsconfig(location, self) {
+    pub(super) fn _resolve_with_tsconfig(
+        &self,
+        info: Info,
+        location: &Path,
+        context: &mut Context,
+    ) -> State {
+        let tsconfig = match self.parse_tsconfig(location, context) {
             Ok(tsconfig) => tsconfig,
             Err(error) => return State::Error(error),
         };
@@ -112,13 +116,13 @@ impl Resolver {
                     .replace('*', star_match);
 
                 let path = PathBuf::from(physical_path);
-                let result = self._resolve(Info::from(path, Request::empty()));
-                if result.is_success() {
+                let result = self._resolve(Info::from(path, Request::empty()), context);
+                if result.is_finished() {
                     return result;
                 }
             }
         }
-        self._resolve(info)
+        self._resolve(info, context)
     }
 }
 

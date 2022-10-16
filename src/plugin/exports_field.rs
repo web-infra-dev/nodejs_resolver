@@ -1,8 +1,7 @@
 use crate::{
     description::PkgInfo,
-    kind::PathKind,
     map::{ExportsField, Field},
-    Error, Info, Resolver, State, MODULE,
+    Context, Error, Info, PathKind, Resolver, State, MODULE,
 };
 
 use super::Plugin;
@@ -31,7 +30,7 @@ impl<'a> ExportsFieldPlugin<'a> {
 }
 
 impl<'a> Plugin for ExportsFieldPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: Info) -> State {
+    fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         let target = &info.request.target;
 
         if !info.request.kind.eq(&PathKind::Normal) {
@@ -98,8 +97,8 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 Err(err) => return State::Error(err),
             };
             if is_file && ExportsField::check_target(&info.request.target) {
-                let stats = resolver._resolve(info);
-                if stats.is_success() {
+                let stats = resolver._resolve(info, context);
+                if stats.is_finished() {
                     return stats;
                 }
             }
