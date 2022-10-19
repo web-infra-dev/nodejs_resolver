@@ -1,6 +1,6 @@
 use nodejs_resolver::{
     test_helper::{p, vec_to_set},
-    AliasMap, Cache, Error, Options, ResolveResult, Resolver, SideEffects,
+    AliasMap, Cache, EnforceExtension, Error, Options, ResolveResult, Resolver, SideEffects,
 };
 
 use std::path::{Path, PathBuf};
@@ -274,7 +274,7 @@ fn extensions_test() {
 
     let resolver = Resolver::new(Options {
         extensions: vec![String::from(".js"), String::from(""), String::from(".ts")], // `extensions` can start with `.` or not.
-        enforce_extension: Some(false),
+        enforce_extension: EnforceExtension::Disabled,
         ..Default::default()
     });
     should_equal(

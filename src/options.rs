@@ -9,13 +9,20 @@ pub enum AliasMap {
 }
 
 #[derive(Debug, Clone)]
+pub enum EnforceExtension {
+    Enabled,
+    Disabled,
+    Auto,
+}
+
+#[derive(Debug, Clone)]
 pub struct Options {
     /// Tried detect file with this extension.
     /// Default is `[".js", ".json", ".node"]`
     pub extensions: Vec<String>,
     /// Enforce that a extension from extensions must be used.
-    /// Default is `None`
-    pub enforce_extension: Option<bool>,
+    /// Default is `Auto`.
+    pub enforce_extension: EnforceExtension,
     /// Maps key to value.
     /// Default is `vec![]`.
     /// The reason for using `Vec` instead `HashMap` to keep the order.
@@ -78,7 +85,7 @@ impl Default for Options {
         let condition_names: HashSet<String> =
             HashSet::from_iter(["node"].into_iter().map(String::from));
         let prefer_relative = false;
-        let enforce_extension = None;
+        let enforce_extension = EnforceExtension::Auto;
         let tsconfig = None;
         let external_cache = None;
         Self {
