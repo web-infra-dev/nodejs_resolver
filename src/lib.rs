@@ -65,7 +65,7 @@ use entry::Entry;
 pub use error::Error;
 pub use info::Info;
 use kind::PathKind;
-pub use options::{AliasMap, Options};
+pub use options::{AliasMap, EnforceExtension, Options};
 use plugin::{AliasFieldPlugin, AliasPlugin, ImportsFieldPlugin, Plugin, PreferRelativePlugin};
 use state::State;
 
@@ -100,11 +100,19 @@ impl Resolver {
         } else {
             Arc::new(Cache::default())
         };
-        let enforce_extension = if options.enforce_extension.is_none() {
-            Some(options.extensions.iter().any(|ext| ext.is_empty()))
-        } else {
-            options.enforce_extension
+
+        use options::EnforceExtension::*;
+        let enforce_extension = match options.enforce_extension {
+            Auto => {
+                if options.extensions.iter().any(|ext| ext.is_empty()) {
+                    Enabled
+                } else {
+                    Disabled
+                }
+            }
+            _ => options.enforce_extension,
         };
+
         let options = Options {
             enforce_extension,
             ..options

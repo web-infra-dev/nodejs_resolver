@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.43
+
+- optimize `options.enforce_extension`
+
 ## 0.0.42
 
 - add `state::Failed` for `forEachBail`.

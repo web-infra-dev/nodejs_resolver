@@ -1,10 +1,9 @@
 use crate::{
-    context::Context,
     plugin::{
         AliasFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin, MainFilePlugin,
         Plugin,
     },
-    Info, PathKind, ResolveResult, Resolver, State, MODULE,
+    Context, EnforceExtension, Info, PathKind, ResolveResult, Resolver, State, MODULE,
 };
 use smol_str::SmolStr;
 use std::path::{Path, PathBuf};
@@ -31,8 +30,7 @@ impl Resolver {
     #[tracing::instrument]
     pub(crate) fn resolve_as_file(&self, info: Info) -> State {
         let path = info.get_path();
-        let enforce = *self.options.enforce_extension.as_ref().unwrap_or(&false);
-        if enforce {
+        if matches!(self.options.enforce_extension, EnforceExtension::Enabled) {
             return self.resolve_file_with_ext(path, info);
         }
         let is_file = match self.load_entry(&path) {
