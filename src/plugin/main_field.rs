@@ -17,7 +17,7 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
             return State::Resolving(info);
         }
 
-        let mut main_field_info = Info::from(info.path.to_owned(), info.request.clone());
+        let main_field_info = Info::from(info.path.to_owned(), info.request.clone());
 
         for user_main_field in &resolver.options.main_fields {
             if let Some(main_field) = self
@@ -32,17 +32,17 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
                     break;
                 }
 
-                main_field_info = if main_field.starts_with("./") {
-                    main_field_info.with_target(main_field)
+                let main_field_info = if main_field.starts_with("./") {
+                    main_field_info.clone().with_target(main_field)
                 } else {
-                    main_field_info.with_target(&format!("./{main_field}"))
+                    main_field_info
+                        .clone()
+                        .with_target(&format!("./{main_field}"))
                 };
 
-                let stats = resolver._resolve(main_field_info, context);
-                if stats.is_finished() {
-                    return stats;
-                } else {
-                    main_field_info = stats.extract_info();
+                let state = resolver._resolve(main_field_info, context);
+                if state.is_finished() {
+                    return state;
                 }
             }
         }
