@@ -29,6 +29,10 @@ impl EntryKind {
     pub fn is_dir(&self) -> bool {
         matches!(self, EntryKind::Dir)
     }
+
+    pub fn exist(&self) -> bool {
+        matches!(self, EntryKind::NonExist)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -146,7 +150,8 @@ impl Resolver {
         let pkg_file_name = &self.options.description_file;
         let maybe_pkg_path = path.join(pkg_file_name);
         let pkg_file_stat = EntryStat::stat(&maybe_pkg_path).map_err(Error::Io)?;
-        let pkg_info = if pkg_file_stat.kind.is_file() {
+        let pkg_file_exist = pkg_file_stat.kind.is_file();
+        let pkg_info = if pkg_file_exist {
             let content = self
                 .cache
                 .fs
@@ -195,4 +200,32 @@ impl Resolver {
     pub fn clear_entries(&self) {
         self.entries.clear();
     }
+
+    pub fn get_dependency_from_entry(&self) -> (Vec<PathBuf>, Vec<PathBuf>) {
+        let mut miss_dependency = vec![];
+        let mut file_dependency = vec![];
+        for entry in &self.entries {
+            let reader = entry.as_ref().stat.read().unwrap();
+            let kind = reader.as_ref().map(|reader| &reader.kind);
+            if let Some(kind) = kind {
+                if kind.is_file() || kind.is_dir() {
+                    file_dependency.push(entry.path.to_path_buf())
+                } else {
+                    miss_dependency.push(entry.path.to_path_buf())
+                }
+            }
+        }
+        (file_dependency, miss_dependency)
+    }
+}
+
+#[test]
+fn dependency_test() {
+    let case_path = super::test_helper::p(vec!["full", "a"]);
+    let request = "package2";
+    let resolver = Resolver::new(Default::default());
+    resolver.resolve(&case_path, request).unwrap();
+    let (file, missing) = resolver.get_dependency_from_entry();
+    assert_eq!(file.len(), 3);
+    assert_eq!(missing.len(), 4);
 }
