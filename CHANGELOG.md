@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.44
+
+- support `fileDependencies` and `missingDependencies`.
+
 ## 0.0.43
 
 - optimize `options.enforce_extension`
