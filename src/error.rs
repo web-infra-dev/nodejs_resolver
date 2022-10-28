@@ -7,4 +7,5 @@ pub enum Error {
     UnexpectedValue(String),
     ResolveFailedTag,
     Overflow,
+    CantFindTsConfig,
 }

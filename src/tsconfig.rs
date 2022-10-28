@@ -3,10 +3,9 @@
 use crate::context::Context;
 use crate::{Error, Info, RResult, ResolveResult, Resolver, State};
 use std::collections::HashMap;
-use std::fs::read_to_string;
 use std::path::Path;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TsConfig {
     pub extends: Option<String>,
     pub compiler_options: Option<CompilerOptions>,
@@ -59,7 +58,18 @@ impl Resolver {
         location: &Path,
         context: &mut Context,
     ) -> RResult<serde_json::Value> {
-        let json_str = read_to_string(location).map_err(Error::Io)?;
+        let entry = match self.load_entry(location) {
+            Ok(entry) => entry.clone(),
+            Err(error) => return Err(error),
+        };
+        if !entry.is_file() {
+            // Its role is to ensure that `stat` exists
+            return Err(Error::CantFindTsConfig);
+        }
+        let reader = entry.stat.read().unwrap();
+        let stat = reader.as_ref().unwrap();
+        let json_str = self.cache.fs.read_file(location, stat).map_err(Error::Io)?;
+        // TODO: should cache `json_str` -> TsConfig
         let mut json: serde_json::Value =
             jsonc_parser::parse_to_serde_value(&json_str, &Default::default())
                 .map_err(|err| {

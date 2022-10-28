@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.45
+
+- fix when entry path is pointed package.json file.
+- add cache for tsconfig.
+
 ## 0.0.44
 
 - support `fileDependencies` and `missingDependencies`.

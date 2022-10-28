@@ -1,6 +1,6 @@
 [package]
 name = "nodejs-resolver"
-version = "0.0.44"
+version = "0.0.45"
 edition = "2021"
 license = "MIT"
 description = "nodejs resolve"
