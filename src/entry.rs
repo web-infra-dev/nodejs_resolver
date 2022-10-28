@@ -66,10 +66,10 @@ impl EntryStat {
 #[derive(Debug)]
 pub struct Entry {
     pub parent: Option<Arc<Entry>>,
-    path: PathBuf,
+    pub path: PathBuf,
     pub pkg_info: Option<Arc<PkgInfo>>,
-    stat: RwLock<Option<EntryStat>>,
-    symlink: RwLock<Option<PathBuf>>,
+    pub stat: RwLock<Option<EntryStat>>,
+    pub symlink: RwLock<Option<PathBuf>>,
 }
 
 impl Entry {
@@ -146,9 +146,17 @@ impl Resolver {
         } else {
             None
         };
+        // the path of it pointed maybe dir or file
         let path = path.to_path_buf();
-        let pkg_file_name = &self.options.description_file;
-        let maybe_pkg_path = path.join(pkg_file_name);
+        let pkg_name = &self.options.description_file;
+        let is_pkg_name_suffix = path.ends_with(pkg_name);
+        let maybe_pkg_path = if is_pkg_name_suffix {
+            // path is xxxxx/xxxxx/package.json
+            path.to_path_buf()
+        } else {
+            path.join(pkg_name)
+        };
+
         let pkg_file_stat = EntryStat::stat(&maybe_pkg_path).map_err(Error::Io)?;
         let pkg_file_exist = pkg_file_stat.kind.is_file();
         let pkg_info = if pkg_file_exist {
@@ -160,10 +168,11 @@ impl Resolver {
             let pkg_json = if let Some(cached) = self.cache.pkg_json.get(&content) {
                 cached.clone()
             } else {
-                Arc::new(PkgJSON::parse(&content, &maybe_pkg_path)?)
+                let result = Arc::new(PkgJSON::parse(&content, &maybe_pkg_path)?);
+                self.cache.pkg_json.insert(content, result.clone());
+                result
             };
-            let dir_path = path.clone();
-            self.cache.pkg_json.insert(content, pkg_json.clone());
+            let dir_path = maybe_pkg_path.parent().unwrap().to_path_buf();
             let pkg_info = Arc::new(PkgInfo {
                 json: pkg_json,
                 dir_path,
@@ -175,15 +184,10 @@ impl Resolver {
             None
         };
 
-        let need_stat = if let Some(info) = &pkg_info {
-            // Is path pointed xxx.package.json ?
-            // if `true`, then use above stats
-            // else return `!true` means stat is None.
-            let is_pkg_file = info.dir_path.join(&pkg_file_name).eq(&path);
-            !is_pkg_file
-        } else {
-            true
-        };
+        // Is path ended with `package.json`?
+        // if `true`, then use above stats
+        // else return `!true` means stat is None.
+        let need_stat = !(pkg_info.is_some() && is_pkg_name_suffix);
 
         let stat = RwLock::new(if need_stat { None } else { Some(pkg_file_stat) });
         let symlink = RwLock::new(None);

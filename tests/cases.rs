@@ -1661,6 +1661,18 @@ fn exports_fields_test() {
     should_equal(
         &resolver,
         &export_cases_path,
+        "exports-field/package.json",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "exports-field",
+            "package.json",
+        ]),
+    );
+
+    should_equal(
+        &resolver,
+        &export_cases_path,
         "exports-field/dist/main.js",
         p(vec![
             "exports-field",
@@ -2408,6 +2420,19 @@ fn tsconfig_paths_extends_from_node_modules() {
         "foo",
         p(vec!["tsconfig-paths-extends-from-module", "src", "test.ts"]),
     );
+}
+
+#[test]
+fn tsconfig_inexist() {
+    let resolver = Resolver::new(Options {
+        extensions: vec![".ts".to_string()],
+        tsconfig: Some(p(vec![])),
+        ..Default::default()
+    });
+    assert!(matches!(
+        resolver.resolve(&p(vec![]), "./a.js"),
+        Err(Error::CantFindTsConfig)
+    ))
 }
 
 #[test]
