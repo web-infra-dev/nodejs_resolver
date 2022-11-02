@@ -1,0 +1,1 @@
+console.log(require.resolve("exports-field/dist/main.js"))

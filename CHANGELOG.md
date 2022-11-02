@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.46
+
+- fix alias failed in `node_modules`.
+- fix exports map bug.
+
 ## 0.0.45
 
 - fix when entry path is pointed package.json file.
