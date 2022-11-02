@@ -322,6 +322,17 @@ fn alias_test() {
             //     String::from("./b$"),
             //     AliasMap::Target(String::from("./a/index")),
             // ), // TODO: should we use trailing?
+            (
+                String::from("fs"),
+                AliasMap::Target(
+                    alias_cases_path
+                        .join("node_modules")
+                        .join("browser")
+                        .join("index.js")
+                        .to_string_lossy()
+                        .to_string(),
+                ),
+            ),
             (String::from("./e"), AliasMap::Target(String::from("./d"))),
             (String::from("./d"), AliasMap::Target(String::from("./e"))),
             (String::from("./f"), AliasMap::Target(String::from("./g"))),
@@ -353,6 +364,19 @@ fn alias_test() {
         ],
         ..Default::default()
     });
+
+    should_equal(
+        &resolver,
+        &alias_cases_path.join("node_modules").join("@recursive"),
+        "fs",
+        p(vec!["alias", "node_modules", "browser", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "fs",
+        p(vec!["alias", "node_modules", "browser", "index.js"]),
+    );
 
     should_overflow(&resolver, &alias_cases_path, "./e");
 
@@ -1683,6 +1707,21 @@ fn exports_fields_test() {
             "main.js",
         ]),
     );
+
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "exports-field/dist/main",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "exports-field",
+            "lib",
+            "lib2",
+            "main.js",
+        ]),
+    );
+
     should_equal(
         &resolver,
         &export_cases_path,
@@ -1827,12 +1866,18 @@ fn exports_fields_test() {
             "browser.js?foo",
         ]),
     );
-    // TODO: error stack
-    should_unexpected_value_error(
+    should_equal(
         &resolver,
         &export_cases_path2,
         "exports-field/dist/main",
-        "Package path exports-field/dist/main is not exported".to_string(),
+        p(vec![
+            "exports-field2",
+            "node_modules",
+            "exports-field",
+            "lib",
+            "lib2",
+            "main.js",
+        ]),
     );
     // TODO: error stack
     // TODO: should `exports-field?foo is not exported`.

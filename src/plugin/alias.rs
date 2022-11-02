@@ -1,5 +1,5 @@
 use super::Plugin;
-use crate::{AliasMap, Context, Info, ResolveResult, Resolver, State, MODULE};
+use crate::{AliasMap, Context, Info, ResolveResult, Resolver, State};
 
 #[derive(Default)]
 pub struct AliasPlugin;
@@ -7,9 +7,6 @@ pub struct AliasPlugin;
 impl Plugin for AliasPlugin {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         let inner_target = &info.request.target;
-        if info.path.display().to_string().contains(MODULE) {
-            return State::Resolving(info);
-        }
         for (from, to) in &resolver.options.alias {
             if inner_target.starts_with(from) {
                 match to {
