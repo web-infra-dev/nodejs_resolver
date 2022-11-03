@@ -1086,6 +1086,21 @@ fn resolve_test() {
 
 #[test]
 fn browser_filed_test() {
+    let browser_module_case_path = p(vec!["browser-module"]);
+
+    let resolver = Resolver::new(Default::default());
+    should_equal(
+        &resolver,
+        &browser_module_case_path,
+        "browser-string",
+        p(vec![
+            "browser-module",
+            "node_modules",
+            "browser-string",
+            "index.js",
+        ]),
+    );
+
     let resolver = Resolver::new(Options {
         browser_field: true,
         ..Default::default()
@@ -1093,13 +1108,22 @@ fn browser_filed_test() {
 
     should_ignored(&resolver, &p(vec![]), "./browser-after-main");
 
-    let browser_module_case_path = p(vec!["browser-module"]);
-
     should_ignored(&resolver, &browser_module_case_path, ".");
     should_ignored(&resolver, &browser_module_case_path, "./lib/ignore");
     should_ignored(&resolver, &browser_module_case_path, "./lib/ignore.js");
     should_ignored(&resolver, &browser_module_case_path, "./util.inspect");
     should_ignored(&resolver, &browser_module_case_path, "./util.inspect.js");
+    should_equal(
+        &resolver,
+        &browser_module_case_path,
+        "browser-string",
+        p(vec![
+            "browser-module",
+            "node_modules",
+            "browser-string",
+            "target.js",
+        ]),
+    );
     should_equal(
         &resolver,
         &browser_module_case_path,

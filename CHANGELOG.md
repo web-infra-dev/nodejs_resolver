@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.47
+
+- support `string` and `false` in package.json/browser field.
+
 ## 0.0.46
 
 - fix alias failed in `node_modules`.
