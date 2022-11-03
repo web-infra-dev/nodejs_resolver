@@ -13,14 +13,11 @@ impl<'a> AliasFieldPlugin<'a> {
         Self { pkg_info }
     }
 
-    pub(super) fn request_target_is_module_and_equal_alias_key(
-        alias_key: &String,
-        info: &Info,
-    ) -> bool {
+    fn request_target_is_module_and_equal_alias_key(alias_key: &String, info: &Info) -> bool {
         info.request.target.eq(alias_key)
     }
 
-    pub(super) fn request_path_is_equal_alias_key_path(
+    fn request_path_is_equal_alias_key_path(
         alias_path: &PathBuf,
         info: &Info,
         extensions: &[String],
