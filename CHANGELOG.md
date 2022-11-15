@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.48
+
+- return `None` if the sideEffects in package.json had invalid value.
+
 ## 0.0.47
 
 - support `string` and `false` in package.json/browser field.

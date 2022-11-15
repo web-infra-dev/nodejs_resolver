@@ -92,20 +92,22 @@ impl PkgJSON {
                         if let Some(str) = value.as_str() {
                             ans.push(str.to_string());
                         } else {
-                            return Err(Error::UnexpectedValue(format!(
-                                "sideEffects in {} had unexpected value {}",
+                            println!(
+                                "warning: sideEffects in {} had unexpected value {}",
                                 file_path.display(),
                                 value
-                            )));
+                            );
+                            return Ok(None);
                         }
                     }
                     Ok(Some(SideEffects::Array(ans)))
                 } else {
-                    Err(Error::UnexpectedValue(format!(
-                        "sideEffects in {} had unexpected value {}",
+                    println!(
+                        "warning: sideEffects in {} had unexpected value {}",
                         file_path.display(),
                         value
-                    )))
+                    );
+                    Ok(None)
                 }
             })?;
 
