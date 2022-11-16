@@ -231,5 +231,5 @@ fn dependency_test() {
     resolver.resolve(&case_path, request).unwrap();
     let (file, missing) = resolver.get_dependency_from_entry();
     assert_eq!(file.len(), 3);
-    assert_eq!(missing.len(), 4);
+    assert_eq!(missing.len(), 1);
 }

@@ -59,7 +59,7 @@ impl Resolver {
         context: &mut Context,
     ) -> RResult<serde_json::Value> {
         let entry = match self.load_entry(location) {
-            Ok(entry) => entry.clone(),
+            Ok(entry) => entry,
             Err(error) => return Err(error),
         };
         if !entry.is_file() {
