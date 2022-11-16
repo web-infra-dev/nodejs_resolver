@@ -3,7 +3,7 @@ use crate::{
         AliasFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin, MainFilePlugin,
         Plugin,
     },
-    Context, EnforceExtension, Info, PathKind, ResolveResult, Resolver, State, MODULE,
+    Context, EnforceExtension, Info, ResolveResult, Resolver, State, MODULE,
 };
 use smol_str::SmolStr;
 use std::path::{Path, PathBuf};
@@ -117,13 +117,11 @@ impl Resolver {
                             ImportsFieldPlugin::new(&pkg_info).apply(self, info, context)
                         })
                         .and_then(|info| {
-                            let info = if matches!(info.request.kind, PathKind::Normal) {
-                                let target = format!("./{}", info.request.target);
-                                info.with_target(&target)
-                            } else {
-                                info
-                            };
-
+                            let path = info.path.join(&*info.request.target);
+                            let info = info.with_path(path).with_target(".");
+                            MainFieldPlugin::new(&pkg_info).apply(self, info, context)
+                        })
+                        .and_then(|info| {
                             AliasFieldPlugin::new(&pkg_info).apply(self, info, context)
                         })
                 } else {
@@ -142,7 +140,7 @@ impl Resolver {
         }
         .and_then(|info| {
             if let Some(parent_dir) = original_dir.parent() {
-                self.resolve_as_modules(info.with_path(parent_dir.to_path_buf()), context)
+                self._resolve(info.with_path(parent_dir.to_path_buf()), context)
             } else {
                 State::Resolving(info)
             }

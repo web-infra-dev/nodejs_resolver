@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.49
+
+- `resolve_modules` will invoke `_resolve` recursively;
+- execute `MainFiledPlugin` before `AliasFiledPlugin` in `resolve_modules`;
+- do not judge the kind after `ImportsFieldPlugin` in `resolve_modules`;
+- some test cases about `browser` pointed to itself.
+
 ## 0.0.48
 
 - return `None` if the sideEffects in package.json had invalid value.

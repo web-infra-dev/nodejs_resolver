@@ -23,7 +23,7 @@ fn should_ignored(resolver: &Resolver, path: &Path, request: &str) {
     }
 }
 
-fn should_resolve_failed_error(resolver: &Resolver, path: &Path, request: &str) {
+fn should_resolve_failed(resolver: &Resolver, path: &Path, request: &str) {
     let result = resolver.resolve(path, request);
     if !matches!(result, Err(Error::ResolveFailedTag)) {
         println!("{:?}", result);
@@ -101,7 +101,7 @@ fn extensions_test() {
         "./a.js",
         p(vec!["extensions", "a.js"]),
     );
-    should_resolve_failed_error(&resolver, &extensions_cases_path, "./a.js/");
+    should_resolve_failed(&resolver, &extensions_cases_path, "./a.js/");
 
     should_equal(
         &resolver,
@@ -145,8 +145,8 @@ fn extensions_test() {
         ".",
         p(vec!["extensions", "index.js"]),
     );
-    should_resolve_failed_error(&resolver, &extensions_cases_path.join("index."), ".");
-    should_resolve_failed_error(&resolver, &extensions_cases_path.join("inde"), ".");
+    should_resolve_failed(&resolver, &extensions_cases_path.join("index."), ".");
+    should_resolve_failed(&resolver, &extensions_cases_path.join("inde"), ".");
 
     should_equal(
         &resolver,
@@ -160,10 +160,10 @@ fn extensions_test() {
         "m/",
         p(vec!["extensions", "node_modules", "m", "index.ts"]),
     );
-    should_resolve_failed_error(&resolver, &extensions_cases_path, "./b.js");
-    should_resolve_failed_error(&resolver, &extensions_cases_path, "fs");
-    should_resolve_failed_error(&resolver, &extensions_cases_path, "./a.js/");
-    should_resolve_failed_error(&resolver, &extensions_cases_path, "m.js/");
+    should_resolve_failed(&resolver, &extensions_cases_path, "./b.js");
+    should_resolve_failed(&resolver, &extensions_cases_path, "fs");
+    should_resolve_failed(&resolver, &extensions_cases_path, "./a.js/");
+    should_resolve_failed(&resolver, &extensions_cases_path, "m.js/");
     let resolver = Resolver::new(Options {
         extensions: vec![String::from("ts"), String::from(".js")],
         ..Default::default()
@@ -217,7 +217,7 @@ fn extensions_test() {
         ".",
         p(vec!["extensions", "index.ts"]),
     );
-    should_resolve_failed_error(&resolver, &extensions_cases_path.join("inde"), ".");
+    should_resolve_failed(&resolver, &extensions_cases_path.join("inde"), ".");
 
     should_equal(
         &resolver,
@@ -231,10 +231,10 @@ fn extensions_test() {
         "m/",
         p(vec!["extensions", "node_modules", "m", "index.js"]),
     );
-    should_resolve_failed_error(&resolver, &extensions_cases_path, "./b.js");
-    should_resolve_failed_error(&resolver, &extensions_cases_path, "fs");
-    should_resolve_failed_error(&resolver, &extensions_cases_path, "./a.js/");
-    should_resolve_failed_error(&resolver, &extensions_cases_path, "m.js/");
+    should_resolve_failed(&resolver, &extensions_cases_path, "./b.js");
+    should_resolve_failed(&resolver, &extensions_cases_path, "fs");
+    should_resolve_failed(&resolver, &extensions_cases_path, "./a.js/");
+    should_resolve_failed(&resolver, &extensions_cases_path, "m.js/");
 
     let extensions_cases_path = p(vec!["extensions2"]);
     let resolver = Resolver::new(Options {
@@ -501,7 +501,7 @@ fn alias_test() {
         "@/index",
         p(vec!["alias", "c", "dir", "index"]),
     );
-    should_resolve_failed_error(&resolver, &alias_cases_path, "@/a.js");
+    should_resolve_failed(&resolver, &alias_cases_path, "@/a.js");
     should_equal(
         &resolver,
         &alias_cases_path,
@@ -526,7 +526,7 @@ fn alias_test() {
         "@start/a",
         p(vec!["alias", "a", "index"]),
     );
-    should_resolve_failed_error(&resolver, &Path::new("@start/a"), "");
+    should_resolve_failed(&resolver, &Path::new("@start/a"), "");
 
     // TODO: exact alias
     // should_equal(resolver, &alias_cases_path, "./b?aa#bb?cc", fixture!("alias/a/index?aa#bb?cc"));
@@ -856,7 +856,7 @@ fn pnpm_structure_test() {
             "index.js",
         ]),
     );
-    should_resolve_failed_error(&resolver, &case_path.join("exports-field-c"), "./b");
+    should_resolve_failed(&resolver, &case_path.join("exports-field-c"), "./b");
     should_equal(
         &resolver,
         &case_path.join("exports-field-c").join("lib"),
@@ -1177,8 +1177,8 @@ fn browser_filed_test() {
         "./toString",
         p(vec!["browser-module", "lib", "toString.js"]),
     );
-    should_resolve_failed_error(&resolver, &browser_module_case_path, "toString");
-    should_resolve_failed_error(&resolver, &browser_module_case_path, "./toString.js");
+    should_resolve_failed(&resolver, &browser_module_case_path, "toString");
+    should_resolve_failed(&resolver, &browser_module_case_path, "./toString.js");
     should_equal(
         &resolver,
         &browser_module_case_path,
@@ -1399,7 +1399,7 @@ fn full_specified_test() {
         browser_field: true,
         ..Default::default()
     });
-    should_resolve_failed_error(&resolver, &full_cases_path.join(".."), ".");
+    should_resolve_failed(&resolver, &full_cases_path.join(".."), ".");
     should_equal(
         &resolver,
         &full_cases_path,
@@ -1520,12 +1520,12 @@ fn missing_test() {
     });
     // TODO: optimize error
     // TODO: path
-    should_resolve_failed_error(&resolver, &fixture_path, "./missing-file");
-    should_resolve_failed_error(&resolver, &fixture_path, "./missing-file.js");
-    should_resolve_failed_error(&resolver, &fixture_path, "missing-module");
-    should_resolve_failed_error(&resolver, &fixture_path, "missing-module/missing-file");
-    should_resolve_failed_error(&resolver, &fixture_path, "m1/missing-file");
-    should_resolve_failed_error(&resolver, &fixture_path, "m1/");
+    should_resolve_failed(&resolver, &fixture_path, "./missing-file");
+    should_resolve_failed(&resolver, &fixture_path, "./missing-file.js");
+    should_resolve_failed(&resolver, &fixture_path, "missing-module");
+    should_resolve_failed(&resolver, &fixture_path, "missing-module/missing-file");
+    should_resolve_failed(&resolver, &fixture_path, "m1/missing-file");
+    should_resolve_failed(&resolver, &fixture_path, "m1/");
     should_equal(
         &resolver,
         &fixture_path,
@@ -1681,7 +1681,7 @@ fn exports_fields_test() {
         condition_names: vec_to_set(vec!["webpack"]),
         ..Default::default()
     });
-    should_resolve_failed_error(&resolver, &export_cases_path, "@exports-field/coreaaaa");
+    should_resolve_failed(&resolver, &export_cases_path, "@exports-field/coreaaaa");
     // TODO: error stack
     should_unexpected_value_error(
         &resolver,
@@ -1785,7 +1785,7 @@ fn exports_fields_test() {
             "main.js",
         ]),
     );
-    should_resolve_failed_error(
+    should_resolve_failed(
         &resolver,
         &export_cases_path,
         "./node_modules/exports-field/dist/main",
@@ -2273,7 +2273,7 @@ fn tsconfig_paths_test() {
         "test2/foo",
         p(vec!["tsconfig-paths", "test2-success", "foo.ts"]),
     );
-    should_resolve_failed_error(&resolver, &tsconfig_paths, "te*t3/foo");
+    should_resolve_failed(&resolver, &tsconfig_paths, "te*t3/foo");
     should_equal(
         &resolver,
         &tsconfig_paths,
@@ -2382,7 +2382,7 @@ fn tsconfig_paths_nested() {
             "foo.ts",
         ]),
     );
-    should_resolve_failed_error(&resolver, &tsconfig_paths, "te*t3/foo");
+    should_resolve_failed(&resolver, &tsconfig_paths, "te*t3/foo");
     should_equal(
         &resolver,
         &tsconfig_paths,
@@ -2433,7 +2433,7 @@ fn tsconfig_paths_without_base_url_test() {
         tsconfig: Some(case_path.join("tsconfig.json")),
         ..Default::default()
     });
-    should_resolve_failed_error(&resolver, &case_path, "should-not-be-imported")
+    should_resolve_failed(&resolver, &case_path, "should-not-be-imported")
 }
 
 #[test]
@@ -2460,7 +2460,7 @@ fn tsconfig_paths_missing_base_url() {
         tsconfig: Some(case_path.join("tsconfig.json")),
         ..Default::default()
     });
-    should_resolve_failed_error(&resolver, &case_path, "#/test");
+    should_resolve_failed(&resolver, &case_path, "#/test");
 }
 
 #[test]
@@ -2648,6 +2648,105 @@ fn shared_cache_test2() {
 fn empty_test() {
     let case_path = p(vec!["empty"]);
     let resolver = Resolver::new(Options::default());
-    should_resolve_failed_error(&resolver, &case_path, ".");
-    should_resolve_failed_error(&resolver, &p(vec![]), "./empty");
+    should_resolve_failed(&resolver, &case_path, ".");
+    should_resolve_failed(&resolver, &p(vec![]), "./empty");
+}
+
+#[test]
+fn browser_it_self() {
+    let case_path = p(vec!["browser-to-self"]);
+    let resolver = Resolver::new(Options {
+        browser_field: true,
+        condition_names: vec_to_set(vec!["browser"]),
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &case_path,
+        "a.js",
+        p(vec!["browser-to-self", "node_modules", "a.js", "a.js"]),
+    );
+    should_equal(
+        &resolver,
+        &case_path,
+        "b.js",
+        p(vec!["browser-to-self", "node_modules", "b.js", "b.js"]),
+    );
+    should_equal(
+        &resolver,
+        &case_path,
+        "b.js/b.js",
+        p(vec!["browser-to-self", "node_modules", "b.js", "b.js"]),
+    );
+    should_equal(
+        &resolver,
+        &case_path,
+        "b.js/b.mjs",
+        p(vec!["browser-to-self", "node_modules", "b.js", "b.mjs"]),
+    );
+    should_equal(
+        &resolver,
+        &case_path,
+        "b.js/package.json",
+        p(vec![
+            "browser-to-self",
+            "node_modules",
+            "b.js",
+            "package.json",
+        ]),
+    );
+    should_overflow(&resolver, &case_path, "c.js");
+    let resolver = Resolver::new(Options {
+        browser_field: true,
+        main_fields: vec![
+            "browser".to_string(),
+            "module".to_string(),
+            "main".to_string(),
+        ],
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &case_path,
+        "a.js",
+        p(vec!["browser-to-self", "node_modules", "a.js", "a.js"]),
+    );
+    should_equal(
+        &resolver,
+        &case_path,
+        "c.js",
+        p(vec!["browser-to-self", "node_modules", "c.js", "c.js"]),
+    );
+    let resolver = Resolver::new(Options {
+        browser_field: false,
+        main_fields: vec![
+            "browser".to_string(),
+            "module".to_string(),
+            "main".to_string(),
+        ],
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &case_path,
+        "a.js",
+        p(vec!["browser-to-self", "node_modules", "a.js", "a.js"]),
+    );
+    should_equal(
+        &resolver,
+        &case_path,
+        "c.js",
+        p(vec!["browser-to-self", "node_modules", "c.js", "c.js"]),
+    );
+    let resolver = Resolver::new(Options {
+        browser_field: false,
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &case_path,
+        "a.js",
+        p(vec!["browser-to-self", "node_modules", "a.js", "a.js"]),
+    );
+    should_resolve_failed(&resolver, &case_path, "c.js");
 }
