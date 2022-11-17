@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.0.50
+
+- fix bug under pnpm structure.
+
 ## 0.0.49
 
 - `resolve_modules` will invoke `_resolve` recursively;

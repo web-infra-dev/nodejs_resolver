@@ -1,7 +1,7 @@
 use crate::{
     description::PkgInfo,
     map::{ExportsField, Field},
-    Context, Error, Info, PathKind, Resolver, State, MODULE,
+    Context, Error, Info, Resolver, State,
 };
 
 use super::Plugin;
@@ -14,32 +14,11 @@ impl<'a> ExportsFieldPlugin<'a> {
     pub fn new(pkg_info: &'a PkgInfo) -> Self {
         Self { pkg_info }
     }
-
-    fn is_in_module(&self, pkg_info: &PkgInfo) -> bool {
-        pkg_info.dir_path.to_string_lossy().contains(MODULE)
-    }
-
-    pub(crate) fn is_resolve_self(pkg_info: &PkgInfo, info: &Info) -> bool {
-        pkg_info
-            .json
-            .name
-            .as_ref()
-            .map(|pkg_name| info.request.target.starts_with(pkg_name))
-            .map_or(false, |ans| ans)
-    }
 }
 
 impl<'a> Plugin for ExportsFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         let target = &info.request.target;
-
-        if !info.request.kind.eq(&PathKind::Normal) {
-            return State::Resolving(info);
-        }
-
-        if !self.is_in_module(self.pkg_info) && !Self::is_resolve_self(self.pkg_info, &info) {
-            return State::Resolving(info);
-        }
 
         let list = if let Some(root) = &self.pkg_info.json.exports_field_tree {
             let query = &info.request.query;
@@ -114,7 +93,8 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
         }
 
         State::Error(Error::UnexpectedValue(format!(
-            "Package path {target} is not exported"
+            "Package path {target} is not exported {}",
+            info.path.display()
         )))
         // TODO: `info.abs_dir_path.as_os_str().to_str().unwrap(),` has abs_path
     }

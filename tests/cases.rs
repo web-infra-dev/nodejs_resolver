@@ -844,7 +844,18 @@ fn pnpm_structure_test() {
     let resolver = Resolver::new(Options {
         ..Default::default()
     });
-
+    should_equal(
+        &resolver,
+        &case_path.join("exports-field-a").join("lib"),
+        "exports-field-aa",
+        p(vec![
+            "pnpm-structure",
+            "node_modules",
+            "exports-field-aa",
+            "index.js",
+        ]),
+    );
+    should_resolve_failed(&resolver, &case_path.join("exports-field-c"), "./b");
     should_equal(
         &resolver,
         &case_path.join("exports-field-c").join("lib"),
@@ -856,7 +867,6 @@ fn pnpm_structure_test() {
             "index.js",
         ]),
     );
-    should_resolve_failed(&resolver, &case_path.join("exports-field-c"), "./b");
     should_equal(
         &resolver,
         &case_path.join("exports-field-c").join("lib"),
@@ -869,7 +879,18 @@ fn pnpm_structure_test() {
             "b.js",
         ]),
     );
-
+    should_equal(
+        &resolver,
+        &case_path.join("exports-field-a").join("lib"),
+        "exports-field-a",
+        p(vec![
+            "pnpm-structure",
+            "node_modules",
+            "exports-field-a",
+            "lib",
+            "index.js",
+        ]),
+    );
     should_equal(
         &resolver,
         &case_path.join("exports-field-a").join("lib"),
@@ -904,14 +925,12 @@ fn pnpm_structure_test() {
             "index.js",
         ]),
     );
-
     should_unexpected_value_error(
         &resolver,
         &case_path.join("exports-field-a"),
         "exports-field-b",
         "Package path exports-field-b is not exported".to_string(),
     );
-
     should_equal(
         &resolver,
         &p(vec!["pnpm-structure", "module-a"]),
@@ -1107,7 +1126,6 @@ fn browser_filed_test() {
     });
 
     should_ignored(&resolver, &p(vec![]), "./browser-after-main");
-
     should_ignored(&resolver, &browser_module_case_path, ".");
     should_ignored(&resolver, &browser_module_case_path, "./lib/ignore");
     should_ignored(&resolver, &browser_module_case_path, "./lib/ignore.js");
@@ -1603,13 +1621,11 @@ fn scoped_packages_test() {
 #[test]
 fn exports_fields_test() {
     // TODO: [`exports_fields`](https://github.com/webpack/enhanced-resolve/blob/main/test/exportsField.js#L2280) flag
-
     let export_cases_path = p(vec!["exports-field"]);
     let resolver = Resolver::new(Options {
         condition_names: vec_to_set(vec!["import"]),
         ..Default::default()
     });
-
     should_equal(
         &resolver,
         &export_cases_path,
@@ -1639,13 +1655,11 @@ fn exports_fields_test() {
             "index.js",
         ]),
     );
-
     let resolver = Resolver::new(Options {
         extensions: vec![String::from(".js")],
         condition_names: vec_to_set(vec!["require"]),
         ..Default::default()
     });
-
     should_equal(
         &resolver,
         &export_cases_path,
@@ -1675,7 +1689,6 @@ fn exports_fields_test() {
             "index.js",
         ]),
     );
-
     let resolver = Resolver::new(Options {
         extensions: vec![String::from(".js")],
         condition_names: vec_to_set(vec!["webpack"]),
@@ -1689,7 +1702,6 @@ fn exports_fields_test() {
         "exports-field/x.js",
         "Package path exports-field/x.js is not exported".to_string(),
     );
-
     // TODO: error stack
     should_unexpected_value_error(
         &resolver,
@@ -1697,7 +1709,6 @@ fn exports_fields_test() {
         "exports-field/dist/a.js",
         "Package path exports-field/dist/a.js is not exported".to_string(),
     );
-
     // TODO: error stack
     should_unexpected_value_error(
         &resolver,
@@ -1705,7 +1716,6 @@ fn exports_fields_test() {
         "exports-field/dist/../../../a.js",
         "Package path exports-field/dist/../../../a.js is not exported".to_string(),
     );
-
     should_equal(
         &resolver,
         &export_cases_path,
@@ -1717,7 +1727,6 @@ fn exports_fields_test() {
             "package.json",
         ]),
     );
-
     should_equal(
         &resolver,
         &export_cases_path,
@@ -1731,7 +1740,6 @@ fn exports_fields_test() {
             "main.js",
         ]),
     );
-
     should_equal(
         &resolver,
         &export_cases_path,
@@ -1745,7 +1753,6 @@ fn exports_fields_test() {
             "main.js",
         ]),
     );
-
     should_equal(
         &resolver,
         &export_cases_path,
@@ -1771,7 +1778,6 @@ fn exports_fields_test() {
         "@exports-field/core/a",
         "Package path @exports-field/core/a is not exported".to_string(),
     );
-
     // `exports` only used in `Normal` target.
     should_equal(
         &resolver,
@@ -1818,14 +1824,12 @@ fn exports_fields_test() {
         "exports-field/lib",
         "Package path exports-field/lib is not exported".to_string(),
     );
-
     should_unexpected_value_error(
         &resolver,
         &export_cases_path,
         "invalid-exports-field",
         "Export field key can't mixed relative path and conditional object".to_string(),
     );
-
     // `exports` filed take precedence over `main`
     should_equal(
         &resolver,
@@ -1838,9 +1842,7 @@ fn exports_fields_test() {
             "x.js",
         ]),
     );
-
     let export_cases_path2 = p(vec!["exports-field2"]);
-
     // TODO: maybe we need provide `full_specified` flag.
     should_equal(
         &resolver,
@@ -1930,7 +1932,6 @@ fn exports_fields_test() {
             "browser.js#foo",
         ]),
     );
-
     let resolver = Resolver::new(Options {
         extensions: vec![String::from(".js")],
         browser_field: true,
@@ -1961,14 +1962,12 @@ fn exports_fields_test() {
             "browser.js",
         ]),
     );
-
     let resolver = Resolver::new(Options {
         extensions: vec![String::from(".js")],
         browser_field: true,
         condition_names: vec_to_set(vec!["node"]),
         ..Default::default()
     });
-
     should_equal(
         &resolver,
         &export_cases_path,
@@ -1981,15 +1980,12 @@ fn exports_fields_test() {
             "browser.js",
         ]),
     );
-
     let export_cases_path4 = p(vec!["exports-field-error"]);
-
     let resolver = Resolver::new(Options {
         extensions: vec![String::from(".js")],
         condition_names: vec_to_set(vec!["webpack"]),
         ..Default::default()
     });
-
     should_unexpected_value_error(
         &resolver,
         &export_cases_path4,
@@ -2014,14 +2010,12 @@ fn imports_fields_test() {
         "#c-redirect/index",
         p(vec!["imports-field", "node_modules", "c", "index.js"]),
     );
-
     should_equal(
         &resolver,
         &import_cases_path,
         "c",
         p(vec!["imports-field", "node_modules", "c", "index.js"]),
     );
-
     should_equal(
         &resolver,
         &import_cases_path,
@@ -2038,7 +2032,7 @@ fn imports_fields_test() {
         &resolver,
         &import_cases_path,
         "#b",
-        "Package path #b is not exported".to_string(),
+        "Package path ../b.js can't imported in".to_string(),
     );
     should_equal(
         &resolver,
@@ -2063,7 +2057,7 @@ fn imports_fields_test() {
         &resolver,
         &import_cases_path,
         "#a",
-        "Package path #a is not exported".to_string(),
+        "Package path #a can't imported in".to_string(),
     );
     should_equal(
         &resolver,

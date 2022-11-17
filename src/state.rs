@@ -11,7 +11,7 @@ pub enum State {
 }
 
 impl State {
-    pub fn and_then<F: FnOnce(Info) -> State>(self, op: F) -> Self {
+    pub fn then<F: FnOnce(Info) -> State>(self, op: F) -> Self {
         match self {
             State::Resolving(info) => op(info),
             _ => self,
