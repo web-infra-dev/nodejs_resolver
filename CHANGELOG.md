@@ -1,8 +1,13 @@
 # Changelog
 
-# 0.0.50
+# 0.0.51
 
 - fix bug under pnpm structure.
+- remove dbg info.
+
+# 0.0.50
+
+yanked
 
 ## 0.0.49
 
