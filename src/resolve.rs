@@ -77,7 +77,7 @@ impl Resolver {
             let request_module_name = get_module_name_from_request(&info.request.target);
             let module_path = module_root_path.join(&*request_module_name);
             let entry = match self.load_entry(&module_path) {
-                Ok(entry) => entry.clone(),
+                Ok(entry) => entry,
                 Err(err) => return State::Error(err),
             };
             let module_path_is_dir = entry.is_dir();
@@ -94,11 +94,7 @@ impl Resolver {
                 }
             } else {
                 let state = if let Some(pkg_info) = &entry.pkg_info {
-                    dbg!(&pkg_info.dir_path);
-                    dbg!(&original_dir);
                     let out_node_modules = pkg_info.dir_path.eq(&original_dir);
-                    dbg!(&out_node_modules);
-
                     if !out_node_modules || is_resolve_self {
                         ExportsFieldPlugin::new(pkg_info).apply(self, module_info, context)
                     } else {
