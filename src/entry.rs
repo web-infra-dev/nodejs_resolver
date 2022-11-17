@@ -152,7 +152,7 @@ impl Resolver {
         let is_pkg_name_suffix = path.ends_with(pkg_name);
         let maybe_pkg_path = if is_pkg_name_suffix {
             // path is xxxxx/xxxxx/package.json
-            path
+            path.to_path_buf()
         } else {
             path.join(pkg_name)
         };

@@ -1,4 +1,5 @@
 use crate::{
+    description::PkgInfo,
     plugin::{
         AliasFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin, MainFilePlugin,
         Plugin,
@@ -61,7 +62,7 @@ impl Resolver {
         } else {
             State::Resolving(info)
         }
-        .and_then(|info| MainFilePlugin.apply(self, info, context))
+        .then(|info| MainFilePlugin.apply(self, info, context))
     }
 
     #[tracing::instrument]
@@ -73,35 +74,17 @@ impl Resolver {
             Err(err) => return State::Error(err),
         };
         let stats = if is_dir {
-            let target = &info.request.target;
-            // join request part
-            let has_namespace_scope = target.starts_with('@');
-            let slash_index_list: Vec<usize> = target
-                .chars()
-                .enumerate()
-                .filter(|(_, char)| '/'.eq(char))
-                .map(|(index, _)| index)
-                .collect();
-            let last_start_index = if has_namespace_scope {
-                slash_index_list.get(1)
-            } else {
-                slash_index_list.first()
-            };
-            let module_name =
-                last_start_index.map_or(target.clone(), |&index| SmolStr::new(&target[0..index]));
-            let module_path = module_root_path.join(&*module_name);
-            let module_info = Info::from(module_root_path, info.request.clone());
-            let pkg_info = match self.load_entry(&module_info.path.join(&**target)) {
-                Ok(entry) => entry.pkg_info.clone(),
+            let request_module_name = get_module_name_from_request(&info.request.target);
+            let module_path = module_root_path.join(&*request_module_name);
+            let entry = match self.load_entry(&module_path) {
+                Ok(entry) => entry.clone(),
                 Err(err) => return State::Error(err),
             };
-            let is_resolve_self = pkg_info.as_ref().map_or(false, |pkg_info| {
-                ExportsFieldPlugin::is_resolve_self(pkg_info, &module_info)
+            let module_path_is_dir = entry.is_dir();
+            let is_resolve_self = entry.pkg_info.as_ref().map_or(false, |pkg_info| {
+                is_resolve_self(pkg_info, &request_module_name)
             });
-            let module_path_is_dir = match self.load_entry(&module_path) {
-                Ok(entry) => entry.is_dir(),
-                Err(err) => return State::Error(err),
-            };
+            let module_info = Info::from(module_root_path, info.request.clone());
             if !module_path_is_dir && !is_resolve_self {
                 let state = self.resolve_as_file(module_info);
                 if state.is_finished() {
@@ -110,25 +93,29 @@ impl Resolver {
                     State::Resolving(info)
                 }
             } else {
-                let state = if let Some(pkg_info) = pkg_info {
-                    ExportsFieldPlugin::new(&pkg_info)
-                        .apply(self, module_info, context)
-                        .and_then(|info| {
-                            ImportsFieldPlugin::new(&pkg_info).apply(self, info, context)
-                        })
-                        .and_then(|info| {
-                            let path = info.path.join(&*info.request.target);
-                            let info = info.with_path(path).with_target(".");
-                            MainFieldPlugin::new(&pkg_info).apply(self, info, context)
-                        })
-                        .and_then(|info| {
-                            AliasFieldPlugin::new(&pkg_info).apply(self, info, context)
-                        })
+                let state = if let Some(pkg_info) = &entry.pkg_info {
+                    dbg!(&pkg_info.dir_path);
+                    dbg!(&original_dir);
+                    let out_node_modules = pkg_info.dir_path.eq(&original_dir);
+                    dbg!(&out_node_modules);
+
+                    if !out_node_modules || is_resolve_self {
+                        ExportsFieldPlugin::new(pkg_info).apply(self, module_info, context)
+                    } else {
+                        State::Resolving(module_info)
+                    }
+                    .then(|info| ImportsFieldPlugin::new(pkg_info).apply(self, info, context))
+                    .then(|info| {
+                        let path = info.path.join(&*info.request.target);
+                        let info = info.with_path(path).with_target(".");
+                        MainFieldPlugin::new(pkg_info).apply(self, info, context)
+                    })
+                    .then(|info| AliasFieldPlugin::new(pkg_info).apply(self, info, context))
                 } else {
                     State::Resolving(module_info)
                 }
-                .and_then(|info| self.resolve_as_file(info))
-                .and_then(|info| self.resolve_as_dir(info, context));
+                .then(|info| self.resolve_as_file(info))
+                .then(|info| self.resolve_as_dir(info, context));
 
                 match state {
                     State::Failed(info) => State::Resolving(info),
@@ -138,7 +125,7 @@ impl Resolver {
         } else {
             State::Resolving(info)
         }
-        .and_then(|info| {
+        .then(|info| {
             if let Some(parent_dir) = original_dir.parent() {
                 self._resolve(info.with_path(parent_dir.to_path_buf()), context)
             } else {
@@ -150,5 +137,41 @@ impl Resolver {
             State::Resolving(info) => State::Failed(info),
             _ => stats,
         }
+    }
+}
+
+fn get_module_name_from_request(target: &SmolStr) -> SmolStr {
+    let has_namespace_scope = target.starts_with('@');
+    let chars = target.chars().enumerate();
+    let slash_index_list: Vec<usize> = chars
+        .filter(|(_, char)| '/'.eq(char))
+        .map(|(index, _)| index)
+        .collect();
+    if has_namespace_scope {
+        slash_index_list.get(1)
+    } else {
+        slash_index_list.first()
+    }
+    .map_or(target.clone(), |&index| SmolStr::new(&target[0..index]))
+}
+
+fn is_resolve_self(pkg_info: &PkgInfo, request_module_name: &SmolStr) -> bool {
+    pkg_info
+        .json
+        .name
+        .as_ref()
+        .map(|pkg_name| request_module_name.eq(pkg_name))
+        .map_or(false, |ans| ans)
+}
+
+#[test]
+fn test_get_module_name_from_request() {
+    assert_eq!(get_module_name_from_request(&s("a")), s("a"));
+    assert_eq!(get_module_name_from_request(&s("a/b")), s("a"));
+    assert_eq!(get_module_name_from_request(&s("@a")), s("@a"));
+    assert_eq!(get_module_name_from_request(&s("@a/b")), s("@a/b"));
+    assert_eq!(get_module_name_from_request(&s("@a/b/c")), s("@a/b"));
+    fn s(s: &str) -> SmolStr {
+        SmolStr::new(s)
     }
 }

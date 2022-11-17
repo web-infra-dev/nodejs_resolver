@@ -161,8 +161,8 @@ impl Resolver {
 
         let state = AliasPlugin::default()
             .apply(self, info, context)
-            .and_then(|info| PreferRelativePlugin::default().apply(self, info, context))
-            .and_then(|info| {
+            .then(|info| PreferRelativePlugin::default().apply(self, info, context))
+            .then(|info| {
                 let request = if info.request.kind.eq(&PathKind::Normal) {
                     info.path.join(MODULE).join(&*info.request.target)
                 } else {
@@ -175,20 +175,18 @@ impl Resolver {
                 if let Some(pkg_info) = pkg_info {
                     ImportsFieldPlugin::new(&pkg_info)
                         .apply(self, info, context)
-                        .and_then(|info| {
-                            AliasFieldPlugin::new(&pkg_info).apply(self, info, context)
-                        })
+                        .then(|info| AliasFieldPlugin::new(&pkg_info).apply(self, info, context))
                 } else {
                     State::Resolving(info)
                 }
             })
-            .and_then(|info| {
+            .then(|info| {
                 if matches!(
                     info.request.kind,
                     PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
                 ) {
                     self.resolve_as_file(info)
-                        .and_then(|info| self.resolve_as_dir(info, context))
+                        .then(|info| self.resolve_as_dir(info, context))
                 } else {
                     self.resolve_as_modules(info, context)
                 }
