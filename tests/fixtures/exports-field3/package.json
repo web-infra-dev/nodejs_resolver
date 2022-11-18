@@ -1,0 +1,4 @@
+{
+  "name": "outer",
+  "exports": "./main.js"
+}

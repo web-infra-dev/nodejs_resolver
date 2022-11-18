@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.0.52
+
+- refactor `resolve_as_modules`.
+
 # 0.0.51
 
 - fix bug under pnpm structure.

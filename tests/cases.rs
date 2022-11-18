@@ -364,7 +364,6 @@ fn alias_test() {
         ],
         ..Default::default()
     });
-
     should_equal(
         &resolver,
         &alias_cases_path.join("node_modules").join("@recursive"),
@@ -377,7 +376,6 @@ fn alias_test() {
         "fs",
         p(vec!["alias", "node_modules", "browser", "index.js"]),
     );
-
     should_overflow(&resolver, &alias_cases_path, "./e");
 
     should_equal(
@@ -422,7 +420,6 @@ fn alias_test() {
             "index.js",
         ]),
     );
-
     should_equal(
         &resolver,
         &p(vec!["in_exist_path"]),
@@ -527,7 +524,6 @@ fn alias_test() {
         p(vec!["alias", "a", "index"]),
     );
     should_resolve_failed(&resolver, &Path::new("@start/a"), "");
-
     // TODO: exact alias
     // should_equal(resolver, &alias_cases_path, "./b?aa#bb?cc", fixture!("alias/a/index?aa#bb?cc"));
     // should_equal(resolver, &alias_cases_path, "./b/?aa#bb?cc", fixture!("alias/a/index?aa#bb?cc"));
@@ -570,7 +566,6 @@ fn alias_test() {
         p(vec!["alias", "c", "dir", "index"]),
     );
     should_ignored(&resolver, &alias_cases_path, "ignore");
-
     // test alias ordered
     let resolver = Resolver::new(Options {
         alias: vec![
@@ -961,7 +956,6 @@ fn resolve_test() {
     let resolver = Resolver::new(Options {
         ..Default::default()
     });
-
     should_equal(
         &resolver,
         &fixture_path,
@@ -1051,7 +1045,6 @@ fn resolve_test() {
         "./dirOrFile/",
         p(vec!["dirOrFile", "index.js"]),
     );
-
     should_equal(
         &resolver,
         &fixture_path,
@@ -1072,7 +1065,6 @@ fn resolve_test() {
         "./no#fragment/#/",
         p(vec!["no.js#fragment", "#"]),
     );
-
     let web_modules_path = fixture_path.join("node_modules/complexm/web_modules/m1");
     should_equal(
         &resolver,
@@ -1080,7 +1072,6 @@ fn resolve_test() {
         "m2/b.js",
         p(vec!["node_modules", "m2", "b.js"]),
     );
-
     let multiple_modules_path = fixture_path.join("multiple_modules");
     should_equal(
         &resolver,
@@ -1094,7 +1085,6 @@ fn resolve_test() {
         "m1/b.js",
         p(vec!["node_modules", "m1", "b.js"]),
     );
-
     should_equal(
         &resolver,
         &fixture_path.join("browser-module/node_modules"),
@@ -1980,7 +1970,39 @@ fn exports_fields_test() {
             "browser.js",
         ]),
     );
-    let export_cases_path4 = p(vec!["exports-field-error"]);
+    let resolver = Resolver::new(Options {
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &p(vec!["exports-field3"]),
+        "outer",
+        p(vec!["exports-field3", "main.js"]),
+    );
+    should_equal(
+        &resolver,
+        &p(vec!["exports-field3", "pkg1"]),
+        "outer",
+        p(vec!["exports-field3", "main.js"]),
+    );
+    should_equal(
+        &resolver,
+        &p(vec!["exports-field3", "pkg1", "index.js"]),
+        "outer",
+        p(vec!["exports-field3", "main.js"]),
+    );
+    should_equal(
+        &resolver,
+        &p(vec!["exports-field3", "pkg1"]),
+        "m1",
+        p(vec![
+            "exports-field3",
+            "pkg1",
+            "node_modules",
+            "m1",
+            "m1.js",
+        ]),
+    );
     let resolver = Resolver::new(Options {
         extensions: vec![String::from(".js")],
         condition_names: vec_to_set(vec!["webpack"]),
@@ -1988,7 +2010,7 @@ fn exports_fields_test() {
     });
     should_unexpected_value_error(
         &resolver,
-        &export_cases_path4,
+        &p(vec!["exports-field-error"]),
         "exports-field",
         "Package path exports-field is not exported".to_string(),
     );
