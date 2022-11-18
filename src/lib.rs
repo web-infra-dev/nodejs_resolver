@@ -163,11 +163,7 @@ impl Resolver {
             .apply(self, info, context)
             .then(|info| PreferRelativePlugin::default().apply(self, info, context))
             .then(|info| {
-                let request = if info.request.kind.eq(&PathKind::Normal) {
-                    info.path.join(MODULE).join(&*info.request.target)
-                } else {
-                    info.get_path()
-                };
+                let request = info.get_path();
                 let pkg_info = match self.load_entry(&request) {
                     Ok(entry) => entry.pkg_info.clone(),
                     Err(error) => return State::Error(error),

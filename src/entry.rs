@@ -146,8 +146,6 @@ impl Resolver {
         } else {
             None
         };
-        // the path of it pointed maybe dir or file
-        let path = path.to_path_buf();
         let pkg_name = &self.options.description_file;
         let is_pkg_name_suffix = path.ends_with(pkg_name);
         let maybe_pkg_path = if is_pkg_name_suffix {
@@ -188,12 +186,11 @@ impl Resolver {
         // if `true`, then use above stats
         // else return `!true` means stat is None.
         let need_stat = !(pkg_info.is_some() && is_pkg_name_suffix);
-
         let stat = RwLock::new(if need_stat { None } else { Some(pkg_file_stat) });
         let symlink = RwLock::new(None);
         Ok(Entry {
             parent,
-            path,
+            path: path.to_path_buf(),
             pkg_info,
             stat,
             symlink,

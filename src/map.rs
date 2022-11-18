@@ -493,7 +493,7 @@ impl PathTreeNode {
                 }
             }
             let remaining_request = (if last_non_slash_index > 0 {
-                &request[last_non_slash_index as usize..]
+                &request[last_non_slash_index..]
             } else {
                 request
             })
