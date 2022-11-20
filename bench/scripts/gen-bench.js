@@ -177,7 +177,7 @@ mod bench_test {
     use std::env::current_dir;
     use std::path::PathBuf;
     use test::Bencher;
-    use std::time::Instant;
+    // use std::time::Instant;
 
     fn is_ok(result: RResult<ResolveResult>) {
       assert!(result.is_ok())
@@ -204,10 +204,9 @@ mod bench_test {
           // let start = Instant::now();
 `;
   run(function (dir, file) {
-    const relativePath = path.relative(base, dir);
     content += `
             is_ok(resolver.resolve(
-                &PathBuf::from(current_dir().unwrap().join("${relativePath}")), 
+                &PathBuf::from("${dir}"), 
                 "${file}",
             ));
 `;
