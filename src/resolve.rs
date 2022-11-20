@@ -171,7 +171,17 @@ impl Resolver {
     }
 }
 
-fn get_module_name_from_request(target: &SmolStr) -> SmolStr {
+fn is_resolve_self(pkg_info: &PkgInfo, request_module_name: &SmolStr) -> bool {
+    pkg_info
+        .json
+        .name
+        .as_ref()
+        .map(|pkg_name| request_module_name.eq(pkg_name))
+        .map_or(false, |ans| ans)
+}
+
+/// split the index from `[module-name]/[path]`
+fn split_slash_from_request(target: &SmolStr) -> Option<usize> {
     let has_namespace_scope = target.starts_with('@');
     let chars = target.chars().enumerate();
     let slash_index_list: Vec<usize> = chars
@@ -183,26 +193,51 @@ fn get_module_name_from_request(target: &SmolStr) -> SmolStr {
     } else {
         slash_index_list.first()
     }
-    .map_or(target.clone(), |&index| SmolStr::new(&target[0..index]))
+    .cloned()
 }
 
-fn is_resolve_self(pkg_info: &PkgInfo, request_module_name: &SmolStr) -> bool {
-    pkg_info
-        .json
-        .name
-        .as_ref()
-        .map(|pkg_name| request_module_name.eq(pkg_name))
-        .map_or(false, |ans| ans)
+fn get_module_name_from_request(target: &SmolStr) -> SmolStr {
+    split_slash_from_request(target).map_or(target.clone(), |index| SmolStr::new(&target[0..index]))
 }
 
-#[test]
-fn test_get_module_name_from_request() {
-    assert_eq!(get_module_name_from_request(&s("a")), s("a"));
-    assert_eq!(get_module_name_from_request(&s("a/b")), s("a"));
-    assert_eq!(get_module_name_from_request(&s("@a")), s("@a"));
-    assert_eq!(get_module_name_from_request(&s("@a/b")), s("@a/b"));
-    assert_eq!(get_module_name_from_request(&s("@a/b/c")), s("@a/b"));
+pub(crate) fn get_path_from_request(target: &SmolStr) -> Option<SmolStr> {
+    split_slash_from_request(target).map(|index| SmolStr::new(&target[index..]))
+}
+
+#[cfg(test)]
+mod test {
+    use super::{
+        get_module_name_from_request, get_path_from_request, split_slash_from_request, SmolStr,
+    };
+
     fn s(s: &str) -> SmolStr {
         SmolStr::new(s)
+    }
+
+    #[test]
+    fn test_split_slash_from_request() {
+        assert_eq!(split_slash_from_request(&s("a")), None);
+        assert_eq!(split_slash_from_request(&s("a/b")), Some(1));
+        assert_eq!(split_slash_from_request(&s("@a")), None);
+        assert_eq!(split_slash_from_request(&s("@a/b")), None);
+        assert_eq!(split_slash_from_request(&s("@a/b/c")), Some(4));
+    }
+
+    #[test]
+    fn test_get_module_name_from_request() {
+        assert_eq!(get_module_name_from_request(&s("a")), s("a"));
+        assert_eq!(get_module_name_from_request(&s("a/b")), s("a"));
+        assert_eq!(get_module_name_from_request(&s("@a")), s("@a"));
+        assert_eq!(get_module_name_from_request(&s("@a/b")), s("@a/b"));
+        assert_eq!(get_module_name_from_request(&s("@a/b/c")), s("@a/b"));
+    }
+
+    #[test]
+    fn test_get_path_from_request() {
+        assert_eq!(get_path_from_request(&s("a")), None);
+        assert_eq!(get_path_from_request(&s("a/b")), Some(s("/b")));
+        assert_eq!(get_path_from_request(&s("@a")), None);
+        assert_eq!(get_path_from_request(&s("@a/b")), None);
+        assert_eq!(get_path_from_request(&s("@a/b/c")), Some(s("/c")));
     }
 }

@@ -111,6 +111,20 @@ impl Entry {
         }
     }
 
+    pub fn is_exist(&self) -> bool {
+        if let Some(stat) = self.stat.read().unwrap().as_ref() {
+            return stat.kind.is_dir();
+        }
+        if let Ok(stat) = EntryStat::stat(&self.path) {
+            let is_dir = stat.kind.exist();
+            let mut writer = self.stat.write().unwrap();
+            *writer = Some(stat);
+            is_dir
+        } else {
+            false
+        }
+    }
+
     #[cfg(windows)]
     fn has_trailing_slash(p: &Path) -> bool {
         let last = p.as_os_str().encode_wide().last();
