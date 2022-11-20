@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.0.53
+
+- optimize `ExportsFiled` map and error message.
+
 # 0.0.52
 
 - refactor `resolve_as_modules`.

@@ -1,6 +1,7 @@
 use crate::{
     description::PkgInfo,
     map::{ExportsField, Field},
+    resolve::get_path_from_request,
     Context, Error, Info, Resolver, State,
 };
 
@@ -18,25 +19,29 @@ impl<'a> ExportsFieldPlugin<'a> {
 
 impl<'a> Plugin for ExportsFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
+        // info.path should end with `node_modules`.
         let target = &info.request.target;
 
         let list = if let Some(root) = &self.pkg_info.json.exports_field_tree {
             let query = &info.request.query;
             let fragment = &info.request.fragment;
-            let chars: String = if target.starts_with('@') {
-                let index = target.find('/').unwrap();
-                &target[index + 1..]
-            } else {
-                target
-            }
-            .chars()
-            .collect();
+            let request_path = get_path_from_request(target);
 
-            let target = match chars.find('/').map(|index| &chars[index..]) {
+            let target = match request_path {
                 Some(target) => format!(".{target}"),
                 None => {
-                    let target = target.to_string();
-                    if info.path.join(&target).exists() || self.pkg_info.json.name.eq(&Some(target))
+                    let path = info.path.join(&**target);
+                    let is_exist = match resolver.load_entry(&path) {
+                        Ok(entry) => entry.is_exist(),
+                        Err(err) => return State::Error(err),
+                    };
+                    if is_exist
+                        || self
+                            .pkg_info
+                            .json
+                            .name
+                            .as_ref()
+                            .map_or(false, |name| name.eq(target))
                     {
                         ".".to_string()
                     } else {
@@ -93,8 +98,8 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
         }
 
         State::Error(Error::UnexpectedValue(format!(
-            "Package path {target} is not exported {}",
-            info.path.display()
+            "Package path {target} is not exported in {}/package.json",
+            self.pkg_info.dir_path.display()
         )))
         // TODO: `info.abs_dir_path.as_os_str().to_str().unwrap(),` has abs_path
     }

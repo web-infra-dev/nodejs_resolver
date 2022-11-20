@@ -68,7 +68,6 @@ use kind::PathKind;
 pub use options::{AliasMap, EnforceExtension, Options};
 use plugin::{AliasFieldPlugin, AliasPlugin, ImportsFieldPlugin, Plugin, PreferRelativePlugin};
 use state::State;
-
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
