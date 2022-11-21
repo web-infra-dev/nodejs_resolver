@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.0.54
+
+- fix a bug when resolve self.
+
 # 0.0.53
 
 - optimize `ExportsFiled` map and error message.

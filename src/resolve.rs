@@ -76,21 +76,24 @@ impl Resolver {
         let state = if entry.is_dir() {
             // is there had `node_modules` folder?
             let request_module_name = get_module_name_from_request(&info.request.target);
-            let is_resolve_self = entry.pkg_info.as_ref().map_or(false, |pkg_info| {
-                is_resolve_self(pkg_info, &request_module_name)
-            });
-            if is_resolve_self {
-                let pkg_info = entry.pkg_info.as_ref().unwrap();
-                ExportsFieldPlugin::new(pkg_info).apply(self, info, context)
-            } else {
-                self.resolve_node_modules(
-                    info,
-                    &original_dir,
-                    node_modules_path,
-                    request_module_name,
-                    context,
-                )
-            }
+            self.resolve_node_modules(
+                info,
+                &original_dir,
+                node_modules_path,
+                request_module_name.clone(),
+                context,
+            )
+            .then(|info| {
+                let is_resolve_self = entry.pkg_info.as_ref().map_or(false, |pkg_info| {
+                    is_resolve_self(pkg_info, &request_module_name)
+                });
+                if is_resolve_self {
+                    let pkg_info = entry.pkg_info.as_ref().unwrap();
+                    ExportsFieldPlugin::new(pkg_info).apply(self, info, context)
+                } else {
+                    State::Resolving(info)
+                }
+            })
         } else if entry
             .pkg_info
             .as_ref()

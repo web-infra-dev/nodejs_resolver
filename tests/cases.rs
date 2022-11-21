@@ -2766,3 +2766,15 @@ fn browser_it_self() {
     );
     should_resolve_failed(&resolver, &case_path, "c.js");
 }
+
+#[test]
+fn self_in_dep_test() {
+    let path = p(vec!["self-is-dep", "src", "index.js"]);
+    let resolver = Resolver::new(Options::default());
+    should_equal(
+        &resolver,
+        &path,
+        "@scope/self-is-dep/src/a",
+        p(vec!["self-is-dep", "src", "b.js"]),
+    );
+}

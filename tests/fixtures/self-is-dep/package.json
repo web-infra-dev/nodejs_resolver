@@ -1,0 +1,6 @@
+{
+  "name": "@scope/self-is-dep",
+  "exports": {
+    "./src/a": "./src/b.js"
+  }
+}
