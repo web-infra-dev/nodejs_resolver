@@ -22,6 +22,8 @@ pub enum MappingValue {
 pub type ImportsField = ConditionalMapping;
 pub type ExportsField = MappingValue;
 
+const DEFAULT_MARK: &str = "default";
+
 fn conditional_mapping<'a>(
     map: &'a ConditionalMapping,
     condition_names: &'a HashSet<String>,
@@ -32,13 +34,12 @@ fn conditional_mapping<'a>(
         let (mapping, conditions, j) = lookup.last().unwrap();
         let len = conditions.len();
         for (i, condition) in conditions.iter().enumerate().skip(*j) {
-            if i != len - 1 && condition == "default" {
-                return Err(Error::UnexpectedValue(
-                    "Default condition should be last one".to_string(),
-                ));
-            }
-            if condition == "default" {
-                if let Some(value) = mapping.get("default") {
+            if condition == DEFAULT_MARK {
+                if i != len - 1 {
+                    return Err(Error::UnexpectedValue(
+                        "Default condition should be last one".to_string(),
+                    ));
+                } else if let Some(value) = mapping.get(DEFAULT_MARK) {
                     match value {
                         MappingValue::Conditional(inner) => {
                             let len = lookup.len();
@@ -428,10 +429,10 @@ impl PathTreeNode {
         }
     }
 
-    fn apply_wildcard_mappings<'a, 'b>(
+    fn apply_wildcard_mappings<'a>(
         mut last_folder_match: Option<(&'a MappingValue, i32)>,
         node: &'a PathTreeNode,
-        remaining_request: &'b str,
+        remaining_request: &str,
         last_non_slash_index: usize,
     ) -> Option<(&'a MappingValue, i32)> {
         if let Some(map) = &node.wildcards {

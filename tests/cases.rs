@@ -1065,6 +1065,33 @@ fn resolve_test() {
         "./no#fragment/#/",
         p(vec!["no.js#fragment", "#"]),
     );
+    should_resolve_failed(&resolver, &p(vec!["no#fragment"]), "#/#");
+    should_resolve_failed(&resolver, &p(vec!["no#fragment", "#"]), "#");
+    should_resolve_failed(&resolver, &p(vec!["no#fragment", "#"]), "#.js");
+    should_equal(
+        &resolver,
+        &p(vec!["no#fragment", "#"]),
+        "../../a",
+        p(vec!["a.js"]),
+    );
+    should_equal(
+        &resolver,
+        &p(vec!["no#fragment", "#"]),
+        "./#",
+        p(vec!["no#fragment", "#", "#.js"]),
+    );
+    should_equal(
+        &resolver,
+        &p(vec!["no#fragment"]),
+        "./#/#",
+        p(vec!["no#fragment", "#", "#.js"]),
+    );
+    should_equal(
+        &resolver,
+        &p(vec!["no#fragment"]),
+        "./#/#.js",
+        p(vec!["no#fragment", "#", "#.js"]),
+    );
     let web_modules_path = fixture_path.join("node_modules/complexm/web_modules/m1");
     should_equal(
         &resolver,

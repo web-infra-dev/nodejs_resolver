@@ -66,7 +66,9 @@ pub use error::Error;
 pub use info::Info;
 use kind::PathKind;
 pub use options::{AliasMap, EnforceExtension, Options};
-use plugin::{AliasFieldPlugin, AliasPlugin, ImportsFieldPlugin, Plugin, PreferRelativePlugin};
+use plugin::{
+    AliasFieldPlugin, AliasPlugin, ImportsFieldPlugin, ParsePlugin, Plugin, PreferRelativePlugin,
+};
 use state::State;
 use std::{
     path::{Path, PathBuf},
@@ -127,7 +129,8 @@ impl Resolver {
     #[tracing::instrument]
     pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolveResult> {
         // let start = std::time::Instant::now();
-        let info = Info::from(path.to_path_buf(), self.parse(request));
+        let parsed = self.parse(request);
+        let info = Info::from(path.to_path_buf(), parsed);
         let mut context = Context::new();
         let result = if let Some(tsconfig_location) = self.options.tsconfig.as_ref() {
             self._resolve_with_tsconfig(info, tsconfig_location, &mut context)
@@ -158,8 +161,9 @@ impl Resolver {
             return State::Error(Error::Overflow);
         }
 
-        let state = AliasPlugin::default()
+        let state = ParsePlugin::default()
             .apply(self, info, context)
+            .then(|info| AliasPlugin::default().apply(self, info, context))
             .then(|info| PreferRelativePlugin::default().apply(self, info, context))
             .then(|info| {
                 let request = info.get_path();
