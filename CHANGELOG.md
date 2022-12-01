@@ -1,5 +1,10 @@
 # Changelog
 
+# 0.0.55
+
+- support `ParsePlugin`;
+- pref on `ExportsPlugin` and `ConditionalMapping`.
+
 # 0.0.54
 
 - fix a bug when resolve self.

@@ -72,28 +72,15 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
             return State::Resolving(info);
         };
 
-        use crate::ResolveResult;
         for item in list {
             let request = resolver.parse(&item);
             let info = Info::from(self.pkg_info.dir_path.to_path_buf(), request);
             if !ExportsField::check_target(&info.request.target) {
                 continue;
             }
-            let result = match resolver._resolve(info, context) {
-                State::Success(result) => result,
-                _ => continue,
-            };
-            let info = match result {
-                ResolveResult::Info(info) => info,
-                ResolveResult::Ignored => return State::Success(ResolveResult::Ignored),
-            };
-            let path = info.get_path();
-            let is_file = match resolver.load_entry(&path) {
-                Ok(entry) => entry.is_file(),
-                Err(err) => return State::Error(err),
-            };
-            if is_file {
-                return State::Success(ResolveResult::Info(info));
+            let state = resolver._resolve(info, context);
+            if state.is_finished() {
+                return state;
             }
         }
 

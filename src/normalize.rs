@@ -52,7 +52,6 @@ impl Resolver {
         match result {
             ResolveResult::Info(info) => {
                 debug_assert!(info.request.target.is_empty());
-
                 let result = self.normalize_path(&info.path)?;
                 Ok(ResolveResult::Info(info.with_path(result)))
             }
