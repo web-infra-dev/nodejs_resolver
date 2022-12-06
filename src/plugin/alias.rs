@@ -1,5 +1,5 @@
 use super::Plugin;
-use crate::{AliasMap, Context, Info, ResolveResult, Resolver, State};
+use crate::{log, AliasMap, Context, Info, ResolveResult, Resolver, State};
 
 #[derive(Default)]
 pub struct AliasPlugin;
@@ -9,6 +9,10 @@ impl Plugin for AliasPlugin {
         let inner_target = &info.request.target;
         for (from, to) in &resolver.options.alias {
             if inner_target.starts_with(from) {
+                tracing::debug!(
+                    "AliasPlugin works, triggered by '{from}'({})",
+                    log::depth(&context.depth)
+                );
                 match to {
                     AliasMap::Target(to) => {
                         if inner_target.starts_with(to) {
@@ -27,6 +31,7 @@ impl Plugin for AliasPlugin {
                     }
                     AliasMap::Ignored => return State::Success(ResolveResult::Ignored),
                 }
+                tracing::debug!("Leaving AliasPlugin({})", log::depth(&context.depth));
             }
         }
 

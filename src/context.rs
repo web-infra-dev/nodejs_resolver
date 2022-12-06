@@ -30,4 +30,8 @@ impl Depth {
     pub fn cmp(&self, other: u16) -> std::cmp::Ordering {
         self.0.cmp(&other)
     }
+
+    pub fn value(&self) -> u16 {
+        self.0
+    }
 }

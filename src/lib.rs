@@ -48,6 +48,7 @@ mod error;
 mod fs;
 mod info;
 mod kind;
+mod log;
 mod map;
 mod normalize;
 mod options;
@@ -65,9 +66,10 @@ use entry::Entry;
 pub use error::Error;
 pub use info::Info;
 use kind::PathKind;
+use log::color;
 pub use options::{AliasMap, EnforceExtension, Options};
 use plugin::{
-    AliasFieldPlugin, AliasPlugin, ImportsFieldPlugin, ParsePlugin, Plugin, PreferRelativePlugin,
+    AliasPlugin, BrowserFieldPlugin, ImportsFieldPlugin, ParsePlugin, Plugin, PreferRelativePlugin,
 };
 use state::State;
 use std::{
@@ -96,6 +98,8 @@ pub type RResult<T> = Result<T, Error>;
 
 impl Resolver {
     pub fn new(options: Options) -> Self {
+        log::enable_by_env();
+
         let cache = if let Some(external_cache) = options.external_cache.as_ref() {
             external_cache.clone()
         } else {
@@ -128,6 +132,12 @@ impl Resolver {
 
     #[tracing::instrument]
     pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolveResult> {
+        tracing::debug!(
+            "{:-^30}\nTry to resolve '{}' in '{}'\n",
+            color::green(&"[RESOLVER]"),
+            color::cyan(&request),
+            color::cyan(&path.display().to_string())
+        );
         // let start = std::time::Instant::now();
         let parsed = self.parse(request);
         let info = Info::from(path.to_path_buf(), parsed);
@@ -156,6 +166,12 @@ impl Resolver {
 
     #[tracing::instrument]
     fn _resolve(&self, info: Info, context: &mut Context) -> State {
+        tracing::debug!(
+            "Resolving '{request}' in '{path}'",
+            request = color::cyan(&info.request.target),
+            path = color::cyan(&info.path.display().to_string())
+        );
+
         context.depth.increase();
         if context.depth.cmp(127).is_ge() {
             return State::Error(Error::Overflow);
@@ -174,7 +190,7 @@ impl Resolver {
                 if let Some(pkg_info) = pkg_info {
                     ImportsFieldPlugin::new(&pkg_info)
                         .apply(self, info, context)
-                        .then(|info| AliasFieldPlugin::new(&pkg_info).apply(self, info, context))
+                        .then(|info| BrowserFieldPlugin::new(&pkg_info).apply(self, info, context))
                 } else {
                     State::Resolving(info)
                 }

@@ -1,5 +1,6 @@
 use crate::{
     description::PkgInfo,
+    log,
     map::{ExportsField, Field},
     resolve::get_path_from_request,
     Context, Error, Info, Resolver, State,
@@ -73,6 +74,16 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
         };
 
         for item in list {
+            tracing::debug!(
+                "ExportsField in '{}' works, trigger by '{}', mapped to '{}'({})",
+                log::color::blue(&format!(
+                    "{}/package.json",
+                    self.pkg_info.dir_path.display()
+                )),
+                log::color::blue(target),
+                log::color::blue(&item),
+                log::depth(&context.depth)
+            );
             let request = resolver.parse(&item);
             let info = Info::from(self.pkg_info.dir_path.to_path_buf(), request);
             if !ExportsField::check_target(&info.request.target) {

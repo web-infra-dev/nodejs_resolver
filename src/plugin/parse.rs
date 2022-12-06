@@ -1,5 +1,5 @@
 use super::Plugin;
-use crate::{parse::Request, Context, Info, Resolver, State};
+use crate::{log, parse::Request, Context, Info, Resolver, State};
 
 #[derive(Default)]
 pub struct ParsePlugin;
@@ -11,6 +11,7 @@ impl Plugin for ParsePlugin {
         let no_query = request.query.is_empty();
         let had_request = !info.request.target.is_empty();
         if no_query && had_hash && had_request {
+            tracing::debug!("ParsePlugin works({})", log::depth(&context.depth));
             let directory = request.target.ends_with('/');
             let target = format!(
                 "{}{}{}",
@@ -31,6 +32,7 @@ impl Plugin for ParsePlugin {
             if state.is_finished() {
                 return state;
             }
+            tracing::debug!("Leaving ParsePlugin({})", log::depth(&context.depth));
         }
         State::Resolving(info)
     }

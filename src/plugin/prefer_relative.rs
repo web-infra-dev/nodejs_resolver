@@ -1,5 +1,5 @@
 use super::Plugin;
-use crate::{Context, Info, Resolver, State};
+use crate::{log, Context, Info, Resolver, State};
 
 #[derive(Default)]
 pub struct PreferRelativePlugin;
@@ -11,6 +11,7 @@ impl Plugin for PreferRelativePlugin {
         }
 
         if resolver.options.prefer_relative {
+            tracing::debug!("AliasPlugin works({})", log::depth(&context.depth));
             let target = format!("./{}", info.request.target);
             let info = Info::from(
                 info.path.to_owned(),
@@ -20,6 +21,7 @@ impl Plugin for PreferRelativePlugin {
             if stats.is_finished() {
                 return stats;
             }
+            tracing::debug!("Leaving AliasPlugin({})", log::depth(&context.depth));
         }
         State::Resolving(info)
     }

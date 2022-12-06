@@ -144,10 +144,18 @@ impl Resolver {
     pub(super) fn load_entry(&self, path: &Path) -> RResult<Arc<Entry>> {
         let key = Entry::path_to_key(path);
         if let Some(cached) = self.entries.get(&key) {
+            // tracing::debug!(
+            //     "Load entry '{}' from cache",
+            //     log::color::blue(&cached.path.display())
+            // );
             Ok(cached.clone())
         } else {
             // TODO: how to mutex that?
             let entry = Arc::new(self.load_entry_uncached(path)?);
+            // tracing::debug!(
+            //     "Load entry '{}' missing cache",
+            //     log::color::red(&entry.path.display())
+            // );
             self.entries.entry(key).or_insert(entry.clone());
             Ok(entry)
         }

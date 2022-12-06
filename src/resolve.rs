@@ -1,8 +1,9 @@
 use crate::{
     description::PkgInfo,
+    log,
     plugin::{
-        AliasFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin, MainFilePlugin,
-        Plugin,
+        BrowserFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin,
+        MainFilePlugin, Plugin,
     },
     Context, EnforceExtension, Info, ResolveResult, Resolver, State, MODULE,
 };
@@ -24,6 +25,7 @@ impl Resolver {
             if is_file {
                 return State::Success(ResolveResult::Info(info.with_path(path).with_target("")));
             }
+            tracing::debug!("'{}' is not a file", log::color::red(&path.display()));
         }
         State::Resolving(info)
     }
@@ -31,6 +33,10 @@ impl Resolver {
     #[tracing::instrument]
     pub(crate) fn resolve_as_file(&self, info: Info) -> State {
         let path = info.get_path();
+        tracing::debug!(
+            "Attempting to load '{}' as a file",
+            log::color::blue(&path.display())
+        );
         if matches!(self.options.enforce_extension, EnforceExtension::Enabled) {
             return self.resolve_file_with_ext(path, info);
         }
@@ -159,7 +165,7 @@ impl Resolver {
                     let info = info.with_path(path).with_target(".");
                     MainFieldPlugin::new(pkg_info).apply(self, info, context)
                 })
-                .then(|info| AliasFieldPlugin::new(pkg_info).apply(self, info, context))
+                .then(|info| BrowserFieldPlugin::new(pkg_info).apply(self, info, context))
             } else {
                 State::Resolving(module_info)
             }
