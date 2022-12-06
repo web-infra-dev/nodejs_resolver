@@ -58,7 +58,7 @@ impl PkgJSON {
                     value,
                     file_path.display()
                 );
-                println!("{}", msg);
+                println!("{msg}");
             }
         }
 

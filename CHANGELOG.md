@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.0.56
+
+- support log.
+
 # 0.0.55
 
 - support `ParsePlugin`;

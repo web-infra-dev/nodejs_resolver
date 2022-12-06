@@ -1,14 +1,14 @@
 use crate::{
-    context::Context, description::PkgInfo, AliasMap, Info, PathKind, Plugin, ResolveResult,
+    context::Context, description::PkgInfo, log, AliasMap, Info, PathKind, Plugin, ResolveResult,
     Resolver, State,
 };
 use std::path::PathBuf;
 
-pub struct AliasFieldPlugin<'a> {
+pub struct BrowserFieldPlugin<'a> {
     pkg_info: &'a PkgInfo,
 }
 
-impl<'a> AliasFieldPlugin<'a> {
+impl<'a> BrowserFieldPlugin<'a> {
     pub fn new(pkg_info: &'a PkgInfo) -> Self {
         Self { pkg_info }
     }
@@ -31,7 +31,7 @@ impl<'a> AliasFieldPlugin<'a> {
     }
 }
 
-impl<'a> Plugin for AliasFieldPlugin<'a> {
+impl<'a> Plugin for BrowserFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         if !resolver.options.browser_field {
             return State::Resolving(info);
@@ -48,6 +48,15 @@ impl<'a> Plugin for AliasFieldPlugin<'a> {
             if !should_deal_alias {
                 continue;
             }
+            tracing::debug!(
+                "BrowserFiled in '{}' works, trigger by '{}'({})",
+                log::color::blue(&format!(
+                    "{}/package.json",
+                    self.pkg_info.dir_path.display()
+                )),
+                log::color::blue(alias_key),
+                log::depth(&context.depth)
+            );
             match alias_target {
                 AliasMap::Target(converted) => {
                     if alias_key == converted {
@@ -65,6 +74,7 @@ impl<'a> Plugin for AliasFieldPlugin<'a> {
                     if state.is_finished() {
                         return state;
                     }
+                    tracing::debug!("Leaving BrowserFiled({})", log::depth(&context.depth));
                 }
                 AliasMap::Ignored => return State::Success(ResolveResult::Ignored),
             };

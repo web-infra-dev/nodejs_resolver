@@ -1,5 +1,5 @@
 mod alias;
-mod alias_field;
+mod browser_field;
 mod exports_field;
 mod imports_field;
 mod main_field;
@@ -10,7 +10,7 @@ mod prefer_relative;
 use crate::{context::Context, Info, Resolver, State};
 
 pub use alias::AliasPlugin;
-pub use alias_field::AliasFieldPlugin;
+pub use browser_field::BrowserFieldPlugin;
 pub use exports_field::ExportsFieldPlugin;
 pub use imports_field::ImportsFieldPlugin;
 pub use main_field::MainFieldPlugin;

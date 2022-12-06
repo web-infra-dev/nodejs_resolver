@@ -174,7 +174,6 @@ extern crate test;
 mod bench_test {
 
     use nodejs_resolver::{Resolver, Options, ResolveResult, RResult};
-    use std::env::current_dir;
     use std::path::PathBuf;
     use test::Bencher;
     // use std::time::Instant;
