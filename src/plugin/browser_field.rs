@@ -1,6 +1,6 @@
 use crate::{
-    context::Context, description::PkgInfo, log, AliasMap, Info, PathKind, Plugin, ResolveResult,
-    Resolver, State,
+    context::Context, description::PkgInfo, log::color, log::depth, AliasMap, Info, PathKind,
+    Plugin, ResolveResult, Resolver, State,
 };
 use std::path::PathBuf;
 
@@ -50,12 +50,12 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
             }
             tracing::debug!(
                 "BrowserFiled in '{}' works, trigger by '{}'({})",
-                log::color::blue(&format!(
+                color::blue(&format!(
                     "{}/package.json",
                     self.pkg_info.dir_path.display()
                 )),
-                log::color::blue(alias_key),
-                log::depth(&context.depth)
+                color::blue(alias_key),
+                depth(&context.depth)
             );
             match alias_target {
                 AliasMap::Target(converted) => {
@@ -74,7 +74,7 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
                     if state.is_finished() {
                         return state;
                     }
-                    tracing::debug!("Leaving BrowserFiled({})", log::depth(&context.depth));
+                    tracing::debug!("Leaving BrowserFiled({})", depth(&context.depth));
                 }
                 AliasMap::Ignored => return State::Success(ResolveResult::Ignored),
             };

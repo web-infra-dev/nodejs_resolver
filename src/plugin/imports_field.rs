@@ -2,7 +2,8 @@ use super::Plugin;
 use crate::{
     context::Context,
     description::PkgInfo,
-    log,
+    log::color,
+    log::depth,
     map::{Field, ImportsField},
     Error, Info, PathKind, Resolver, State,
 };
@@ -56,13 +57,13 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
         if let Some(item) = list.first() {
             tracing::debug!(
                 "ImportsField in '{}' works, trigger by '{}', mapped to '{}'({})",
-                log::color::blue(&format!(
+                color::blue(&format!(
                     "{}/package.json",
                     self.pkg_info.dir_path.display()
                 )),
-                log::color::blue(&info.request.target),
-                log::color::blue(&item),
-                log::depth(&context.depth)
+                color::blue(&info.request.target),
+                color::blue(&item),
+                depth(&context.depth)
             );
             let request = resolver.parse(item);
             let is_relative = !matches!(request.kind, PathKind::Normal | PathKind::Internal);

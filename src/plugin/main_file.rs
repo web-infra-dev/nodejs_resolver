@@ -1,5 +1,5 @@
 use super::Plugin;
-use crate::{log, Context, Info, Resolver, State};
+use crate::{log::color, log::depth, Context, Info, Resolver, State};
 
 pub struct MainFilePlugin;
 
@@ -9,8 +9,8 @@ impl Plugin for MainFilePlugin {
         for main_file in &resolver.options.main_files {
             tracing::debug!(
                 "MainFile works, it pointed to {}({})",
-                log::color::blue(main_file),
-                log::depth(&context.depth)
+                color::blue(main_file),
+                depth(&context.depth)
             );
             let main_file_info = main_file_info
                 .clone()
@@ -19,7 +19,7 @@ impl Plugin for MainFilePlugin {
             if state.is_finished() {
                 return state;
             }
-            tracing::debug!("Leaving MainFile({})", log::depth(&context.depth));
+            tracing::debug!("Leaving MainFile({})", depth(&context.depth));
         }
         State::Resolving(info)
     }

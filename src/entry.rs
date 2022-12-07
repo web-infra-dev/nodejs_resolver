@@ -146,7 +146,7 @@ impl Resolver {
         if let Some(cached) = self.entries.get(&key) {
             // tracing::debug!(
             //     "Load entry '{}' from cache",
-            //     log::color::blue(&cached.path.display())
+            //     color::blue(&cached.path.display())
             // );
             Ok(cached.clone())
         } else {
@@ -154,7 +154,7 @@ impl Resolver {
             let entry = Arc::new(self.load_entry_uncached(path)?);
             // tracing::debug!(
             //     "Load entry '{}' missing cache",
-            //     log::color::red(&entry.path.display())
+            //     color::red(&entry.path.display())
             // );
             self.entries.entry(key).or_insert(entry.clone());
             Ok(entry)
