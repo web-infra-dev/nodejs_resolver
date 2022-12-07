@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.0.57
+
+- fix alias logic. Previously it only ensured that the two had the same prefix, now it is somewhat ensured that he is a directory.
+
 # 0.0.56
 
 - support log.

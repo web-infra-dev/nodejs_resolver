@@ -8,7 +8,7 @@ impl Plugin for AliasPlugin {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         let inner_target = &info.request.target;
         for (from, to) in &resolver.options.alias {
-            if inner_target.starts_with(from) {
+            if inner_target == from || inner_target.starts_with(&format!("{}/", from)) {
                 tracing::debug!(
                     "AliasPlugin works, triggered by '{from}'({})",
                     log::depth(&context.depth)
