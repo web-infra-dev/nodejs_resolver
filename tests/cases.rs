@@ -364,6 +364,14 @@ fn alias_test() {
         ],
         ..Default::default()
     });
+    should_resolve_failed(&resolver, &alias_cases_path, "ignored/a");
+    should_ignored(&resolver, &alias_cases_path, "ignore/a");
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "ignore-a",
+        p(vec!["alias", "node_modules", "ignore-a", "index.js"]),
+    );
     should_equal(
         &resolver,
         &alias_cases_path.join("node_modules").join("@recursive"),
@@ -377,7 +385,6 @@ fn alias_test() {
         p(vec!["alias", "node_modules", "browser", "index.js"]),
     );
     should_overflow(&resolver, &alias_cases_path, "./e");
-
     should_equal(
         &resolver,
         &alias_cases_path,
