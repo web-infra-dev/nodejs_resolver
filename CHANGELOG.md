@@ -1,6 +1,6 @@
 # Changelog
 
-# 0.0.57
+# 0.0.57 & 0.0.58
 
 - fix alias logic. Previously it only ensured that the two had the same prefix, now it is somewhat ensured that he is a directory.
 

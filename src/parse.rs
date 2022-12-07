@@ -1,7 +1,6 @@
-use smol_str::SmolStr;
-
 use crate::kind::PathKind;
 use crate::Resolver;
+use smol_str::SmolStr;
 
 #[derive(Clone, Debug)]
 pub struct Request {

@@ -1,5 +1,5 @@
 use super::Plugin;
-use crate::{description::PkgInfo, log, Context, Info, Resolver, State};
+use crate::{description::PkgInfo, log::color, log::depth, Context, Info, Resolver, State};
 
 pub struct MainFieldPlugin<'a> {
     pkg_info: &'a PkgInfo,
@@ -33,12 +33,12 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
                 }
                 tracing::debug!(
                     "MainField in '{}' works, using {} field({})",
-                    log::color::blue(&format!(
+                    color::blue(&format!(
                         "{}/package.json",
                         self.pkg_info.dir_path.display()
                     )),
-                    log::color::blue(user_main_field),
-                    log::depth(&context.depth)
+                    color::blue(user_main_field),
+                    depth(&context.depth)
                 );
 
                 let main_field_info = if main_field.starts_with("./") {
@@ -53,7 +53,7 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
                 if state.is_finished() {
                     return state;
                 }
-                tracing::debug!("Leaving MainField({})", log::depth(&context.depth));
+                tracing::debug!("Leaving MainField({})", depth(&context.depth));
             }
         }
         State::Resolving(info)

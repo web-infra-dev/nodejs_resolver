@@ -1,6 +1,6 @@
 use crate::{
     description::PkgInfo,
-    log,
+    log::color,
     plugin::{
         BrowserFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin,
         MainFilePlugin, Plugin,
@@ -25,7 +25,7 @@ impl Resolver {
             if is_file {
                 return State::Success(ResolveResult::Info(info.with_path(path).with_target("")));
             }
-            tracing::debug!("'{}' is not a file", log::color::red(&path.display()));
+            tracing::debug!("'{}' is not a file", color::red(&path.display()));
         }
         State::Resolving(info)
     }
@@ -35,7 +35,7 @@ impl Resolver {
         let path = info.get_path();
         tracing::debug!(
             "Attempting to load '{}' as a file",
-            log::color::blue(&path.display())
+            color::blue(&path.display())
         );
         if matches!(self.options.enforce_extension, EnforceExtension::Enabled) {
             return self.resolve_file_with_ext(path, info);
