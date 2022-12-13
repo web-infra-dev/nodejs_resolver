@@ -68,7 +68,7 @@ impl Resolver {
         }
         let reader = entry.stat.read().unwrap();
         let stat = reader.as_ref().unwrap();
-        let json_str = self.cache.fs.read_file(location, stat).map_err(Error::Io)?;
+        let json_str = self.cache.fs.read_file(location, stat)?;
         // TODO: should cache `json_str` -> TsConfig
         let mut json: serde_json::Value =
             jsonc_parser::parse_to_serde_value(&json_str, &Default::default())

@@ -81,35 +81,34 @@ impl PkgJSON {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
-        let side_effects: Option<SideEffects> =
-            json.get("sideEffects").map_or(Ok(None), |value| {
-                // TODO: should optimized
-                if let Some(b) = value.as_bool() {
-                    Ok(Some(SideEffects::Bool(b)))
-                } else if let Some(vec) = value.as_array() {
-                    let mut ans = vec![];
-                    for value in vec {
-                        if let Some(str) = value.as_str() {
-                            ans.push(str.to_string());
-                        } else {
-                            println!(
-                                "warning: sideEffects in {} had unexpected value {}",
-                                file_path.display(),
-                                value
-                            );
-                            return Ok(None);
-                        }
+        let side_effects: Option<SideEffects> = json.get("sideEffects").map_or(None, |value| {
+            // TODO: should optimized
+            if let Some(b) = value.as_bool() {
+                Some(SideEffects::Bool(b))
+            } else if let Some(vec) = value.as_array() {
+                let mut ans = vec![];
+                for value in vec {
+                    if let Some(str) = value.as_str() {
+                        ans.push(str.to_string());
+                    } else {
+                        println!(
+                            "Warning: sideEffects in {} had unexpected value {}",
+                            file_path.display(),
+                            value
+                        );
+                        return None;
                     }
-                    Ok(Some(SideEffects::Array(ans)))
-                } else {
-                    println!(
-                        "warning: sideEffects in {} had unexpected value {}",
-                        file_path.display(),
-                        value
-                    );
-                    Ok(None)
                 }
-            })?;
+                Some(SideEffects::Array(ans))
+            } else {
+                println!(
+                    "warning: sideEffects in {} had unexpected value {}",
+                    file_path.display(),
+                    value
+                );
+                None
+            }
+        });
 
         let version = json
             .get("version")
