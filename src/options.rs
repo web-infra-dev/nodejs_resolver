@@ -2,13 +2,13 @@ use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
 use crate::Cache;
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum AliasMap {
     Target(String),
     Ignored,
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum EnforceExtension {
     Enabled,
     Disabled,

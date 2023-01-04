@@ -1,6 +1,6 @@
 # Changelog
 
-# 0.0.59
+# 0.0.59 & 0.0.60
 
 - `Hash` for `AliasMap` and `EnforceExtension`.
 
