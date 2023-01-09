@@ -26,17 +26,16 @@ impl Request {
         }
     }
 
-    pub(crate) fn parse_identifier(ident: &str) -> (String, String, String) {
-        // maybe we should use regexp: https://github.com/webpack/enhanced-resolve/blob/main/lib/util/identifier.js#L8
-        let mut target = String::new();
-        let mut query = String::new();
-        let mut fragment = String::new();
+    pub(crate) fn parse_identifier(ident: &str) -> (SmolStr, SmolStr, SmolStr) {
+        let mut query: Option<usize> = None;
+        let mut fragment: Option<usize> = None;
         let mut stats = ParseStats::Start;
-        for c in ident.chars() {
+        for (index, c) in ident.chars().enumerate() {
             match c {
                 '#' => match stats {
                     ParseStats::Request | ParseStats::Query => {
                         stats = ParseStats::Fragment;
+                        fragment = Some(index)
                     }
                     ParseStats::Start => {
                         stats = ParseStats::Request;
@@ -46,6 +45,7 @@ impl Request {
                 '?' => match stats {
                     ParseStats::Request | ParseStats::Query | ParseStats::Start => {
                         stats = ParseStats::Query;
+                        query = Some(index)
                     }
                     ParseStats::Fragment => (),
                 },
@@ -55,14 +55,26 @@ impl Request {
                     }
                 }
             };
-            match stats {
-                ParseStats::Request => target.push(c),
-                ParseStats::Query => query.push(c),
-                ParseStats::Fragment => fragment.push(c),
-                _ => unreachable!(),
-            };
         }
-        (target, query, fragment)
+
+        match (query, fragment) {
+            (None, None) => (SmolStr::new(ident), SmolStr::default(), SmolStr::default()),
+            (None, Some(index)) => (
+                SmolStr::new(&ident[0..index]),
+                SmolStr::default(),
+                SmolStr::new(&ident[index..]),
+            ),
+            (Some(index), None) => (
+                SmolStr::new(&ident[0..index]),
+                SmolStr::new(&ident[index..]),
+                SmolStr::default(),
+            ),
+            (Some(i), Some(j)) => (
+                SmolStr::new(&ident[0..i]),
+                SmolStr::new(&ident[i..j]),
+                SmolStr::new(&ident[j..]),
+            ),
+        }
     }
 
     pub(crate) fn with_target(self, target: &str) -> Self {
@@ -79,9 +91,9 @@ impl Resolver {
         let (target, query, fragment) = Request::parse_identifier(request);
         Request {
             kind: Self::get_target_kind(&target),
-            target: target.into(),
-            query: query.into(),
-            fragment: fragment.into(),
+            target,
+            query,
+            fragment,
         }
     }
 }
