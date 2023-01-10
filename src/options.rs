@@ -41,6 +41,33 @@ impl AliasMap {
     }
 }
 
+impl<'a> IntoIterator for &'a AliasMap {
+    type Item = (&'a String, &'a AliasKind);
+    type IntoIter = hashlink::linked_hash_map::Iter<'a, String, AliasKind>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut AliasMap {
+    type Item = (&'a String, &'a mut AliasKind);
+    type IntoIter = hashlink::linked_hash_map::IterMut<'a, String, AliasKind>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
+impl IntoIterator for AliasMap {
+    type Item = (String, AliasKind);
+    type IntoIter = hashlink::linked_hash_map::IntoIter<String, AliasKind>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl FromIterator<(String, AliasKind)> for AliasMap {
     fn from_iter<T: IntoIterator<Item = (String, AliasKind)>>(iter: T) -> Self {
         Self(LinkedHashMap::from_iter(iter))
