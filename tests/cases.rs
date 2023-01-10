@@ -1,6 +1,7 @@
 use nodejs_resolver::{
     test_helper::{p, vec_to_set},
-    AliasMap, Cache, EnforceExtension, Error, Options, ResolveResult, Resolver, SideEffects,
+    AliasKind, AliasMap, Cache, EnforceExtension, Error, Options, ResolveResult, Resolver,
+    SideEffects,
 };
 
 use std::path::{Path, PathBuf};
@@ -313,18 +314,18 @@ fn extensions_test() {
 fn alias_test() {
     let alias_cases_path = p(vec!["alias"]);
     let resolver = Resolver::new(Options {
-        alias: vec![
+        alias: AliasMap::from_iter(vec![
             (
                 String::from("aliasA"),
-                AliasMap::Target(String::from("./a")),
+                AliasKind::Target(String::from("./a")),
             ),
             // (
             //     String::from("./b$"),
-            //     AliasMap::Target(String::from("./a/index")),
+            //     AliasKind::Target(String::from("./a/index")),
             // ), // TODO: should we use trailing?
             (
                 String::from("fs"),
-                AliasMap::Target(
+                AliasKind::Target(
                     alias_cases_path
                         .join("node_modules")
                         .join("browser")
@@ -333,35 +334,41 @@ fn alias_test() {
                         .to_string(),
                 ),
             ),
-            (String::from("./e"), AliasMap::Target(String::from("./d"))),
-            (String::from("./d"), AliasMap::Target(String::from("./e"))),
-            (String::from("./f"), AliasMap::Target(String::from("./g"))),
-            (String::from("./g"), AliasMap::Target(String::from("./h"))),
+            (String::from("./e"), AliasKind::Target(String::from("./d"))),
+            (String::from("./d"), AliasKind::Target(String::from("./e"))),
+            (String::from("./f"), AliasKind::Target(String::from("./g"))),
+            (String::from("./g"), AliasKind::Target(String::from("./h"))),
             (
                 String::from("recursive"),
-                AliasMap::Target(String::from("./recursive/dir")),
+                AliasKind::Target(String::from("./recursive/dir")),
             ),
-            (String::from("#"), AliasMap::Target(String::from("./c/dir"))),
-            (String::from("@"), AliasMap::Target(String::from("./c/dir"))),
+            (
+                String::from("#"),
+                AliasKind::Target(String::from("./c/dir")),
+            ),
+            (
+                String::from("@"),
+                AliasKind::Target(String::from("./c/dir")),
+            ),
             (
                 String::from("@start"),
-                AliasMap::Target(p(vec!["alias"]).display().to_string()),
+                AliasKind::Target(p(vec!["alias"]).display().to_string()),
             ),
             (
                 String::from("@recursive/pointed"),
-                AliasMap::Target(String::from("@recursive/general/index.js")),
+                AliasKind::Target(String::from("@recursive/general/index.js")),
             ),
             (
                 String::from("@recursive/general"),
-                AliasMap::Target(String::from("@recursive/general/redirect.js")),
+                AliasKind::Target(String::from("@recursive/general/redirect.js")),
             ),
             (
                 String::from("@recursive"),
-                AliasMap::Target(String::from("@recursive/general")),
+                AliasKind::Target(String::from("@recursive/general")),
             ),
-            (String::from("./c"), AliasMap::Target(String::from("./c"))),
-            (String::from("ignore"), AliasMap::Ignored),
-        ],
+            (String::from("./c"), AliasKind::Target(String::from("./c"))),
+            (String::from("ignore"), AliasKind::Ignored),
+        ]),
         ..Default::default()
     });
     should_resolve_failed(&resolver, &alias_cases_path, "ignored/a");
@@ -575,13 +582,13 @@ fn alias_test() {
     should_ignored(&resolver, &alias_cases_path, "ignore");
     // test alias ordered
     let resolver = Resolver::new(Options {
-        alias: vec![
+        alias: AliasMap::from_iter(vec![
             (
                 String::from("@A/index"),
-                AliasMap::Target(String::from("./a")),
+                AliasKind::Target(String::from("./a")),
             ),
-            (String::from("@A"), AliasMap::Target(String::from("./b"))),
-        ],
+            (String::from("@A"), AliasKind::Target(String::from("./b"))),
+        ]),
         ..Default::default()
     });
     should_equal(
@@ -591,13 +598,13 @@ fn alias_test() {
         p(vec!["alias", "a", "index"]),
     );
     let resolver = Resolver::new(Options {
-        alias: vec![
-            (String::from("@A"), AliasMap::Target(String::from("./b"))),
+        alias: AliasMap::from_iter(vec![
+            (String::from("@A"), AliasKind::Target(String::from("./b"))),
             (
                 String::from("@A/index"),
-                AliasMap::Target(String::from("./a")),
+                AliasKind::Target(String::from("./a")),
             ),
-        ],
+        ]),
         ..Default::default()
     });
     should_equal(
@@ -1249,10 +1256,10 @@ fn browser_filed_test() {
     // browser with alias
     let resolver = Resolver::new(Options {
         browser_field: true,
-        alias: vec![(
+        alias: AliasMap::from_iter(vec![(
             String::from("./lib/toString.js"),
-            AliasMap::Target(String::from("module-d")),
-        )],
+            AliasKind::Target(String::from("module-d")),
+        )]),
         ..Default::default()
     });
 
@@ -1431,13 +1438,16 @@ fn full_specified_test() {
     // TODO: should I need add `fullSpecified` flag?
     let full_cases_path = p(vec!["full", "a"]);
     let resolver = Resolver::new(Options {
-        alias: vec![
+        alias: AliasMap::from_iter(vec![
             (
                 String::from("alias1"),
-                AliasMap::Target(String::from("./abc")),
+                AliasKind::Target(String::from("./abc")),
             ),
-            (String::from("alias2"), AliasMap::Target(String::from("./"))),
-        ],
+            (
+                String::from("alias2"),
+                AliasKind::Target(String::from("./")),
+            ),
+        ]),
         browser_field: true,
         ..Default::default()
     });

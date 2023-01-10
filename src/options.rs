@@ -1,11 +1,42 @@
 use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
+use indexmap::IndexMap;
+
 use crate::Cache;
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum AliasMap {
+#[derive(Debug, Clone)]
+pub enum AliasKind {
     Target(String),
     Ignored,
+}
+
+impl Default for AliasKind {
+    fn default() -> Self {
+        Self::Ignored
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AliasMap(IndexMap<String, AliasKind>);
+
+impl AliasMap {
+    pub fn insert(&mut self, k: String, v: AliasKind) -> Option<AliasKind> {
+        self.0.insert(k, v)
+    }
+
+    pub fn iter(&self) -> indexmap::map::Iter<String, AliasKind> {
+        self.0.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> indexmap::map::IterMut<String, AliasKind> {
+        self.0.iter_mut()
+    }
+}
+
+impl FromIterator<(String, AliasKind)> for AliasMap {
+    fn from_iter<T: IntoIterator<Item = (String, AliasKind)>>(iter: T) -> Self {
+        Self(IndexMap::from_iter(iter))
+    }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -26,7 +57,7 @@ pub struct Options {
     /// Maps key to value.
     /// Default is `vec![]`.
     /// The reason for using `Vec` instead `HashMap` to keep the order.
-    pub alias: Vec<(String, AliasMap)>,
+    pub alias: AliasMap,
     /// Prefer to resolve request as relative request and
     /// fallback to resolving as modules.
     /// Default is `false`
@@ -79,7 +110,7 @@ impl Default for Options {
         let main_files = vec![String::from("index")];
         let main_fields = vec![String::from("main")];
         let description_file = String::from("package.json");
-        let alias = vec![];
+        let alias = AliasMap::default();
         let symlinks = true;
         let browser_field = false;
         let condition_names: HashSet<String> =

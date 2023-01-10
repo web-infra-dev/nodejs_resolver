@@ -1,6 +1,6 @@
 use crate::{
-    context::Context, description::PkgInfo, log::color, log::depth, AliasMap, Info, PathKind,
-    Plugin, ResolveResult, Resolver, State,
+    context::Context, description::PkgInfo, log::color, log::depth, options::AliasKind, Info,
+    PathKind, Plugin, ResolveResult, Resolver, State,
 };
 use std::path::PathBuf;
 
@@ -36,7 +36,7 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
         if !resolver.options.browser_field {
             return State::Resolving(info);
         }
-        for (alias_key, alias_target) in &self.pkg_info.json.alias_fields {
+        for (alias_key, alias_target) in self.pkg_info.json.alias_fields.iter() {
             let should_deal_alias = match matches!(info.request.kind, PathKind::Normal) {
                 true => Self::request_target_is_module_and_equal_alias_key(alias_key, &info),
                 false => Self::request_path_is_equal_alias_key_path(
@@ -58,7 +58,7 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
                 depth(&context.depth)
             );
             match alias_target {
-                AliasMap::Target(converted) => {
+                AliasKind::Target(converted) => {
                     if alias_key == converted {
                         // pointed itself in `browser` field:
                         // {
@@ -76,7 +76,7 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
                     }
                     tracing::debug!("Leaving BrowserFiled({})", depth(&context.depth));
                 }
-                AliasMap::Ignored => return State::Success(ResolveResult::Ignored),
+                AliasKind::Ignored => return State::Success(ResolveResult::Ignored),
             };
         }
         State::Resolving(info)

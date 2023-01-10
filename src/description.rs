@@ -1,4 +1,5 @@
 use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
+use crate::options::AliasKind;
 use crate::{AliasMap, Error, RResult, Resolver};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -13,7 +14,7 @@ pub enum SideEffects {
 pub struct PkgJSON {
     pub name: Option<String>,
     pub version: Option<String>,
-    pub alias_fields: Vec<(String, AliasMap)>,
+    pub alias_fields: AliasMap,
     pub exports_field_tree: Option<PathTreeNode>,
     pub imports_field_tree: Option<PathTreeNode>,
     pub side_effects: Option<SideEffects>,
@@ -36,22 +37,22 @@ impl PkgJSON {
                     .map_err(|error| Error::UnexpectedJson((file_path.to_path_buf(), error)))
             })?;
 
-        let mut alias_fields = Vec::new();
+        let mut alias_fields = AliasMap::default();
 
         if let Some(value) = json.get("browser") {
             // https://github.com/defunctzombie/package-browser-field-spec
             if let Some(map) = value.as_object() {
                 for (key, value) in map {
                     if let Some(false) = value.as_bool() {
-                        alias_fields.push((key.to_string(), AliasMap::Ignored));
+                        alias_fields.insert(key.to_string(), AliasKind::Ignored);
                     } else if let Some(s) = value.as_str() {
-                        alias_fields.push((key.to_string(), AliasMap::Target(s.to_string())));
+                        alias_fields.insert(key.to_string(), AliasKind::Target(s.to_string()));
                     }
                 }
             } else if let Some(false) = value.as_bool() {
-                alias_fields.push((String::from("."), AliasMap::Ignored));
+                alias_fields.insert(String::from("."), AliasKind::Ignored);
             } else if let Some(s) = value.as_str() {
-                alias_fields.push((String::from("."), AliasMap::Target(s.to_string())));
+                alias_fields.insert(String::from("."), AliasKind::Target(s.to_string()));
             } else {
                 let msg = format!(
                     "The browser is {} which meet unhandled value, error in {}/package.json",

@@ -1,5 +1,5 @@
 use super::Plugin;
-use crate::{log::depth, AliasMap, Context, Info, ResolveResult, Resolver, State};
+use crate::{log::depth, Context, Info, ResolveResult, Resolver, State, options::AliasKind};
 
 #[derive(Default)]
 pub struct AliasPlugin;
@@ -7,14 +7,14 @@ pub struct AliasPlugin;
 impl Plugin for AliasPlugin {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         let inner_target = &info.request.target;
-        for (from, to) in &resolver.options.alias {
+        for (from, to) in resolver.options.alias.iter() {
             if inner_target == from || inner_target.starts_with(&format!("{from}/")) {
                 tracing::debug!(
                     "AliasPlugin works, triggered by '{from}'({})",
                     depth(&context.depth)
                 );
                 match to {
-                    AliasMap::Target(to) => {
+                    AliasKind::Target(to) => {
                         if inner_target.starts_with(to) {
                             // skip `target.starts_with(to)` to prevent infinite loop.
                             continue;
@@ -29,7 +29,7 @@ impl Plugin for AliasPlugin {
                             return state;
                         }
                     }
-                    AliasMap::Ignored => return State::Success(ResolveResult::Ignored),
+                    AliasKind::Ignored => return State::Success(ResolveResult::Ignored),
                 }
                 tracing::debug!("Leaving AliasPlugin({})", depth(&context.depth));
             }
