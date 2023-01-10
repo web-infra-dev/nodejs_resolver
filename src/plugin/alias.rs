@@ -1,5 +1,5 @@
 use super::Plugin;
-use crate::{log::depth, Context, Info, ResolveResult, Resolver, State, options::AliasKind};
+use crate::{log::depth, options::AliasKind, Context, Info, ResolveResult, Resolver, State};
 
 #[derive(Default)]
 pub struct AliasPlugin;

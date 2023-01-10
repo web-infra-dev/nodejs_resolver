@@ -67,7 +67,7 @@ pub use error::Error;
 pub use info::Info;
 use kind::PathKind;
 use log::*;
-pub use options::{AliasMap, AliasKind, EnforceExtension, Options};
+pub use options::{AliasKind, AliasMap, EnforceExtension, Options};
 use plugin::{
     AliasPlugin, BrowserFieldPlugin, ImportsFieldPlugin, ParsePlugin, Plugin, PreferRelativePlugin,
 };

@@ -1,41 +1,49 @@
-use std::{collections::HashSet, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, hash::Hash, path::PathBuf, sync::Arc};
 
-use indexmap::IndexMap;
+use hashlink::LinkedHashMap;
 
 use crate::Cache;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum AliasKind {
     Target(String),
     Ignored,
 }
 
-impl Default for AliasKind {
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct AliasMap(LinkedHashMap<String, AliasKind>);
+
+impl Default for AliasMap {
     fn default() -> Self {
-        Self::Ignored
+        Self(Default::default())
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct AliasMap(IndexMap<String, AliasKind>);
-
 impl AliasMap {
+    pub fn get(&self, k: &str) -> Option<&AliasKind> {
+        self.0.get(k)
+    }
+
     pub fn insert(&mut self, k: String, v: AliasKind) -> Option<AliasKind> {
         self.0.insert(k, v)
     }
 
-    pub fn iter(&self) -> indexmap::map::Iter<String, AliasKind> {
+    pub fn contains_key(&self, k: &str) -> bool {
+        self.0.contains_key(k)
+    }
+
+    pub fn iter(&self) -> hashlink::linked_hash_map::Iter<String, AliasKind> {
         self.0.iter()
     }
 
-    pub fn iter_mut(&mut self) -> indexmap::map::IterMut<String, AliasKind> {
+    pub fn iter_mut(&mut self) -> hashlink::linked_hash_map::IterMut<String, AliasKind> {
         self.0.iter_mut()
     }
 }
 
 impl FromIterator<(String, AliasKind)> for AliasMap {
     fn from_iter<T: IntoIterator<Item = (String, AliasKind)>>(iter: T) -> Self {
-        Self(IndexMap::from_iter(iter))
+        Self(LinkedHashMap::from_iter(iter))
     }
 }
 
