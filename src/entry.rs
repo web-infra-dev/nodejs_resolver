@@ -77,7 +77,12 @@ impl Entry {
         if let Some(symlink) = self.symlink.read().unwrap().as_ref() {
             return Ok(symlink.to_path_buf());
         }
-        let real_path = std::fs::canonicalize(&self.path)?;
+        // Perf: `canonicalize` is slow, test if the file exists without following symlink first.
+        let real_path = if self.path.symlink_metadata().is_ok() {
+            self.path.clone()
+        } else {
+            std::fs::canonicalize(&self.path)?
+        };
         let mut writer = self.symlink.write().unwrap();
         *writer = Some(real_path.clone());
         Ok(real_path)
