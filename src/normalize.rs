@@ -33,8 +33,11 @@ impl Resolver {
 
     #[tracing::instrument]
     fn normalize_path(&self, path: &Path) -> RResult<PathBuf> {
-        if self.options.symlinks {
-            let entry = self.load_entry(path)?;
+        let path = Self::normalize_path_without_link(path);
+        // perf: Most paths are not symlinks, pre-check the path with `path.is_symlink()` (faster lstat syscall).
+        // `entry.symlink()` uses an expensive syscall inside `std::fs::canonicalize`.
+        if self.options.symlinks && path.is_symlink() {
+            let entry = self.load_entry(&path)?;
             let symlink = entry.symlink().map_err(Error::Io);
             symlink.map(|result| {
                 if cfg!(windows) {
@@ -44,7 +47,7 @@ impl Resolver {
                 }
             })
         } else {
-            Ok(Self::normalize_path_without_link(path))
+            Ok(path)
         }
     }
 
