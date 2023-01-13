@@ -69,7 +69,7 @@ pub struct Entry {
     pub path: PathBuf,
     pub pkg_info: Option<Arc<PkgInfo>>,
     pub stat: RwLock<Option<EntryStat>>,
-    pub symlink: RwLock<Option<PathBuf>>,
+    pub symlink: RwLock<Option<Box<Path>>>,
 }
 
 impl Entry {
@@ -78,8 +78,10 @@ impl Entry {
             return Ok(symlink.to_path_buf());
         }
         let real_path = std::fs::canonicalize(&self.path)?;
-        let mut writer = self.symlink.write().unwrap();
-        *writer = Some(real_path.clone());
+        self.symlink
+            .write()
+            .unwrap()
+            .replace(real_path.clone().into_boxed_path());
         Ok(real_path)
     }
 
@@ -135,8 +137,8 @@ impl Entry {
         p.as_os_str().as_bytes().last() == Some(&b'/')
     }
 
-    pub fn path_to_key(path: &Path) -> (PathBuf, bool) {
-        (path.to_path_buf(), Self::has_trailing_slash(path))
+    pub fn path_to_key(path: &Path) -> (Box<Path>, bool) {
+        (path.into(), Self::has_trailing_slash(path))
     }
 }
 
