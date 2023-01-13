@@ -72,10 +72,7 @@ use plugin::{
     AliasPlugin, BrowserFieldPlugin, ImportsFieldPlugin, ParsePlugin, Plugin, PreferRelativePlugin,
 };
 use state::State;
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{path::Path, sync::Arc};
 
 #[derive(Debug)]
 pub struct Resolver {
@@ -83,7 +80,7 @@ pub struct Resolver {
     pub(crate) cache: Arc<Cache>,
     // In `PathBuf::from('/a/b/')` is equal `PathBuf::from('/a/b')`,
     // It may cause some problem.
-    pub(crate) entries: dashmap::DashMap<(PathBuf, bool), Arc<Entry>>,
+    pub(crate) entries: dashmap::DashMap<(Box<Path>, bool), Arc<Entry>>,
 }
 
 #[derive(Debug)]
