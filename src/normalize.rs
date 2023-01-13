@@ -33,8 +33,9 @@ impl Resolver {
 
     #[tracing::instrument]
     fn normalize_path(&self, path: &Path) -> RResult<PathBuf> {
+        let path = Self::normalize_path_without_link(path);
         if self.options.symlinks {
-            let entry = self.load_entry(path)?;
+            let entry = self.load_entry(&path)?;
             let symlink = entry.symlink().map_err(Error::Io);
             symlink.map(|result| {
                 if cfg!(windows) {
@@ -44,7 +45,7 @@ impl Resolver {
                 }
             })
         } else {
-            Ok(Self::normalize_path_without_link(path))
+            Ok(path)
         }
     }
 
