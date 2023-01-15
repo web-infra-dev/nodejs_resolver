@@ -6,6 +6,7 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub enum SideEffects {
     Bool(bool),
+    String(String),
     Array(Vec<String>),
 }
 
@@ -85,27 +86,19 @@ impl PkgJSON {
             // TODO: should optimized
             if let Some(b) = value.as_bool() {
                 Some(SideEffects::Bool(b))
+            } else if let Some(s) = value.as_str() {
+                Some(SideEffects::String(s.to_owned()))
             } else if let Some(vec) = value.as_array() {
                 let mut ans = vec![];
                 for value in vec {
                     if let Some(str) = value.as_str() {
                         ans.push(str.to_string());
                     } else {
-                        println!(
-                            "Warning: sideEffects in {} had unexpected value {}",
-                            file_path.display(),
-                            value
-                        );
                         return None;
                     }
                 }
                 Some(SideEffects::Array(ans))
             } else {
-                println!(
-                    "warning: sideEffects in {} had unexpected value {}",
-                    file_path.display(),
-                    value
-                );
                 None
             }
         });

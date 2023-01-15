@@ -2623,6 +2623,23 @@ fn load_side_effects_test() {
         Some(SideEffects::Bool(false))
     ));
 
+    let string_side_effects_path = if let ResolveResult::Info(info) =
+        resolver.resolve(&case_path, "string-side-effects").unwrap()
+    {
+        info.path
+    } else {
+        panic!("error")
+    };
+
+    assert!(matches!(
+        resolver
+            .load_side_effects(&string_side_effects_path)
+            .unwrap()
+            .unwrap()
+            .1,
+        Some(SideEffects::String(s)) if s == "*.js"
+    ));
+
     // match resolver
     //     .load_side_effects(&p(vec!["incorrect-package", "sideeffects-map"]))
     //     .unwrap_err()
