@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.0.61
+
+- add string type side effects [#113](https://github.com/modern-js-dev/nodejs_resolver/pull/113)
+
 # 0.0.59 & 0.0.60
 
 - `Hash` for `AliasMap` and `EnforceExtension`.
