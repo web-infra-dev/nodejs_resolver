@@ -46,6 +46,9 @@ pub struct Options {
     /// A JSON file to describing this lib information.
     /// Default is `"package.json"`.
     pub description_file: String,
+    /// Resolve to a context instead of a file.
+    /// Default is `false`
+    pub resolve_to_context: bool,
     /// Main file in this directory.
     /// Default is `["index"]`.
     pub main_files: Vec<String>,
@@ -88,7 +91,9 @@ impl Default for Options {
         let enforce_extension = EnforceExtension::Auto;
         let tsconfig = None;
         let external_cache = None;
+        let resolve_to_context = false;
         Self {
+            resolve_to_context,
             prefer_relative,
             extensions,
             main_files,
