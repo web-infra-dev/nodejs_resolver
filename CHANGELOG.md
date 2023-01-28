@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.0.62
+
+- support `resolve_to_context`.
+
 # 0.0.61
 
 - add string type side effects [#113](https://github.com/modern-js-dev/nodejs_resolver/pull/113)

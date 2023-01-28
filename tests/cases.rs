@@ -2829,3 +2829,33 @@ fn self_in_dep_test() {
         p(vec!["self-is-dep", "src", "b.js"]),
     );
 }
+
+#[test]
+fn resolve_to_context_test() {
+    let resolver = Resolver::new(Options {
+        resolve_to_context: true,
+        ..Default::default()
+    });
+    should_equal(&resolver, &p(vec![]), "./", p(vec![]));
+    should_equal(&resolver, &p(vec![]), "./dirOrFile", p(vec!["dirOrFile"]));
+    should_equal(
+        &resolver,
+        &p(vec![]),
+        "./dirOrFile/../../fixtures/./dirOrFile/..",
+        p(vec![]),
+    );
+    should_equal(&resolver, &p(vec![]), "./m.js", p(vec!["m.js"]));
+    should_equal(&resolver, &p(vec![]), "./main-field", p(vec!["main-field"]));
+    should_equal(
+        &resolver,
+        &p(vec!["browser-module"]),
+        "browser-string",
+        p(vec!["browser-module", "node_modules", "browser-string"]),
+    );
+    should_equal(
+        &resolver,
+        &p(vec![]),
+        "./main-field-inexist",
+        p(vec!["main-field-inexist"]),
+    );
+}
