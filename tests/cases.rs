@@ -12,7 +12,7 @@ fn should_equal(resolver: &Resolver, path: &Path, request: &str, expected: PathB
             assert_eq!(info.join(), expected);
         }
         Ok(ResolveResult::Ignored) => panic!("should not ignored"),
-        Err(error) => panic!("{:?}", error),
+        Err(error) => panic!("{error:?}"),
     }
 }
 
@@ -26,7 +26,7 @@ fn should_ignored(resolver: &Resolver, path: &Path, request: &str) {
 fn should_resolve_failed(resolver: &Resolver, path: &Path, request: &str) {
     let result = resolver.resolve(path, request);
     if !matches!(result, Err(Error::ResolveFailedTag)) {
-        println!("{:?}", result);
+        println!("{result:?}");
         unreachable!();
     }
 }
@@ -34,7 +34,7 @@ fn should_resolve_failed(resolver: &Resolver, path: &Path, request: &str) {
 fn should_overflow(resolver: &Resolver, path: &Path, request: &str) {
     let result = resolver.resolve(path, request);
     if !matches!(result, Err(Error::Overflow)) {
-        println!("{:?}", result);
+        println!("{result:?}");
         unreachable!();
     }
 }
@@ -51,12 +51,12 @@ fn should_unexpected_json_error(
                 assert_eq!(error_file_path, actual_error_file_path)
             }
             _ => {
-                println!("{:?}", err);
+                println!("{err:?}");
                 unreachable!();
             }
         },
         Ok(result) => {
-            println!("{:?}", result);
+            println!("{result:?}");
             unreachable!();
         }
     }
@@ -77,12 +77,12 @@ fn should_unexpected_value_error(
                 }
             }
             _ => {
-                println!("{:?}", err);
+                println!("{err:?}");
                 unreachable!();
             }
         },
         Ok(result) => {
-            println!("{:?}", result);
+            println!("{result:?}");
             unreachable!();
         }
     }
@@ -530,7 +530,7 @@ fn alias_test() {
         "@start/a",
         p(vec!["alias", "a", "index"]),
     );
-    should_resolve_failed(&resolver, &Path::new("@start/a"), "");
+    should_resolve_failed(&resolver, Path::new("@start/a"), "");
     // TODO: exact alias
     // should_equal(resolver, &alias_cases_path, "./b?aa#bb?cc", fixture!("alias/a/index?aa#bb?cc"));
     // should_equal(resolver, &alias_cases_path, "./b/?aa#bb?cc", fixture!("alias/a/index?aa#bb?cc"));
@@ -2163,7 +2163,7 @@ fn cache_fs() {
     );
 
     write(
-        &fixture_path.join("package.json"),
+        fixture_path.join("package.json"),
         "{\"main\": \"./src/module.js\"}",
     )
     .expect("write failed");
@@ -2179,7 +2179,7 @@ fn cache_fs() {
     );
 
     write(
-        &fixture_path.join("package.json"),
+        fixture_path.join("package.json"),
         "{\"main\": \"./src/index.js\"}",
     )
     .expect("write failed");
@@ -2695,11 +2695,11 @@ fn shared_cache_test2() {
         &resolver2,
         &case_path,
         "./lib/ignore.js",
-        case_path.join("lib").join("ignore.js").to_path_buf(),
+        case_path.join("lib").join("ignore.js"),
     );
 
     let resolver3 = Resolver::new(Options {
-        external_cache: Some(cache.clone()),
+        external_cache: Some(cache),
         main_fields: vec!["module".to_string()],
         ..Default::default()
     });

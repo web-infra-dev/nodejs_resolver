@@ -82,7 +82,7 @@ impl PkgJSON {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
-        let side_effects: Option<SideEffects> = json.get("sideEffects").map_or(None, |value| {
+        let side_effects: Option<SideEffects> = json.get("sideEffects").and_then(|value| {
             // TODO: should optimized
             if let Some(b) = value.as_bool() {
                 Some(SideEffects::Bool(b))
