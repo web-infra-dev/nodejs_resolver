@@ -127,7 +127,7 @@ impl Resolver {
 #[test]
 fn test_get_absolute_mapping_entries() {
     let result = Resolver::get_absolute_mapping_entries(
-        &Path::new("/absolute/base/url"),
+        Path::new("/absolute/base/url"),
         &FxHashMap::from_iter(vec![
             (
                 "*".to_string(),
@@ -161,8 +161,8 @@ fn test_get_absolute_mapping_entries() {
     }));
 
     let result = Resolver::get_absolute_mapping_entries(
-        &Path::new("/absolute/base/url"),
+        Path::new("/absolute/base/url"),
         &FxHashMap::from_iter([]),
     );
-    assert!(result.len() == 0);
+    assert!(result.is_empty());
 }

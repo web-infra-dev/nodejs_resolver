@@ -571,7 +571,7 @@ fn exports_field_map_test() {
         condition_names: Vec<&str>,
     ) -> RResult<Vec<String>> {
         ExportsField::build_field_path_tree(&value).and_then(|root| {
-            ExportsField::field_process(&root, &request, &test_helper::vec_to_set(condition_names))
+            ExportsField::field_process(&root, request, &test_helper::vec_to_set(condition_names))
         })
     }
 
@@ -2093,7 +2093,7 @@ fn imports_field_map_test() {
         condition_names: Vec<&str>,
     ) -> RResult<Vec<String>> {
         ImportsField::build_field_path_tree(&value).and_then(|root| {
-            ImportsField::field_process(&root, &request, &test_helper::vec_to_set(condition_names))
+            ImportsField::field_process(&root, request, &test_helper::vec_to_set(condition_names))
         })
     }
 
