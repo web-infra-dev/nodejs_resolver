@@ -71,8 +71,9 @@ pub use options::{AliasMap, EnforceExtension, Options};
 use plugin::{
     AliasPlugin, BrowserFieldPlugin, ImportsFieldPlugin, ParsePlugin, Plugin, PreferRelativePlugin,
 };
+use rustc_hash::FxHasher;
 use state::State;
-use std::{path::Path, sync::Arc};
+use std::{hash::BuildHasherDefault, path::Path, sync::Arc};
 
 #[derive(Debug)]
 pub struct Resolver {
@@ -80,7 +81,8 @@ pub struct Resolver {
     pub(crate) cache: Arc<Cache>,
     // In `PathBuf::from('/a/b/')` is equal `PathBuf::from('/a/b')`,
     // It may cause some problem.
-    pub(crate) entries: dashmap::DashMap<(Box<Path>, bool), Arc<Entry>>,
+    pub(crate) entries:
+        dashmap::DashMap<(Box<Path>, bool), Arc<Entry>, BuildHasherDefault<FxHasher>>,
 }
 
 #[derive(Debug)]

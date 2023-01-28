@@ -1,14 +1,12 @@
 // Copy from https://github.com/dividab/tsconfig-paths
 
 use crate::{context::Context, parse::Request, Info, RResult, Resolver, State};
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use rustc_hash::FxHashMap;
+use std::path::{Path, PathBuf};
 
 #[derive(Default, Debug)]
 pub struct TsConfigInfo {
-    pub paths: Option<HashMap<String, Vec<String>>>,
+    pub paths: Option<FxHashMap<String, Vec<String>>>,
     pub base_url: Option<String>,
 }
 
@@ -22,7 +20,7 @@ struct MappingEntry {
 impl Resolver {
     fn get_absolute_mapping_entries(
         absolute_base_url: &Path,
-        paths: &HashMap<String, Vec<String>>,
+        paths: &FxHashMap<String, Vec<String>>,
     ) -> Vec<MappingEntry> {
         paths
             .iter()
@@ -71,7 +69,7 @@ impl Resolver {
     fn create_match_list(
         location: &Path,
         base_url: &Option<String>,
-        paths: &Option<HashMap<String, Vec<String>>>,
+        paths: &Option<FxHashMap<String, Vec<String>>>,
     ) -> Vec<MappingEntry> {
         let location_dir = location.parent().unwrap();
 
@@ -130,7 +128,7 @@ impl Resolver {
 fn test_get_absolute_mapping_entries() {
     let result = Resolver::get_absolute_mapping_entries(
         &Path::new("/absolute/base/url"),
-        &HashMap::from([
+        &FxHashMap::from_iter(vec![
             (
                 "*".to_string(),
                 (vec!["/foo1", "./foo2"])
@@ -164,7 +162,7 @@ fn test_get_absolute_mapping_entries() {
 
     let result = Resolver::get_absolute_mapping_entries(
         &Path::new("/absolute/base/url"),
-        &HashMap::from([]),
+        &FxHashMap::from_iter([]),
     );
     assert!(result.len() == 0);
 }

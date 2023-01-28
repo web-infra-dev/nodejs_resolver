@@ -1,7 +1,8 @@
 use crate::description::PkgJSON;
 use crate::fs::CachedFS;
 use dashmap::DashMap;
-use std::sync::Arc;
+use rustc_hash::FxHasher;
+use std::{hash::BuildHasherDefault, sync::Arc};
 
 #[derive(Debug, Default)]
 pub struct Cache {
@@ -10,4 +11,4 @@ pub struct Cache {
 }
 
 type Content = String;
-type CachedPkgJSON = DashMap<Content, Arc<PkgJSON>>;
+type CachedPkgJSON = DashMap<Content, Arc<PkgJSON>, BuildHasherDefault<FxHasher>>;

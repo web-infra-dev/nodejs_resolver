@@ -2,7 +2,7 @@
 
 use crate::context::Context;
 use crate::{Error, Info, RResult, ResolveResult, Resolver, State};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::path::Path;
 
 #[derive(Debug, Clone, Default)]
@@ -14,7 +14,7 @@ pub struct TsConfig {
 #[derive(Debug, Clone)]
 pub struct CompilerOptions {
     pub base_url: Option<String>,
-    pub paths: Option<HashMap<String, Vec<String>>>,
+    pub paths: Option<FxHashMap<String, Vec<String>>>,
 }
 
 impl Resolver {
@@ -30,7 +30,7 @@ impl Resolver {
                 .get("baseUrl")
                 .map(|v| v.as_str().unwrap().to_string());
             let paths = options.get("paths").map(|v| {
-                let mut map = HashMap::new();
+                let mut map = FxHashMap::default();
                 // TODO: should optimized
                 for (key, obj) in v.as_object().unwrap() {
                     map.insert(

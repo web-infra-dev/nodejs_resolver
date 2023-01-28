@@ -1,7 +1,8 @@
 use crate::entry::EntryStat;
+use rustc_hash::FxHasher;
 use std::path::Path;
 use std::sync::Arc;
-use std::{fmt::Debug, path::PathBuf};
+use std::{fmt::Debug, hash::BuildHasherDefault, path::PathBuf};
 
 use dashmap::DashMap;
 
@@ -9,7 +10,7 @@ use std::time::Duration;
 
 #[derive(Debug, Default)]
 pub struct CachedFS {
-    entries: DashMap<PathBuf, Arc<FileEntry>>,
+    entries: DashMap<PathBuf, Arc<FileEntry>, BuildHasherDefault<FxHasher>>,
 }
 
 #[derive(Debug)]
