@@ -77,7 +77,7 @@ impl Entry {
         if let Some(symlink) = self.symlink.read().unwrap().as_ref() {
             return Ok(symlink.to_path_buf());
         }
-        let real_path = std::fs::canonicalize(&self.path)?;
+        let real_path = dunce::canonicalize(&self.path)?;
         self.symlink
             .write()
             .unwrap()
