@@ -1,6 +1,7 @@
 use crate::{Error, RResult, ResolveResult, Resolver};
 
-use std::path::{Component, Path, PathBuf};
+use path_absolutize::Absolutize;
+use std::path::{Path, PathBuf};
 
 impl Resolver {
     /// Eliminate `\\?\` prefix in windows.
@@ -16,19 +17,8 @@ impl Resolver {
     }
 
     fn normalize_path_without_link(path: &Path) -> PathBuf {
-        path.components()
-            .fold(PathBuf::new(), |mut acc, path_component| {
-                match path_component {
-                    Component::Prefix(prefix) => acc.push(prefix.as_os_str()),
-                    Component::Normal(name) => acc.push(name),
-                    Component::RootDir => acc.push("/"),
-                    Component::CurDir => {}
-                    Component::ParentDir => {
-                        acc.pop();
-                    }
-                }
-                acc
-            })
+        // perf: this method does not re-allocate memory if the path does not contain any dots.
+        path.absolutize_from(Path::new("")).unwrap().to_path_buf()
     }
 
     #[tracing::instrument]
