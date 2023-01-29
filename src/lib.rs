@@ -59,6 +59,7 @@ mod state;
 mod tsconfig;
 mod tsconfig_path;
 
+use crate::normalize::NormalizePath;
 pub use cache::Cache;
 use context::Context;
 pub use description::SideEffects;
@@ -74,15 +75,12 @@ use plugin::{
 use rustc_hash::FxHasher;
 use state::State;
 use std::{hash::BuildHasherDefault, path::Path, sync::Arc};
-
 #[derive(Debug)]
 pub struct Resolver {
     pub options: Options,
     pub(crate) cache: Arc<Cache>,
-    // In `PathBuf::from('/a/b/')` is equal `PathBuf::from('/a/b')`,
-    // It may cause some problem.
-    pub(crate) entries:
-        dashmap::DashMap<(Box<Path>, bool), Arc<Entry>, BuildHasherDefault<FxHasher>>,
+    // File entries keyed by normalized paths
+    pub(crate) entries: dashmap::DashMap<Box<Path>, Arc<Entry>, BuildHasherDefault<FxHasher>>,
 }
 
 #[derive(Debug)]

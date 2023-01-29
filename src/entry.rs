@@ -6,12 +6,9 @@ use std::{
 
 use crate::{
     description::{PkgInfo, PkgJSON},
+    normalize::NormalizePath,
     RResult, Resolver,
 };
-#[cfg(unix)]
-use std::os::unix::ffi::OsStrExt;
-#[cfg(windows)]
-use std::os::windows::ffi::OsStrExt;
 
 #[derive(Debug, Clone)]
 pub enum EntryKind {
@@ -126,38 +123,16 @@ impl Entry {
             false
         }
     }
-
-    #[cfg(windows)]
-    fn has_trailing_slash(p: &Path) -> bool {
-        let last = p.as_os_str().encode_wide().last();
-        last == Some(b'\\' as u16) || last == Some(b'/' as u16)
-    }
-    #[cfg(unix)]
-    fn has_trailing_slash(p: &Path) -> bool {
-        p.as_os_str().as_bytes().last() == Some(&b'/')
-    }
-
-    pub fn path_to_key(path: &Path) -> (Box<Path>, bool) {
-        (path.into(), Self::has_trailing_slash(path))
-    }
 }
 
 impl Resolver {
     pub(super) fn load_entry(&self, path: &Path) -> RResult<Arc<Entry>> {
-        let key = Entry::path_to_key(path);
-        if let Some(cached) = self.entries.get(&key) {
-            // tracing::debug!(
-            //     "Load entry '{}' from cache",
-            //     color::blue(&cached.path.display())
-            // );
+        let key = path.normalize();
+        if let Some(cached) = self.entries.get(key.as_ref()) {
             Ok(cached.clone())
         } else {
-            // TODO: how to mutex that?
-            let entry = Arc::new(self.load_entry_uncached(path)?);
-            // tracing::debug!(
-            //     "Load entry '{}' missing cache",
-            //     color::red(&entry.path.display())
-            // );
+            let entry = Arc::new(self.load_entry_uncached(&key)?);
+            let key = key.to_path_buf().into_boxed_path();
             self.entries.entry(key).or_insert(entry.clone());
             Ok(entry)
         }
@@ -170,6 +145,7 @@ impl Resolver {
         } else {
             None
         };
+
         let pkg_name = &self.options.description_file;
         let is_pkg_name_suffix = path.ends_with(pkg_name);
         let maybe_pkg_path = if is_pkg_name_suffix {
@@ -181,6 +157,7 @@ impl Resolver {
 
         let pkg_file_stat = EntryStat::stat(&maybe_pkg_path)?;
         let pkg_file_exist = pkg_file_stat.kind.is_file();
+
         let pkg_info = if pkg_file_exist {
             let content = self.cache.fs.read_file(&maybe_pkg_path, &pkg_file_stat)?;
             let pkg_json = if let Some(cached) = self.cache.pkg_json.get(&content) {

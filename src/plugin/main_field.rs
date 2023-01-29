@@ -1,5 +1,7 @@
 use super::Plugin;
-use crate::{description::PkgInfo, log::color, log::depth, Context, Info, Resolver, State};
+use crate::{
+    description::PkgInfo, log::color, log::depth, Context, Info, NormalizePath, Resolver, State,
+};
 
 pub struct MainFieldPlugin<'a> {
     pkg_info: &'a PkgInfo,
@@ -13,11 +15,12 @@ impl<'a> MainFieldPlugin<'a> {
 
 impl<'a> Plugin for MainFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
-        if !info.path.eq(&self.pkg_info.dir_path) {
+        let path = info.path.normalize();
+        if !path.eq(&self.pkg_info.dir_path) {
             return State::Resolving(info);
         }
 
-        let main_field_info = Info::from(info.path.to_owned(), info.request.clone());
+        let main_field_info = Info::from(path.to_path_buf(), info.request.clone());
 
         for user_main_field in &resolver.options.main_fields {
             if let Some(main_field) = self
