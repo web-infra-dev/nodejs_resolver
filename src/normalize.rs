@@ -4,18 +4,6 @@ use path_absolutize::Absolutize;
 use std::path::{Path, PathBuf};
 
 impl Resolver {
-    /// Eliminate `\\?\` prefix in windows.
-    /// reference: https://stackoverflow.com/questions/41233684/why-does-my-canonicalized-path-get-prefixed-with
-    fn adjust(p: PathBuf) -> String {
-        const VERBATIM_PREFIX: &str = r#"\\?\"#;
-        let p = p.display().to_string();
-        if let Some(stripped) = p.strip_prefix(VERBATIM_PREFIX) {
-            stripped.to_string()
-        } else {
-            p
-        }
-    }
-
     fn normalize_path_without_link(path: &Path) -> PathBuf {
         // perf: this method does not re-allocate memory if the path does not contain any dots.
         path.absolutize_from(Path::new("")).unwrap().to_path_buf()
@@ -26,14 +14,7 @@ impl Resolver {
         let path = Self::normalize_path_without_link(path);
         if self.options.symlinks {
             let entry = self.load_entry(&path)?;
-            let symlink = entry.symlink().map_err(Error::Io);
-            symlink.map(|result| {
-                if cfg!(windows) {
-                    PathBuf::from(Self::adjust(result))
-                } else {
-                    result
-                }
-            })
+            entry.symlink().map_err(Error::Io)
         } else {
             Ok(path)
         }
