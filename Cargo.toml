@@ -19,6 +19,7 @@ jsonc-parser = { version = "0.21.0", features = ["serde"] }
 serde = { version = "1.0.149", features = ["derive"] }
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 rustc-hash = "1.1.0"
+path-absolutize = "3.0.14"
 
 [dev-dependencies]
 tracing-span-tree = "0.1.1"
