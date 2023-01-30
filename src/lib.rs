@@ -71,6 +71,7 @@ use log::*;
 pub use options::{AliasMap, EnforceExtension, Options};
 use plugin::{
     AliasPlugin, BrowserFieldPlugin, ImportsFieldPlugin, ParsePlugin, Plugin, PreferRelativePlugin,
+    SymlinkPlugin,
 };
 use rustc_hash::FxHasher;
 use state::State;
@@ -144,6 +145,10 @@ impl Resolver {
         } else {
             self._resolve(info, &mut context)
         };
+
+        let result =
+            result.map_success(|info| SymlinkPlugin::default().apply(self, info, &mut context));
+
         // let duration = start.elapsed().as_millis();
         // println!("time cost: {:?} us", duration); // us
         // if duration > 10 {
@@ -154,8 +159,9 @@ impl Resolver {
         //         request,
         //     );
         // }
+
         match result {
-            State::Success(result) => self.normalize_result(result),
+            State::Success(result) => Ok(result),
             State::Error(err) => Err(err),
             State::Resolving(_) | State::Failed(_) => Err(Error::ResolveFailedTag),
         }
