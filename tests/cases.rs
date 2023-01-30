@@ -1733,6 +1733,18 @@ fn exports_fields_test() {
         "exports-field/dist/a.js",
         "Package path exports-field/dist/a.js is not exported".to_string(),
     );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path,
+        "exports-field/dist/",
+        "Only requesting file allowed".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path,
+        "exports-field/dist",
+        "Package path exports-field/dist is not exported".to_string(),
+    );
     // TODO: error stack
     should_unexpected_value_error(
         &resolver,
@@ -2202,6 +2214,12 @@ fn main_fields_test() {
         ..Default::default()
     });
 
+    should_equal(
+        &resolver,
+        &fixture_path,
+        "./main-field-end-slash",
+        p(vec!["main-field-end-slash", "src", "index.js"]),
+    );
     should_equal(
         &resolver,
         &fixture_path,

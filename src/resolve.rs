@@ -1,7 +1,6 @@
 use crate::{
     description::PkgInfo,
     log::color,
-    parse::Request,
     plugin::{
         BrowserFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin,
         MainFilePlugin, Plugin,
@@ -31,22 +30,21 @@ impl Resolver {
         State::Resolving(info)
     }
 
-    fn resolve_context(&self, path: PathBuf, info: Info, count: usize) -> State {
-        if count == 0 {
-            return State::Failed(info);
+    pub(crate) fn resolve_as_context(&self, info: Info) -> State {
+        if !self.options.resolve_to_context {
+            return State::Resolving(info);
         }
+        let path = info.get_path();
+        tracing::debug!(
+            "Attempting to load '{}' as a context",
+            color::blue(&path.display())
+        );
         let is_dir = match self.load_entry(&path) {
             Ok(entry) => entry.is_dir(),
             Err(err) => return State::Error(err),
         };
         if is_dir {
             State::Success(ResolveResult::Info(info.with_path(path).with_target("")))
-        } else if let Some(parent) = path.parent() {
-            self.resolve_context(
-                parent.to_path_buf(),
-                Info::from(parent.to_path_buf(), Request::empty()),
-                count - 1,
-            )
         } else {
             State::Failed(info)
         }
@@ -54,10 +52,10 @@ impl Resolver {
 
     #[tracing::instrument]
     pub(crate) fn resolve_as_file(&self, info: Info) -> State {
-        let path = info.get_path();
-        if self.options.resolve_to_context {
-            return self.resolve_context(path, info, 2);
+        if info.request.is_directory {
+            return State::Resolving(info);
         }
+        let path = info.get_path();
         tracing::debug!(
             "Attempting to load '{}' as a file",
             color::blue(&path.display())
@@ -194,6 +192,7 @@ impl Resolver {
             } else {
                 State::Resolving(module_info)
             }
+            .then(|info| self.resolve_as_context(info))
             .then(|info| self.resolve_as_file(info))
             .then(|info| self.resolve_as_dir(info, context));
 
