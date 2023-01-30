@@ -1986,6 +1986,7 @@ fn exports_fields_test() {
             "browser.js",
         ]),
     );
+    // exports map should works when request relative path
     should_equal(
         &resolver,
         &export_cases_path,
@@ -2015,6 +2016,31 @@ fn exports_fields_test() {
             "lib",
             "browser.js",
         ]),
+    );
+    // exports map should works when request abs path
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        &p(vec![
+            "exports-field",
+            "node_modules",
+            "exports-field",
+            "main.js",
+        ])
+        .display()
+        .to_string(),
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "exports-field",
+            "main.js",
+        ]),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path,
+        "exports-field/main.js",
+        "Package path exports-field/main.js is not exported in".to_string(),
     );
     let resolver = Resolver::new(Options {
         ..Default::default()
