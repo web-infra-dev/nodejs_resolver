@@ -199,7 +199,8 @@ impl Resolver {
                     info.request.kind,
                     PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
                 ) {
-                    self.resolve_as_file(info)
+                    self.resolve_as_context(info)
+                        .then(|info| self.resolve_as_file(info))
                         .then(|info| self.resolve_as_dir(info, context))
                 } else {
                     self.resolve_as_modules(info, context)

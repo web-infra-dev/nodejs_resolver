@@ -12,21 +12,14 @@ impl Plugin for ParsePlugin {
         let had_request = !info.request.target.is_empty();
         if no_query && had_hash && had_request {
             tracing::debug!("ParsePlugin works({})", depth(&context.depth));
-            let directory = request.target.ends_with('/');
             let target = format!(
                 "{}{}{}",
                 request.target,
-                if directory { "/" } else { "" },
+                if request.is_directory { "/" } else { "" },
                 request.fragment
             );
-            let kind = Resolver::get_target_kind(&target);
+            let request = Request::empty().with_target(&target);
             let path = info.path.clone();
-            let request = Request {
-                target: target.into(),
-                query: "".into(),
-                fragment: "".into(),
-                kind,
-            };
             let info = Info::from(path, request);
             let state = resolver._resolve(info, context);
             if state.is_finished() {

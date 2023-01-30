@@ -8,6 +8,7 @@ pub struct Request {
     pub query: SmolStr,
     pub fragment: SmolStr,
     pub(crate) kind: PathKind,
+    pub(crate) is_directory: bool,
 }
 
 impl std::fmt::Display for Request {
@@ -23,6 +24,7 @@ impl Request {
             query: "".into(),
             fragment: "".into(),
             kind: PathKind::Relative,
+            is_directory: false,
         }
     }
 
@@ -78,22 +80,31 @@ impl Request {
     }
 
     pub(crate) fn with_target(self, target: &str) -> Self {
+        let is_directory = Self::is_directory(target);
         Self {
             kind: Resolver::get_target_kind(target),
             target: target.into(),
+            is_directory,
             ..self
         }
+    }
+
+    #[inline]
+    fn is_directory(target: &str) -> bool {
+        target.ends_with('/')
     }
 }
 
 impl Resolver {
     pub(crate) fn parse(&self, request: &str) -> Request {
         let (target, query, fragment) = Request::parse_identifier(request);
+        let is_directory = Request::is_directory(&target);
         Request {
             kind: Self::get_target_kind(&target),
             target,
             query,
             fragment,
+            is_directory,
         }
     }
 }
