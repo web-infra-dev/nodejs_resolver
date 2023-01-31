@@ -18,6 +18,13 @@ impl State {
         }
     }
 
+    pub fn map_success<F: FnOnce(Info) -> State>(self, op: F) -> Self {
+        match self {
+            State::Success(ResolveResult::Info(info)) => op(info),
+            _ => self,
+        }
+    }
+
     pub fn is_finished(&self) -> bool {
         matches!(self, State::Success(_) | State::Error(_))
     }

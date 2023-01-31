@@ -1,6 +1,7 @@
 use std::{
+    io,
     path::{Path, PathBuf},
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex, RwLock},
     time::SystemTime,
 };
 
@@ -39,7 +40,7 @@ pub struct EntryStat {
 }
 
 impl EntryStat {
-    pub fn stat(path: &Path) -> std::io::Result<Self> {
+    pub fn stat(path: &Path) -> io::Result<Self> {
         let stat = if let Ok(meta) = std::fs::metadata(path) {
             let kind = if meta.is_file() {
                 EntryKind::File
@@ -66,20 +67,40 @@ pub struct Entry {
     pub path: PathBuf,
     pub pkg_info: Option<Arc<PkgInfo>>,
     pub stat: RwLock<Option<EntryStat>>,
-    pub symlink: RwLock<Option<Box<Path>>>,
+    symlink: Mutex<CachedPath>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum CachedPath {
+    #[default]
+    Unresolved,
+    NotSymlink,
+    Resolved(Arc<Path>),
 }
 
 impl Entry {
-    pub fn symlink(&self) -> std::io::Result<PathBuf> {
-        if let Some(symlink) = self.symlink.read().unwrap().as_ref() {
-            return Ok(symlink.to_path_buf());
+    /// Returns the canonicalized path of `self.path` if it is a symlink.
+    /// Returns None if `self.path` is not a symlink.
+    pub fn symlink(&self) -> Option<Arc<Path>> {
+        let mut cached_path = self.symlink.lock().unwrap().clone();
+
+        if matches!(cached_path, CachedPath::Unresolved) {
+            if self.path.read_link().is_err() {
+                *self.symlink.lock().unwrap() = CachedPath::NotSymlink;
+                return None;
+            }
+            cached_path = match dunce::canonicalize(&self.path) {
+                Ok(symlink_path) => CachedPath::Resolved(Arc::from(symlink_path)),
+                Err(_) => CachedPath::NotSymlink,
+            };
+            *self.symlink.lock().unwrap() = cached_path.clone();
         }
-        let real_path = dunce::canonicalize(&self.path)?;
-        self.symlink
-            .write()
-            .unwrap()
-            .replace(real_path.clone().into_boxed_path());
-        Ok(real_path)
+
+        match cached_path {
+            CachedPath::Resolved(path) => Some(path),
+            CachedPath::NotSymlink => None,
+            CachedPath::Unresolved => unreachable!(),
+        }
     }
 
     pub fn is_file(&self) -> bool {
@@ -184,13 +205,12 @@ impl Resolver {
         // else return `!true` means stat is None.
         let need_stat = !(pkg_info.is_some() && is_pkg_name_suffix);
         let stat = RwLock::new(if need_stat { None } else { Some(pkg_file_stat) });
-        let symlink = RwLock::new(None);
         Ok(Entry {
             parent,
             path: path.to_path_buf(),
             pkg_info,
             stat,
-            symlink,
+            symlink: Mutex::new(CachedPath::default()),
         })
     }
 
