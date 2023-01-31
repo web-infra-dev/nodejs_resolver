@@ -86,7 +86,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 depth(&context.depth)
             );
             let request = resolver.parse(&item);
-            let info = Info::from(self.pkg_info.dir_path.to_path_buf(), request);
+            let info = Info::from(self.pkg_info.dir_path.clone(), request);
             if !ExportsField::check_target(&info.request.target) {
                 continue;
             }

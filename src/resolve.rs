@@ -226,7 +226,7 @@ fn split_slash_from_request(target: &SmolStr) -> Option<usize> {
     } else {
         slash_index_list.first()
     }
-    .cloned()
+    .copied()
 }
 
 fn get_module_name_from_request(target: &SmolStr) -> SmolStr {

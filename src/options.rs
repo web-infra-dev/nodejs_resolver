@@ -85,27 +85,26 @@ impl Default for Options {
         let alias = vec![];
         let symlinks = true;
         let browser_field = false;
-        let condition_names: HashSet<String> =
-            HashSet::from_iter(["node"].into_iter().map(String::from));
+        let condition_names: HashSet<String> = HashSet::from([String::from("node")]);
         let prefer_relative = false;
         let enforce_extension = EnforceExtension::Auto;
         let tsconfig = None;
         let external_cache = None;
         let resolve_to_context = false;
         Self {
-            resolve_to_context,
-            prefer_relative,
             extensions,
+            enforce_extension,
+            alias,
+            prefer_relative,
+            external_cache,
+            symlinks,
+            description_file,
+            resolve_to_context,
             main_files,
             main_fields,
-            description_file,
-            alias,
-            symlinks,
             browser_field,
             condition_names,
-            enforce_extension,
             tsconfig,
-            external_cache,
         }
     }
 }

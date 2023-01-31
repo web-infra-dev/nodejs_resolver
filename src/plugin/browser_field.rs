@@ -67,7 +67,7 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
                         return State::Resolving(info);
                     }
                     let alias_info = Info::from(
-                        self.pkg_info.dir_path.to_path_buf(),
+                        self.pkg_info.dir_path.clone(),
                         info.request.clone().with_target(converted),
                     );
                     let state = resolver._resolve(alias_info, context);

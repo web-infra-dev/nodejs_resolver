@@ -219,6 +219,7 @@ impl Resolver {
         self.entries.clear();
     }
 
+    #[must_use]
     pub fn get_dependency_from_entry(&self) -> (Vec<PathBuf>, Vec<PathBuf>) {
         let mut miss_dependency = vec![];
         let mut file_dependency = vec![];
@@ -227,9 +228,9 @@ impl Resolver {
             let kind = reader.as_ref().map(|reader| &reader.kind);
             if let Some(kind) = kind {
                 if kind.is_file() || kind.is_dir() {
-                    file_dependency.push(entry.path.to_path_buf())
+                    file_dependency.push(entry.path.clone());
                 } else {
-                    miss_dependency.push(entry.path.to_path_buf())
+                    miss_dependency.push(entry.path.clone());
                 }
             }
         }

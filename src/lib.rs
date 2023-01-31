@@ -1,4 +1,4 @@
-//! # nodejs_resolver
+//! # `nodejs_resolver`
 //!
 //! ## How to use?
 //!
@@ -62,12 +62,14 @@ mod tsconfig_path;
 use crate::normalize::NormalizePath;
 pub use cache::Cache;
 use context::Context;
+use dashmap::DashMap;
 pub use description::SideEffects;
 use entry::Entry;
 pub use error::Error;
 pub use info::Info;
 use kind::PathKind;
-use log::*;
+use log::{color, depth};
+use options::EnforceExtension::{Auto, Disabled, Enabled};
 pub use options::{AliasMap, EnforceExtension, Options};
 use plugin::{
     AliasPlugin, BrowserFieldPlugin, ImportsFieldPlugin, ParsePlugin, Plugin, PreferRelativePlugin,
@@ -76,6 +78,7 @@ use plugin::{
 use rustc_hash::FxHasher;
 use state::State;
 use std::{hash::BuildHasherDefault, path::Path, sync::Arc};
+
 #[derive(Debug)]
 pub struct Resolver {
     pub options: Options,
@@ -95,6 +98,7 @@ pub(crate) static MODULE: &str = "node_modules";
 pub type RResult<T> = Result<T, Error>;
 
 impl Resolver {
+    #[must_use]
     pub fn new(options: Options) -> Self {
         log::enable_by_env();
 
@@ -104,7 +108,6 @@ impl Resolver {
             Arc::new(Cache::default())
         };
 
-        use options::EnforceExtension::*;
         let enforce_extension = match options.enforce_extension {
             Auto => {
                 if options.extensions.iter().any(|ext| ext.is_empty()) {
@@ -120,10 +123,10 @@ impl Resolver {
             enforce_extension,
             ..options
         };
-        let entries = Default::default();
+        let entries = DashMap::default();
         Self {
-            cache,
             options,
+            cache,
             entries,
         }
     }
@@ -217,6 +220,7 @@ impl Resolver {
 
 #[cfg(debug_assertions)]
 pub mod test_helper {
+    #[must_use]
     pub fn p(paths: Vec<&str>) -> std::path::PathBuf {
         paths.iter().fold(
             std::env::current_dir()
@@ -227,6 +231,7 @@ pub mod test_helper {
         )
     }
 
+    #[must_use]
     pub fn vec_to_set(vec: Vec<&str>) -> std::collections::HashSet<String> {
         std::collections::HashSet::from_iter(vec.into_iter().map(|s| s.to_string()))
     }

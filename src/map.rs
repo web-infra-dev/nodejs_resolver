@@ -121,9 +121,11 @@ pub trait Field {
                     match Self::from_json(item)? {
                         MappingValue::Direct(direct) => temp.push(AvailableMapping::Direct(direct)),
                         MappingValue::Conditional(conditional) => {
-                            temp.push(AvailableMapping::Conditional(conditional))
+                            temp.push(AvailableMapping::Conditional(conditional));
                         }
-                        _ => panic!("Array mapping is not allowed nested in exports field"),
+                        MappingValue::Array(_) => {
+                            panic!("Array mapping is not allowed nested in exports field")
+                        }
                     }
                 }
                 MappingValue::Array(temp)
@@ -312,12 +314,12 @@ impl Field for ExportsField {
                     ));
                 } else if all_keys_are_conditional {
                     root.files
-                        .insert("".to_string(), MappingValue::Conditional(map));
+                        .insert(String::new(), MappingValue::Conditional(map));
                 } else {
                     for (key, value) in map {
                         if key.len() == 1 {
                             // key eq "."
-                            root.files.insert("".to_string(), value);
+                            root.files.insert(String::new(), value);
                         } else if !key.starts_with("./") {
                             return Err(Error::UnexpectedValue(format!(
                                 "Export field key should be relative path and start with \"./\", but got {key}",
@@ -329,12 +331,11 @@ impl Field for ExportsField {
                 }
             }
             Self::Array(array) => {
-                root.files
-                    .insert("".to_string(), MappingValue::Array(array));
+                root.files.insert(String::new(), MappingValue::Array(array));
             }
             Self::Direct(direct) => {
                 root.files
-                    .insert("".to_string(), MappingValue::Direct(direct));
+                    .insert(String::new(), MappingValue::Direct(direct));
             }
         }
         Ok(root)

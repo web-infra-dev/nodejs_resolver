@@ -1,4 +1,5 @@
 use crate::context::Depth;
+use tracing_subscriber::prelude::*;
 
 pub fn enable_by_env() {
     let is_enabled = std::env::var("RESOLVER_TRACE").map_or(false, |var| {
@@ -7,7 +8,6 @@ pub fn enable_by_env() {
     if !is_enabled {
         return;
     }
-    use tracing_subscriber::prelude::*;
     let formatter = Formatter::default();
     tracing_subscriber::Registry::default()
         .with(formatter)
