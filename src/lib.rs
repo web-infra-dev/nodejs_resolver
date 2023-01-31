@@ -59,7 +59,6 @@ mod state;
 mod tsconfig;
 mod tsconfig_path;
 
-use crate::normalize::NormalizePath;
 pub use cache::Cache;
 use context::Context;
 use dashmap::DashMap;
@@ -139,7 +138,7 @@ impl Resolver {
         );
         // let start = std::time::Instant::now();
         let parsed = Self::parse(request);
-        let info = Info::from(path.to_path_buf(), parsed);
+        let info = Info::new(path, parsed);
         let mut context = Context::new();
         let result = if let Some(tsconfig_location) = self.options.tsconfig.as_ref() {
             self._resolve_with_tsconfig(info, tsconfig_location, &mut context)
@@ -172,8 +171,8 @@ impl Resolver {
     fn _resolve(&self, info: Info, context: &mut Context) -> State {
         tracing::debug!(
             "Resolving '{request}' in '{path}'",
-            request = color::cyan(&info.request.target()),
-            path = color::cyan(&info.path.display().to_string())
+            request = color::cyan(&info.request().target()),
+            path = color::cyan(&info.path().display())
         );
 
         context.depth.increase();
@@ -186,7 +185,7 @@ impl Resolver {
             .then(|info| AliasPlugin::default().apply(self, info, context))
             .then(|info| PreferRelativePlugin::default().apply(self, info, context))
             .then(|info| {
-                let request = info.get_path();
+                let request = info.to_resolved_path();
                 let pkg_info = match self.load_entry(&request) {
                     Ok(entry) => entry.pkg_info.clone(),
                     Err(error) => return State::Error(error),
@@ -201,7 +200,7 @@ impl Resolver {
             })
             .then(|info| {
                 if matches!(
-                    info.request.kind(),
+                    info.request().kind(),
                     PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
                 ) {
                     self.resolve_as_context(info)

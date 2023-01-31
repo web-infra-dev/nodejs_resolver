@@ -2608,7 +2608,7 @@ fn load_side_effects_test() {
         .resolve(&case_path, "@scope/import-require")
         .unwrap()
     {
-        info.path
+        info.path().to_path_buf()
     } else {
         panic!("error")
     };
@@ -2639,7 +2639,7 @@ fn load_side_effects_test() {
 
     let exports_field_path =
         if let ResolveResult::Info(info) = resolver.resolve(&case_path, "exports-field").unwrap() {
-            info.path
+            info.path().to_path_buf()
         } else {
             panic!("error")
         };
@@ -2670,7 +2670,7 @@ fn load_side_effects_test() {
     let string_side_effects_path = if let ResolveResult::Info(info) =
         resolver.resolve(&case_path, "string-side-effects").unwrap()
     {
-        info.path
+        info.path().to_path_buf()
     } else {
         panic!("error")
     };

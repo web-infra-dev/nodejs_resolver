@@ -153,8 +153,7 @@ impl Resolver {
             Ok(cached.clone())
         } else {
             let entry = Arc::new(self.load_entry_uncached(&key)?);
-            let key = key.to_path_buf().into_boxed_path();
-            self.entries.entry(key).or_insert(entry.clone());
+            self.entries.entry(key.into()).or_insert(entry.clone());
             Ok(entry)
         }
     }
