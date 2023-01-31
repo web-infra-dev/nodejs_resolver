@@ -6,13 +6,13 @@ pub struct PreferRelativePlugin;
 
 impl Plugin for PreferRelativePlugin {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
-        if info.request.target.starts_with("../") || info.request.target.starts_with("./") {
+        if info.request.target().starts_with("../") || info.request.target().starts_with("./") {
             return State::Resolving(info);
         }
 
         if resolver.options.prefer_relative {
             tracing::debug!("AliasPlugin works({})", depth(&context.depth));
-            let target = format!("./{}", info.request.target);
+            let target = format!("./{}", info.request.target());
             let info = Info::from(info.path.clone(), info.request.clone().with_target(&target));
             let stats = resolver._resolve(info, context);
             if stats.is_finished() {

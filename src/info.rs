@@ -15,10 +15,10 @@ impl Info {
 
     #[must_use]
     pub fn get_path(&self) -> PathBuf {
-        if self.request.target.is_empty() || self.request.target == "." {
+        if self.request.target().is_empty() || self.request.target() == "." {
             self.path.clone()
         } else {
-            self.path.join(&*self.request.target)
+            self.path.join(self.request.target())
         }
     }
 
@@ -38,8 +38,8 @@ impl Info {
         let buf = format!(
             "{}{}{}",
             self.path.display(),
-            self.request.query,
-            self.request.fragment,
+            self.request.query(),
+            self.request.fragment(),
         );
         PathBuf::from(buf)
     }

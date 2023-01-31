@@ -8,7 +8,7 @@ pub struct SymlinkPlugin;
 
 impl Plugin for SymlinkPlugin {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
-        debug_assert!(info.request.target.is_empty());
+        debug_assert!(info.request.target().is_empty());
 
         if !resolver.options.symlinks {
             let path = info.path.normalize();

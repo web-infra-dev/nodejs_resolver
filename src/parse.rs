@@ -1,34 +1,80 @@
 use crate::kind::PathKind;
 use crate::Resolver;
-use smol_str::SmolStr;
 
 #[derive(Clone, Debug)]
 pub struct Request {
-    pub target: SmolStr,
-    pub query: SmolStr,
-    pub fragment: SmolStr,
-    pub(crate) kind: PathKind,
-    pub(crate) is_directory: bool,
+    target: Box<str>,
+    query: Option<Box<str>>,
+    fragment: Option<Box<str>>,
+    kind: PathKind,
+    is_directory: bool,
 }
 
-impl std::fmt::Display for Request {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}{}", self.target, self.query, self.fragment)
-    }
-}
-
-impl Request {
-    pub(crate) fn empty() -> Self {
+impl Default for Request {
+    fn default() -> Self {
         Self {
             target: "".into(),
-            query: "".into(),
-            fragment: "".into(),
+            query: None,
+            fragment: None,
             kind: PathKind::Relative,
             is_directory: false,
         }
     }
+}
 
-    pub(crate) fn parse_identifier(ident: &str) -> (SmolStr, SmolStr, SmolStr) {
+impl std::fmt::Display for Request {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}{}", self.target(), self.query(), self.fragment())
+    }
+}
+
+impl Request {
+    #[must_use]
+    pub fn from_request(request: &str) -> Self {
+        let (target, query, fragment) = Self::parse_identifier(request);
+        let is_directory = Self::is_target_directory(&target);
+        Request {
+            kind: Resolver::get_target_kind(&target),
+            target,
+            query,
+            fragment,
+            is_directory,
+        }
+    }
+
+    pub fn target(&self) -> &str {
+        &self.target
+    }
+
+    pub fn query(&self) -> &str {
+        self.query.as_ref().map_or("", |query| query.as_ref())
+    }
+
+    pub fn fragment(&self) -> &str {
+        self.fragment
+            .as_ref()
+            .map_or("", |fragment| fragment.as_ref())
+    }
+
+    pub fn kind(&self) -> PathKind {
+        self.kind
+    }
+
+    pub fn is_directory(&self) -> bool {
+        self.is_directory
+    }
+
+    pub fn with_target(self, target: &str) -> Self {
+        let is_directory = Self::is_target_directory(target);
+        Self {
+            kind: Resolver::get_target_kind(target),
+            target: target.into(),
+            is_directory,
+            ..self
+        }
+    }
+
+    fn parse_identifier(ident: &str) -> (Box<str>, Option<Box<str>>, Option<Box<str>>) {
         let mut query: Option<usize> = None;
         let mut fragment: Option<usize> = None;
         let mut stats = ParseStats::Start;
@@ -60,52 +106,27 @@ impl Request {
         }
 
         match (query, fragment) {
-            (None, None) => (SmolStr::new(ident), SmolStr::default(), SmolStr::default()),
-            (None, Some(index)) => (
-                SmolStr::new(&ident[0..index]),
-                SmolStr::default(),
-                SmolStr::new(&ident[index..]),
-            ),
-            (Some(index), None) => (
-                SmolStr::new(&ident[0..index]),
-                SmolStr::new(&ident[index..]),
-                SmolStr::default(),
-            ),
+            (None, None) => (ident.into(), None, None),
+            (None, Some(j)) => (ident[0..j].into(), None, Some(ident[j..].into())),
+            (Some(i), None) => (ident[0..i].into(), Some(ident[i..].into()), None),
             (Some(i), Some(j)) => (
-                SmolStr::new(&ident[0..i]),
-                SmolStr::new(&ident[i..j]),
-                SmolStr::new(&ident[j..]),
+                ident[0..i].into(),
+                Some(ident[i..j].into()),
+                Some(ident[j..].into()),
             ),
-        }
-    }
-
-    pub(crate) fn with_target(self, target: &str) -> Self {
-        let is_directory = Self::is_directory(target);
-        Self {
-            kind: Resolver::get_target_kind(target),
-            target: target.into(),
-            is_directory,
-            ..self
         }
     }
 
     #[inline]
-    fn is_directory(target: &str) -> bool {
+    fn is_target_directory(target: &str) -> bool {
         target.ends_with('/')
     }
 }
 
 impl Resolver {
-    pub(crate) fn parse(&self, request: &str) -> Request {
-        let (target, query, fragment) = Request::parse_identifier(request);
-        let is_directory = Request::is_directory(&target);
-        Request {
-            kind: Self::get_target_kind(&target),
-            target,
-            query,
-            fragment,
-            is_directory,
-        }
+    #[must_use]
+    pub(crate) fn parse(request: &str) -> Request {
+        Request::from_request(request)
     }
 }
 
@@ -120,14 +141,11 @@ enum ParseStats {
 fn parse_identifier_test() {
     macro_rules! should_parsed {
         ($ident: expr; $t: expr, $q: expr, $f: expr) => {
-            assert_eq!(
-                Request::parse_identifier(&String::from($ident)),
-                (
-                    ($t).chars().collect(),
-                    ($q).chars().collect(),
-                    ($f).chars().collect()
-                )
-            );
+            let request = Resolver::parse($ident);
+            let target = request.target();
+            let query = request.query();
+            let fragment = request.fragment();
+            assert_eq!((target, query, fragment), ($t, $q, $f));
         };
     }
 

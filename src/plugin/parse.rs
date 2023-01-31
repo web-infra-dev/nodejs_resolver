@@ -7,18 +7,18 @@ pub struct ParsePlugin;
 impl Plugin for ParsePlugin {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         let request = &info.request;
-        let had_hash = !request.fragment.is_empty();
-        let no_query = request.query.is_empty();
-        let had_request = !info.request.target.is_empty();
+        let had_hash = !request.fragment().is_empty();
+        let no_query = request.query().is_empty();
+        let had_request = !info.request.target().is_empty();
         if no_query && had_hash && had_request {
             tracing::debug!("ParsePlugin works({})", depth(&context.depth));
             let target = format!(
                 "{}{}{}",
-                request.target,
-                if request.is_directory { "/" } else { "" },
-                request.fragment
+                request.target(),
+                if request.is_directory() { "/" } else { "" },
+                request.fragment()
             );
-            let request = Request::empty().with_target(&target);
+            let request = Request::default().with_target(&target);
             let path = info.path.clone();
             let info = Info::from(path, request);
             let state = resolver._resolve(info, context);

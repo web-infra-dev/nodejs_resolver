@@ -7,8 +7,10 @@ use crate::{
     },
     Context, EnforceExtension, Info, ResolveResult, Resolver, State, MODULE,
 };
-use smol_str::SmolStr;
-use std::path::{Path, PathBuf};
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
 
 impl Resolver {
     pub(crate) fn append_ext_for_path(path: &Path, ext: &str) -> PathBuf {
@@ -52,7 +54,7 @@ impl Resolver {
 
     #[tracing::instrument]
     pub(crate) fn resolve_as_file(&self, info: Info) -> State {
-        if info.request.is_directory {
+        if info.request.is_directory() {
             return State::Resolving(info);
         }
         let path = info.get_path();
@@ -104,34 +106,29 @@ impl Resolver {
 
         let state = if entry.is_dir() {
             // is there had `node_modules` folder?
-            let request_module_name = get_module_name_from_request(&info.request.target);
-            self.resolve_node_modules(
-                info,
-                &original_dir,
-                node_modules_path,
-                request_module_name.clone(),
-                context,
-            )
-            .then(|info| {
-                let is_resolve_self = entry.pkg_info.as_ref().map_or(false, |pkg_info| {
-                    is_resolve_self(pkg_info, &request_module_name)
-                });
-                if is_resolve_self {
-                    let pkg_info = entry.pkg_info.as_ref().unwrap();
-                    ExportsFieldPlugin::new(pkg_info).apply(self, info, context)
-                } else {
-                    State::Resolving(info)
-                }
-            })
+            self.resolve_node_modules(info, &original_dir, node_modules_path, context)
+                .then(|info| {
+                    let is_resolve_self = entry.pkg_info.as_ref().map_or(false, |pkg_info| {
+                        let request_module_name =
+                            get_module_name_from_request(info.request.target());
+                        is_resolve_self(pkg_info, request_module_name)
+                    });
+                    if is_resolve_self {
+                        let pkg_info = entry.pkg_info.as_ref().unwrap();
+                        ExportsFieldPlugin::new(pkg_info).apply(self, info, context)
+                    } else {
+                        State::Resolving(info)
+                    }
+                })
         } else if entry
             .pkg_info
             .as_ref()
             .map_or(false, |pkg_info| original_dir.eq(&pkg_info.dir_path))
         {
             // is `info.path` on the same level as package.json
-            let request_module_name = get_module_name_from_request(&info.request.target);
+            let request_module_name = get_module_name_from_request(info.request.target());
             let pkg_info = entry.pkg_info.as_ref().unwrap();
-            if is_resolve_self(pkg_info, &request_module_name) {
+            if is_resolve_self(pkg_info, request_module_name) {
                 ExportsFieldPlugin::new(pkg_info).apply(self, info, context)
             } else {
                 State::Resolving(info)
@@ -158,10 +155,10 @@ impl Resolver {
         info: Info,
         original_dir: &Path,
         node_modules_path: PathBuf,
-        request_module_name: SmolStr,
         context: &mut Context,
     ) -> State {
-        let module_path = node_modules_path.join(&*request_module_name);
+        let request_module_name = get_module_name_from_request(info.request.target());
+        let module_path = node_modules_path.join(request_module_name);
         let entry = match self.load_entry(&module_path) {
             Ok(entry) => entry,
             Err(err) => return State::Error(err),
@@ -177,14 +174,14 @@ impl Resolver {
         } else {
             let state = if let Some(pkg_info) = &entry.pkg_info {
                 let out_node_modules = pkg_info.dir_path.eq(original_dir);
-                if !out_node_modules || is_resolve_self(pkg_info, &request_module_name) {
+                if !out_node_modules || is_resolve_self(pkg_info, request_module_name) {
                     ExportsFieldPlugin::new(pkg_info).apply(self, module_info, context)
                 } else {
                     State::Resolving(module_info)
                 }
                 .then(|info| ImportsFieldPlugin::new(pkg_info).apply(self, info, context))
                 .then(|info| {
-                    let path = info.path.join(&*info.request.target);
+                    let path = info.path.join(info.request.target());
                     let info = info.with_path(path).with_target(".");
                     MainFieldPlugin::new(pkg_info).apply(self, info, context)
                 })
@@ -204,7 +201,7 @@ impl Resolver {
     }
 }
 
-fn is_resolve_self(pkg_info: &PkgInfo, request_module_name: &SmolStr) -> bool {
+fn is_resolve_self(pkg_info: &PkgInfo, request_module_name: &str) -> bool {
     pkg_info
         .json
         .name
@@ -214,7 +211,7 @@ fn is_resolve_self(pkg_info: &PkgInfo, request_module_name: &SmolStr) -> bool {
 }
 
 /// split the index from `[module-name]/[path]`
-fn split_slash_from_request(target: &SmolStr) -> Option<usize> {
+fn split_slash_from_request(target: &str) -> Option<usize> {
     let has_namespace_scope = target.starts_with('@');
     let chars = target.chars().enumerate();
     let slash_index_list: Vec<usize> = chars
@@ -229,48 +226,42 @@ fn split_slash_from_request(target: &SmolStr) -> Option<usize> {
     .copied()
 }
 
-fn get_module_name_from_request(target: &SmolStr) -> SmolStr {
-    split_slash_from_request(target).map_or(target.clone(), |index| SmolStr::new(&target[0..index]))
+fn get_module_name_from_request(target: &str) -> &str {
+    split_slash_from_request(target).map_or(target, |index| &target[0..index])
 }
 
-pub(crate) fn get_path_from_request(target: &SmolStr) -> Option<SmolStr> {
-    split_slash_from_request(target).map(|index| SmolStr::new(&target[index..]))
+pub(crate) fn get_path_from_request(target: &str) -> Option<Cow<str>> {
+    split_slash_from_request(target).map(|index| Cow::Borrowed(&target[index..]))
 }
 
 #[cfg(test)]
 mod test {
-    use super::{
-        get_module_name_from_request, get_path_from_request, split_slash_from_request, SmolStr,
-    };
-
-    fn s(s: &str) -> SmolStr {
-        SmolStr::new(s)
-    }
+    use super::{get_module_name_from_request, get_path_from_request, split_slash_from_request};
 
     #[test]
     fn test_split_slash_from_request() {
-        assert_eq!(split_slash_from_request(&s("a")), None);
-        assert_eq!(split_slash_from_request(&s("a/b")), Some(1));
-        assert_eq!(split_slash_from_request(&s("@a")), None);
-        assert_eq!(split_slash_from_request(&s("@a/b")), None);
-        assert_eq!(split_slash_from_request(&s("@a/b/c")), Some(4));
+        assert_eq!(split_slash_from_request("a"), None);
+        assert_eq!(split_slash_from_request("a/b"), Some(1));
+        assert_eq!(split_slash_from_request("@a"), None);
+        assert_eq!(split_slash_from_request("@a/b"), None);
+        assert_eq!(split_slash_from_request("@a/b/c"), Some(4));
     }
 
     #[test]
     fn test_get_module_name_from_request() {
-        assert_eq!(get_module_name_from_request(&s("a")), s("a"));
-        assert_eq!(get_module_name_from_request(&s("a/b")), s("a"));
-        assert_eq!(get_module_name_from_request(&s("@a")), s("@a"));
-        assert_eq!(get_module_name_from_request(&s("@a/b")), s("@a/b"));
-        assert_eq!(get_module_name_from_request(&s("@a/b/c")), s("@a/b"));
+        assert_eq!(get_module_name_from_request("a"), "a");
+        assert_eq!(get_module_name_from_request("a/b"), "a");
+        assert_eq!(get_module_name_from_request("@a"), "@a");
+        assert_eq!(get_module_name_from_request("@a/b"), "@a/b");
+        assert_eq!(get_module_name_from_request("@a/b/c"), "@a/b");
     }
 
     #[test]
     fn test_get_path_from_request() {
-        assert_eq!(get_path_from_request(&s("a")), None);
-        assert_eq!(get_path_from_request(&s("a/b")), Some(s("/b")));
-        assert_eq!(get_path_from_request(&s("@a")), None);
-        assert_eq!(get_path_from_request(&s("@a/b")), None);
-        assert_eq!(get_path_from_request(&s("@a/b/c")), Some(s("/c")));
+        assert_eq!(get_path_from_request("a"), None);
+        assert_eq!(get_path_from_request("a/b"), Some("/b".into()));
+        assert_eq!(get_path_from_request("@a"), None);
+        assert_eq!(get_path_from_request("@a/b"), None);
+        assert_eq!(get_path_from_request("@a/b/c"), Some("/c".into()));
     }
 }

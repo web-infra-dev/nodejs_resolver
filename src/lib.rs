@@ -140,7 +140,7 @@ impl Resolver {
             color::cyan(&path.display().to_string())
         );
         // let start = std::time::Instant::now();
-        let parsed = self.parse(request);
+        let parsed = Self::parse(request);
         let info = Info::from(path.to_path_buf(), parsed);
         let mut context = Context::new();
         let result = if let Some(tsconfig_location) = self.options.tsconfig.as_ref() {
@@ -174,7 +174,7 @@ impl Resolver {
     fn _resolve(&self, info: Info, context: &mut Context) -> State {
         tracing::debug!(
             "Resolving '{request}' in '{path}'",
-            request = color::cyan(&info.request.target),
+            request = color::cyan(&info.request.target()),
             path = color::cyan(&info.path.display().to_string())
         );
 
@@ -203,7 +203,7 @@ impl Resolver {
             })
             .then(|info| {
                 if matches!(
-                    info.request.kind,
+                    info.request.kind(),
                     PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
                 ) {
                     self.resolve_as_context(info)

@@ -84,7 +84,7 @@ impl Resolver {
         if let serde_json::Value::String(s) = &json["extends"] {
             // `location` pointed to `dir/tsconfig.json`
             let dir = location.parent().unwrap().to_path_buf();
-            let request = self.parse(s);
+            let request = Self::parse(s);
             let state = self._resolve(Info::from(dir, request), context);
             // Is it better to use cache?
             if let State::Success(result) = state {

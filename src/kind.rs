@@ -2,8 +2,8 @@ use crate::Resolver;
 use daachorse::{CharwiseDoubleArrayAhoCorasick, CharwiseDoubleArrayAhoCorasickBuilder, MatchKind};
 use once_cell::sync::Lazy;
 
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) enum PathKind {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PathKind {
     Relative,
     AbsoluteWin,
     AbsolutePosix,

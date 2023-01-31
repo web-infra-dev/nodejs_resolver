@@ -14,7 +14,7 @@ impl<'a> BrowserFieldPlugin<'a> {
     }
 
     fn request_target_is_module_and_equal_alias_key(alias_key: &String, info: &Info) -> bool {
-        info.request.target.eq(alias_key)
+        info.request.target().eq(alias_key)
     }
 
     fn request_path_is_equal_alias_key_path(
@@ -37,7 +37,7 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
             return State::Resolving(info);
         }
         for (alias_key, alias_target) in &self.pkg_info.json.alias_fields {
-            let should_deal_alias = match matches!(info.request.kind, PathKind::Normal) {
+            let should_deal_alias = match matches!(info.request.kind(), PathKind::Normal) {
                 true => Self::request_target_is_module_and_equal_alias_key(alias_key, &info),
                 false => Self::request_path_is_equal_alias_key_path(
                     &self.pkg_info.dir_path.join(alias_key),
