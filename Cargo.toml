@@ -13,7 +13,6 @@ indexmap = "1.9.2"
 dashmap = "5.4.0"
 daachorse = "1.0.0"
 once_cell = "1.16.0"
-smol_str = "0.1.23"
 tracing = "0.1.37"
 jsonc-parser = { version = "0.21.0", features = ["serde"] }
 serde = { version = "1.0.149", features = ["derive"] }

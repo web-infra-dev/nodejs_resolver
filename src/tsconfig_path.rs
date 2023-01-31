@@ -98,10 +98,10 @@ impl Resolver {
             Resolver::create_match_list(location, &tsconfig.base_url, &tsconfig.paths);
 
         for entry in absolute_path_mappings {
-            let star_match = if entry.pattern == info.request.target {
+            let star_match = if entry.pattern == info.request.target() {
                 ""
             } else {
-                match Self::match_star(&entry.pattern, &info.request.target) {
+                match Self::match_star(&entry.pattern, info.request.target()) {
                     Some(s) => s,
                     None => continue,
                 }
@@ -114,7 +114,7 @@ impl Resolver {
                     .replace('*', star_match);
 
                 let path = PathBuf::from(physical_path);
-                let result = self._resolve(Info::from(path, Request::empty()), context);
+                let result = self._resolve(Info::from(path, Request::default()), context);
                 if result.is_finished() {
                     return result;
                 }
