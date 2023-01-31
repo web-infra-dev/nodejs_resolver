@@ -5,7 +5,7 @@ use crate::{
         BrowserFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin,
         MainFilePlugin, Plugin,
     },
-    Context, EnforceExtension, Info, ResolveResult, Resolver, State, MODULE,
+    Context, EnforceExtension, Info, ResolveResult, Resolver, State,
 };
 use std::{
     borrow::Cow,
@@ -98,7 +98,28 @@ impl Resolver {
 
     pub(crate) fn resolve_as_modules(&self, info: Info, context: &mut Context) -> State {
         let original_dir = info.path.clone();
-        let node_modules_path = original_dir.join(MODULE);
+        for module in &self.options.modules {
+            let node_modules_path = if Path::new(module).is_absolute() {
+                PathBuf::from(module)
+            } else {
+                original_dir.join(module)
+            };
+            let state =
+                self._resolve_as_modules(info.clone(), &original_dir, node_modules_path, context);
+            if state.is_finished() {
+                return state;
+            }
+        }
+        State::Failed(info)
+    }
+
+    fn _resolve_as_modules(
+        &self,
+        info: Info,
+        original_dir: &Path,
+        node_modules_path: PathBuf,
+        context: &mut Context,
+    ) -> State {
         let entry = match self.load_entry(&node_modules_path) {
             Ok(entry) => entry,
             Err(err) => return State::Error(err),
