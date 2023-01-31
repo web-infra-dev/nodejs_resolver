@@ -2903,3 +2903,23 @@ fn resolve_to_context_test() {
         p(vec!["main-field-inexist"]),
     );
 }
+
+#[test]
+fn resolve_modules_test() {
+    let resolver = Resolver::new(Options {
+        modules: vec![p(vec!["alias"]).display().to_string()],
+        ..Default::default()
+    });
+    should_equal(&resolver, &p(vec![]), "a", p(vec!["alias", "a", "index"]));
+    let resolver = Resolver::new(Options {
+        modules: vec!["xxxx".to_string(), "alias".to_string()],
+        ..Default::default()
+    });
+    should_equal(&resolver, &p(vec![]), "a", p(vec!["alias", "a", "index"]));
+    should_equal(
+        &resolver,
+        &p(vec![]),
+        "node_modules/browser",
+        p(vec!["alias", "node_modules", "browser", "index.js"]),
+    );
+}

@@ -70,6 +70,9 @@ pub struct Options {
     /// and processes the mappings.
     /// Default is `None`.
     pub tsconfig: Option<PathBuf>,
+    /// A list of directories to resolve modules from, can be absolute path or folder name.
+    /// Default is `["node_modules"]`
+    pub modules: Vec<String>,
 }
 
 impl Default for Options {
@@ -91,7 +94,9 @@ impl Default for Options {
         let tsconfig = None;
         let external_cache = None;
         let resolve_to_context = false;
+        let modules = vec![String::from("node_modules")];
         Self {
+            modules,
             extensions,
             enforce_extension,
             alias,

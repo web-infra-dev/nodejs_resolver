@@ -93,8 +93,6 @@ pub enum ResolveResult {
     Ignored,
 }
 
-pub(crate) static MODULE: &str = "node_modules";
-
 pub type RResult<T> = Result<T, Error>;
 
 impl Resolver {
