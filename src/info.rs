@@ -8,27 +8,32 @@ pub struct Info {
 }
 
 impl Info {
+    #[must_use]
     pub fn from(path: PathBuf, request: Request) -> Self {
         Self { path, request }
     }
 
+    #[must_use]
     pub fn get_path(&self) -> PathBuf {
         if self.request.target.is_empty() || self.request.target == "." {
-            self.path.to_path_buf()
+            self.path.clone()
         } else {
             self.path.join(&*self.request.target)
         }
     }
 
+    #[must_use]
     pub fn with_path(self, path: PathBuf) -> Self {
         Self { path, ..self }
     }
 
+    #[must_use]
     pub fn with_target(self, target: &str) -> Self {
         let request = self.request.with_target(target);
         Self { request, ..self }
     }
 
+    #[must_use]
     pub fn join(&self) -> PathBuf {
         let buf = format!(
             "{}{}{}",

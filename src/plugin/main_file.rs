@@ -5,7 +5,7 @@ pub struct MainFilePlugin;
 
 impl Plugin for MainFilePlugin {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
-        let main_file_info = Info::from(info.path.to_owned(), info.request.clone());
+        let main_file_info = Info::from(info.path.clone(), info.request.clone());
         for main_file in &resolver.options.main_files {
             tracing::debug!(
                 "MainFile works, it pointed to {}({})",

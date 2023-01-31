@@ -42,7 +42,7 @@ impl Resolver {
             .as_ref()
             .and_then(|options| options.base_url.clone());
         let paths = tsconfig.compiler_options.and_then(|options| options.paths);
-        Ok(TsConfigInfo { base_url, paths })
+        Ok(TsConfigInfo { paths, base_url })
     }
 
     fn match_star<'a>(pattern: &'a str, search: &'a str) -> Option<&'a str> {

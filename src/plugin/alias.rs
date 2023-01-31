@@ -21,7 +21,7 @@ impl Plugin for AliasPlugin {
                         }
                         let normalized_target = inner_target.replacen(from, to, 1);
                         let alias_info = Info::from(
-                            info.path.to_path_buf(),
+                            info.path.clone(),
                             info.request.clone().with_target(&normalized_target),
                         );
                         let state = resolver._resolve(alias_info, context);

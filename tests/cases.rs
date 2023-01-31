@@ -238,7 +238,7 @@ fn extensions_test() {
 
     let extensions_cases_path = p(vec!["extensions2"]);
     let resolver = Resolver::new(Options {
-        extensions: vec![String::from(".js"), String::from(""), String::from(".ts")], // `extensions` can start with `.` or not.
+        extensions: vec![String::from(".js"), String::new(), String::from(".ts")], // `extensions` can start with `.` or not.
         ..Default::default()
     });
     should_equal(
@@ -273,7 +273,7 @@ fn extensions_test() {
     );
 
     let resolver = Resolver::new(Options {
-        extensions: vec![String::from(".js"), String::from(""), String::from(".ts")], // `extensions` can start with `.` or not.
+        extensions: vec![String::from(".js"), String::new(), String::from(".ts")], // `extensions` can start with `.` or not.
         enforce_extension: EnforceExtension::Disabled,
         ..Default::default()
     });

@@ -37,7 +37,7 @@ impl Request {
                 '#' => match stats {
                     ParseStats::Request | ParseStats::Query => {
                         stats = ParseStats::Fragment;
-                        fragment = Some(index)
+                        fragment = Some(index);
                     }
                     ParseStats::Start => {
                         stats = ParseStats::Request;
@@ -47,7 +47,7 @@ impl Request {
                 '?' => match stats {
                     ParseStats::Request | ParseStats::Query | ParseStats::Start => {
                         stats = ParseStats::Query;
-                        query = Some(index)
+                        query = Some(index);
                     }
                     ParseStats::Fragment => (),
                 },

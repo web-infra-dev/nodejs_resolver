@@ -67,7 +67,7 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
             );
             let request = resolver.parse(item);
             let is_relative = !matches!(request.kind, PathKind::Normal | PathKind::Internal);
-            let info = Info::from(self.pkg_info.dir_path.to_path_buf(), request);
+            let info = Info::from(self.pkg_info.dir_path.clone(), request);
             if is_relative {
                 ImportsFieldPlugin::check_target(resolver, info)
             } else {
