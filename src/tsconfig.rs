@@ -66,9 +66,7 @@ impl Resolver {
             // Its role is to ensure that `stat` exists
             return Err(Error::CantFindTsConfig);
         }
-        let reader = entry.stat.read().unwrap();
-        let stat = reader.as_ref().unwrap();
-        let json_str = self.cache.fs.read_file(location, stat)?;
+        let json_str = self.cache.fs.read_file(location, &entry.cached_stat())?;
         // TODO: should cache `json_str` -> TsConfig
         let mut json: serde_json::Value =
             jsonc_parser::parse_to_serde_value(&json_str, &Default::default())

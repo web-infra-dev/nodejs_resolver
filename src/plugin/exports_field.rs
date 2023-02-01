@@ -34,7 +34,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 None => {
                     let path = info.path().join(target);
                     let is_exist = match resolver.load_entry(&path) {
-                        Ok(entry) => entry.is_exist(),
+                        Ok(entry) => entry.exists(),
                         Err(err) => return State::Error(err),
                     };
                     if is_exist

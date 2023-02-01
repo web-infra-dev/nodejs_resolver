@@ -126,7 +126,7 @@ impl Resolver {
         path: &Path,
     ) -> RResult<Option<(PathBuf, Option<SideEffects>)>> {
         let entry = self.load_entry(path)?;
-        let ans = entry.pkg_info.as_ref().map(|pkg_info| {
+        let ans = entry.pkg_info().map(|pkg_info| {
             (
                 pkg_info.dir_path.join(&self.options.description_file),
                 pkg_info.json.side_effects.clone(),

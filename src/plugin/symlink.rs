@@ -27,7 +27,7 @@ impl SymlinkPlugin {
             RResult::Err(error) => return State::Error(error),
         };
 
-        let entry_path = entry.path.as_path();
+        let entry_path = entry.path();
         let mut entry = entry.as_ref();
         let mut index = 0;
         let mut symlink = None;
@@ -37,7 +37,7 @@ impl SymlinkPlugin {
                 symlink = Some(link.to_path_buf());
                 break;
             }
-            if let Some(e) = entry.parent.as_ref() {
+            if let Some(e) = entry.parent() {
                 index += 1;
                 entry = e;
             } else {
