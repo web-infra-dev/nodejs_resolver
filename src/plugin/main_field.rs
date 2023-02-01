@@ -17,7 +17,7 @@ impl<'a> MainFieldPlugin<'a> {
 impl<'a> Plugin for MainFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         let path = info.path().normalize();
-        if !path.eq(&*self.pkg_info.dir_path) {
+        if !path.normalized_eq(&*self.pkg_info.dir_path) {
             return State::Resolving(info);
         }
 

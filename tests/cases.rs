@@ -48,7 +48,7 @@ fn should_unexpected_json_error(
     match resolver.resolve(path, request) {
         Err(err) => match err {
             Error::UnexpectedJson((actual_error_file_path, _)) => {
-                assert_eq!(error_file_path, actual_error_file_path)
+                assert_eq!(error_file_path, *actual_error_file_path)
             }
             _ => {
                 println!("{err:?}");

@@ -1,9 +1,9 @@
-use std::{io, path::PathBuf};
+use std::{io, path::Path};
 
 #[derive(Debug)]
 pub enum Error {
     Io(io::Error),
-    UnexpectedJson((PathBuf, serde_json::Error)),
+    UnexpectedJson((Box<Path>, serde_json::Error)),
     UnexpectedValue(String),
     ResolveFailedTag,
     Overflow,
