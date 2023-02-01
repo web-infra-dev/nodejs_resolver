@@ -14,7 +14,7 @@ impl<'a> BrowserFieldPlugin<'a> {
     }
 
     fn request_target_is_module_and_equal_alias_key(alias_key: &String, info: &Info) -> bool {
-        info.request.target().eq(alias_key)
+        info.request().target().eq(alias_key)
     }
 
     fn request_path_is_equal_alias_key_path(
@@ -22,7 +22,7 @@ impl<'a> BrowserFieldPlugin<'a> {
         info: &Info,
         extensions: &[String],
     ) -> bool {
-        let request_path = info.get_path();
+        let request_path = info.to_resolved_path();
         alias_path.eq(&request_path)
             || extensions.iter().any(|ext| {
                 let path_with_extension = Resolver::append_ext_for_path(&request_path, ext);
@@ -37,7 +37,7 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
             return State::Resolving(info);
         }
         for (alias_key, alias_target) in &self.pkg_info.json.alias_fields {
-            let should_deal_alias = match matches!(info.request.kind(), PathKind::Normal) {
+            let should_deal_alias = match matches!(info.request().kind(), PathKind::Normal) {
                 true => Self::request_target_is_module_and_equal_alias_key(alias_key, &info),
                 false => Self::request_path_is_equal_alias_key_path(
                     &self.pkg_info.dir_path.join(alias_key),
@@ -66,9 +66,9 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
                         // }
                         return State::Resolving(info);
                     }
-                    let alias_info = Info::from(
-                        self.pkg_info.dir_path.clone(),
-                        info.request.clone().with_target(converted),
+                    let alias_info = Info::new(
+                        &self.pkg_info.dir_path,
+                        info.request().clone().with_target(converted),
                     );
                     let state = resolver._resolve(alias_info, context);
                     if state.is_finished() {

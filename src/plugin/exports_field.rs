@@ -22,17 +22,17 @@ impl<'a> ExportsFieldPlugin<'a> {
 impl<'a> Plugin for ExportsFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         // info.path should end with `node_modules`.
-        let target = &info.request.target();
+        let target = info.request().target();
 
         let list = if let Some(root) = &self.pkg_info.json.exports_field_tree {
-            let query = info.request.query();
-            let fragment = info.request.fragment();
+            let query = info.request().query();
+            let fragment = info.request().fragment();
             let request_path = get_path_from_request(target);
 
             let target = match request_path {
                 Some(target) => format!(".{target}"),
                 None => {
-                    let path = info.path.join(&**target);
+                    let path = info.path().join(target);
                     let is_exist = match resolver.load_entry(&path) {
                         Ok(entry) => entry.is_exist(),
                         Err(err) => return State::Error(err),
@@ -81,13 +81,13 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                     "{}/package.json",
                     self.pkg_info.dir_path.display()
                 )),
-                color::blue(target),
+                color::blue(&target),
                 color::blue(&item),
                 depth(&context.depth)
             );
             let request = Resolver::parse(&item);
-            let info = Info::from(self.pkg_info.dir_path.clone(), request);
-            if !ExportsField::check_target(info.request.target()) {
+            let info = Info::new(self.pkg_info.dir_path.clone(), request);
+            if !ExportsField::check_target(info.request().target()) {
                 continue;
             }
             let state = resolver._resolve(info, context);

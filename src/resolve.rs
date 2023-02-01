@@ -36,7 +36,7 @@ impl Resolver {
         if !self.options.resolve_to_context {
             return State::Resolving(info);
         }
-        let path = info.get_path();
+        let path = info.to_resolved_path();
         tracing::debug!(
             "Attempting to load '{}' as a context",
             color::blue(&path.display())
@@ -46,7 +46,7 @@ impl Resolver {
             Err(err) => return State::Error(err),
         };
         if is_dir {
-            State::Success(ResolveResult::Info(info.with_path(path).with_target("")))
+            State::Success(ResolveResult::Info(Info::from(path)))
         } else {
             State::Failed(info)
         }
@@ -54,31 +54,32 @@ impl Resolver {
 
     #[tracing::instrument]
     pub(crate) fn resolve_as_file(&self, info: Info) -> State {
-        if info.request.is_directory() {
+        if info.request().is_directory() {
             return State::Resolving(info);
         }
-        let path = info.get_path();
+        let path = info.to_resolved_path();
         tracing::debug!(
             "Attempting to load '{}' as a file",
             color::blue(&path.display())
         );
         if matches!(self.options.enforce_extension, EnforceExtension::Enabled) {
-            return self.resolve_file_with_ext(path, info);
+            return self.resolve_file_with_ext(path.to_path_buf(), info);
         }
         let is_file = match self.load_entry(&path) {
             Ok(entry) => entry.is_file(),
             Err(err) => return State::Error(err),
         };
         if is_file {
+            let path = path.to_path_buf();
             State::Success(ResolveResult::Info(info.with_path(path).with_target("")))
         } else {
-            self.resolve_file_with_ext(path, info)
+            self.resolve_file_with_ext(path.to_path_buf(), info)
         }
     }
 
     #[tracing::instrument]
     pub(crate) fn resolve_as_dir(&self, info: Info, context: &mut Context) -> State {
-        let dir = info.get_path();
+        let dir = info.to_resolved_path();
         let entry = match self.load_entry(&dir) {
             Ok(entry) => entry,
             Err(err) => return State::Error(err),
@@ -87,6 +88,7 @@ impl Resolver {
             return State::Failed(info);
         }
         let pkg_info = &entry.pkg_info;
+        let dir = dir.to_path_buf();
         let info = info.with_path(dir).with_target(".");
         if let Some(pkg_info) = pkg_info {
             MainFieldPlugin::new(pkg_info).apply(self, info, context)
@@ -97,15 +99,19 @@ impl Resolver {
     }
 
     pub(crate) fn resolve_as_modules(&self, info: Info, context: &mut Context) -> State {
-        let original_dir = info.path.clone();
+        let original_dir = info.path();
         for module in &self.options.modules {
             let node_modules_path = if Path::new(module).is_absolute() {
                 PathBuf::from(module)
             } else {
                 original_dir.join(module)
             };
-            let state =
-                self._resolve_as_modules(info.clone(), &original_dir, node_modules_path, context);
+            let state = self._resolve_as_modules(
+                info.clone(),
+                original_dir.to_path_buf(),
+                node_modules_path,
+                context,
+            );
             if state.is_finished() {
                 return state;
             }
@@ -116,7 +122,7 @@ impl Resolver {
     fn _resolve_as_modules(
         &self,
         info: Info,
-        original_dir: &Path,
+        original_dir: PathBuf,
         node_modules_path: PathBuf,
         context: &mut Context,
     ) -> State {
@@ -127,11 +133,11 @@ impl Resolver {
 
         let state = if entry.is_dir() {
             // is there had `node_modules` folder?
-            self.resolve_node_modules(info, &original_dir, node_modules_path, context)
+            self.resolve_node_modules(info, &node_modules_path, context)
                 .then(|info| {
                     let is_resolve_self = entry.pkg_info.as_ref().map_or(false, |pkg_info| {
                         let request_module_name =
-                            get_module_name_from_request(info.request.target());
+                            get_module_name_from_request(info.request().target());
                         is_resolve_self(pkg_info, request_module_name)
                     });
                     if is_resolve_self {
@@ -147,7 +153,7 @@ impl Resolver {
             .map_or(false, |pkg_info| original_dir.eq(&pkg_info.dir_path))
         {
             // is `info.path` on the same level as package.json
-            let request_module_name = get_module_name_from_request(info.request.target());
+            let request_module_name = get_module_name_from_request(info.request().target());
             let pkg_info = entry.pkg_info.as_ref().unwrap();
             if is_resolve_self(pkg_info, request_module_name) {
                 ExportsFieldPlugin::new(pkg_info).apply(self, info, context)
@@ -159,7 +165,7 @@ impl Resolver {
         }
         .then(|info| {
             if let Some(parent_dir) = original_dir.parent() {
-                self._resolve(info.with_path(parent_dir.to_path_buf()), context)
+                self._resolve(info.with_path(parent_dir), context)
             } else {
                 State::Resolving(info)
             }
@@ -174,17 +180,17 @@ impl Resolver {
     fn resolve_node_modules(
         &self,
         info: Info,
-        original_dir: &Path,
-        node_modules_path: PathBuf,
+        node_modules_path: &Path,
         context: &mut Context,
     ) -> State {
-        let request_module_name = get_module_name_from_request(info.request.target());
+        let original_dir = info.path();
+        let request_module_name = get_module_name_from_request(info.request().target());
         let module_path = node_modules_path.join(request_module_name);
         let entry = match self.load_entry(&module_path) {
             Ok(entry) => entry,
             Err(err) => return State::Error(err),
         };
-        let module_info = Info::from(node_modules_path, info.request.clone());
+        let module_info = Info::new(node_modules_path, info.request().clone());
         if !entry.is_dir() {
             let state = self.resolve_as_file(module_info);
             if state.is_finished() {
@@ -202,7 +208,7 @@ impl Resolver {
                 }
                 .then(|info| ImportsFieldPlugin::new(pkg_info).apply(self, info, context))
                 .then(|info| {
-                    let path = info.path.join(info.request.target());
+                    let path = info.path().join(info.request().target());
                     let info = info.with_path(path).with_target(".");
                     MainFieldPlugin::new(pkg_info).apply(self, info, context)
                 })

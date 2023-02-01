@@ -6,7 +6,7 @@ pub struct AliasPlugin;
 
 impl Plugin for AliasPlugin {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
-        let inner_target = info.request.target();
+        let inner_target = info.request().target();
         for (from, to) in &resolver.options.alias {
             if inner_target == from || inner_target.starts_with(&format!("{from}/")) {
                 tracing::debug!(
@@ -20,9 +20,9 @@ impl Plugin for AliasPlugin {
                             continue;
                         }
                         let normalized_target = inner_target.replacen(from, to, 1);
-                        let alias_info = Info::from(
-                            info.path.clone(),
-                            info.request.clone().with_target(&normalized_target),
+                        let alias_info = Info::new(
+                            info.path(),
+                            info.request().clone().with_target(&normalized_target),
                         );
                         let state = resolver._resolve(alias_info, context);
                         if state.is_finished() {

@@ -18,18 +18,18 @@ impl<'a> ImportsFieldPlugin<'a> {
     }
 
     fn check_target(resolver: &Resolver, info: Info) -> State {
-        let path = info.get_path();
+        let path = info.to_resolved_path();
         let is_file = match resolver.load_entry(&path) {
             Ok(entry) => entry.is_file(),
             Err(err) => return State::Error(err),
         };
-        if is_file && ImportsField::check_target(info.request.target()) {
+        if is_file && ImportsField::check_target(info.request().target()) {
             State::Resolving(info)
         } else {
             State::Error(Error::UnexpectedValue(format!(
                 "Package path {} can't imported in {}",
-                info.request.target(),
-                info.path.display()
+                info.request().target(),
+                info.path().display()
             )))
         }
     }
@@ -37,14 +37,14 @@ impl<'a> ImportsFieldPlugin<'a> {
 
 impl<'a> Plugin for ImportsFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
-        if !info.request.target().starts_with('#') {
+        if !info.request().target().starts_with('#') {
             return State::Resolving(info);
         }
 
         let list = if let Some(root) = &self.pkg_info.json.imports_field_tree {
             match ImportsField::field_process(
                 root,
-                info.request.target(),
+                info.request().target(),
                 &resolver.options.condition_names,
             ) {
                 Ok(list) => list,
@@ -61,13 +61,13 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
                     "{}/package.json",
                     self.pkg_info.dir_path.display()
                 )),
-                color::blue(&info.request.target()),
+                color::blue(&info.request().target()),
                 color::blue(&item),
                 depth(&context.depth)
             );
             let request = Resolver::parse(item);
             let is_relative = !matches!(request.kind(), PathKind::Normal | PathKind::Internal);
-            let info = Info::from(self.pkg_info.dir_path.clone(), request);
+            let info = Info::new(&self.pkg_info.dir_path, request);
             if is_relative {
                 ImportsFieldPlugin::check_target(resolver, info)
             } else {
@@ -76,8 +76,8 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
         } else {
             State::Error(Error::UnexpectedValue(format!(
                 "Package path {} can't imported in {}",
-                info.request.target(),
-                info.path.display()
+                info.request().target(),
+                info.path().display()
             )))
         }
     }
