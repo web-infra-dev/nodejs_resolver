@@ -2,6 +2,7 @@
 
 # 0.0.64
 
+- fix a bug when comparing paths in browser_filed plugin.
 - support `fallback`.
 
 # 0.0.63

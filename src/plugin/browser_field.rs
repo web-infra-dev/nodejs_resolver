@@ -1,8 +1,8 @@
 use crate::{
-    context::Context, description::PkgInfo, log::color, log::depth, AliasMap, Info, PathKind,
-    Plugin, ResolveResult, Resolver, State,
+    context::Context, description::PkgInfo, log::color, log::depth, normalize::NormalizePath,
+    AliasMap, Info, PathKind, Plugin, ResolveResult, Resolver, State,
 };
-use std::path::PathBuf;
+use std::path::Path;
 
 pub struct BrowserFieldPlugin<'a> {
     pkg_info: &'a PkgInfo,
@@ -18,11 +18,13 @@ impl<'a> BrowserFieldPlugin<'a> {
     }
 
     fn request_path_is_equal_alias_key_path(
-        alias_path: &PathBuf,
+        alias_path: &Path,
         info: &Info,
         extensions: &[String],
     ) -> bool {
+        let alias_path = alias_path.normalize();
         let request_path = info.to_resolved_path();
+        let request_path = request_path.normalize();
         alias_path.eq(&request_path)
             || extensions.iter().any(|ext| {
                 let path_with_extension = Resolver::append_ext_for_path(&request_path, ext);

@@ -187,7 +187,7 @@ impl Resolver {
                 self.cache.pkg_json.insert(content, result.clone());
                 result
             };
-            let dir_path = maybe_pkg_path.parent().unwrap().to_path_buf();
+            let dir_path = maybe_pkg_path.parent().unwrap().into();
             let pkg_info = Arc::new(PkgInfo {
                 json: pkg_json,
                 dir_path,

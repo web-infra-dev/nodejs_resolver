@@ -150,7 +150,7 @@ impl Resolver {
         } else if entry
             .pkg_info
             .as_ref()
-            .map_or(false, |pkg_info| original_dir.eq(&pkg_info.dir_path))
+            .map_or(false, |pkg_info| original_dir.eq(&*pkg_info.dir_path))
         {
             // is `info.path` on the same level as package.json
             let request_module_name = get_module_name_from_request(info.request().target());
@@ -197,7 +197,7 @@ impl Resolver {
             }
         } else {
             let state = if let Some(pkg_info) = &entry.pkg_info {
-                let out_node_modules = pkg_info.dir_path.eq(original_dir);
+                let out_node_modules = original_dir.eq(&*pkg_info.dir_path);
                 if !out_node_modules || is_resolve_self(pkg_info, request_module_name) {
                     ExportsFieldPlugin::new(pkg_info).apply(self, module_info, context)
                 } else {

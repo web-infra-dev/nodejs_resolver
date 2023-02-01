@@ -1187,12 +1187,55 @@ fn browser_filed_test() {
             "index.js",
         ]),
     );
-
+    should_equal(
+        &resolver,
+        &browser_module_case_path
+            .join("node_modules")
+            .join("relative")
+            .join("default"),
+        "../lib/a",
+        p(vec![
+            "browser-module",
+            "node_modules",
+            "relative",
+            "lib",
+            "a.js",
+        ]),
+    );
     let resolver = Resolver::new(Options {
         browser_field: true,
         ..Default::default()
     });
-
+    should_equal(
+        &resolver,
+        &browser_module_case_path
+            .join("node_modules")
+            .join("relative")
+            .join("default"),
+        "../lib/a",
+        p(vec![
+            "browser-module",
+            "node_modules",
+            "relative",
+            "lib",
+            "b.js",
+        ]),
+    );
+    should_equal(
+        &resolver,
+        &browser_module_case_path
+            .join("node_modules")
+            .join("relative")
+            .join("default"),
+        "../lib/c",
+        p(vec![
+            "browser-module",
+            "node_modules",
+            "relative",
+            "lib",
+            "b.js",
+        ]),
+    );
     should_ignored(&resolver, &p(vec![]), "./browser-after-main");
     should_ignored(&resolver, &browser_module_case_path, ".");
     should_ignored(&resolver, &browser_module_case_path, "./lib/ignore");
