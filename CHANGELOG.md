@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.0.64
+
+- support `fallback`.
+
 # 0.0.63
 
 - support `modules`.

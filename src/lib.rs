@@ -82,7 +82,7 @@ use std::{hash::BuildHasherDefault, path::Path, sync::Arc};
 pub struct Resolver {
     pub options: Options,
     pub(crate) cache: Arc<Cache>,
-    // File entries keyed by normalized paths
+    /// File entries keyed by normalized paths
     pub(crate) entries: dashmap::DashMap<Box<Path>, Arc<Entry>, BuildHasherDefault<FxHasher>>,
 }
 
@@ -146,6 +146,10 @@ impl Resolver {
             self._resolve(info, &mut context)
         };
 
+        let result = result.map_failed(|info| {
+            type FallbackPlugin<'a> = AliasPlugin<'a>;
+            FallbackPlugin::new(&self.options.fallback).apply(self, info, &mut context)
+        });
         let result =
             result.map_success(|info| SymlinkPlugin::default().apply(self, info, &mut context));
 
@@ -182,7 +186,7 @@ impl Resolver {
 
         let state = ParsePlugin::default()
             .apply(self, info, context)
-            .then(|info| AliasPlugin::default().apply(self, info, context))
+            .then(|info| AliasPlugin::new(&self.options.alias).apply(self, info, context))
             .then(|info| PreferRelativePlugin::default().apply(self, info, context))
             .then(|info| {
                 let request = info.to_resolved_path();
@@ -210,6 +214,7 @@ impl Resolver {
                     self.resolve_as_modules(info, context)
                 }
             });
+
         context.depth.decrease();
         state
     }
