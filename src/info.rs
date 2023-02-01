@@ -12,10 +12,7 @@ pub struct Info {
 
 impl<P: AsRef<Path>> From<P> for Info {
     fn from(path: P) -> Self {
-        Self {
-            path: path.as_ref().into(),
-            request: Request::default(),
-        }
+        Self::new(path, Default::default())
     }
 }
 

@@ -26,7 +26,7 @@ pub struct PkgInfo {
     pub json: Arc<PkgJSON>,
     /// The path to the directory where the description file located.
     /// It not a property in package.json.
-    pub dir_path: PathBuf,
+    pub dir_path: Box<Path>,
 }
 
 impl PkgJSON {
