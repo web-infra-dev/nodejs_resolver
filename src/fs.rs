@@ -23,10 +23,14 @@ impl CachedFS {
     pub fn read_file(&self, path: &Path, file_stat: &EntryStat) -> std::io::Result<String> {
         if let Some(cached) = self.entries.get(path) {
             // check cache
-            let mtime = file_stat.mtime.as_ref().unwrap();
+            let mtime = file_stat.modified().unwrap();
             // debounce
             let interval = Duration::from_millis(300);
-            if mtime.duration_since(cached.stat.mtime.unwrap()).unwrap() < interval {
+            if mtime
+                .duration_since(cached.stat.modified().unwrap())
+                .unwrap()
+                < interval
+            {
                 return Ok(cached.content.clone());
             }
         }
@@ -35,7 +39,7 @@ impl CachedFS {
         // update
         let value = Arc::new(FileEntry {
             content: content.clone(),
-            stat: file_stat.clone(),
+            stat: *file_stat,
         });
         self.entries.insert(path.to_path_buf(), value);
         Ok(content)

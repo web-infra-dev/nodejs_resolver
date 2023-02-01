@@ -191,7 +191,7 @@ impl Resolver {
             .then(|info| {
                 let request = info.to_resolved_path();
                 let pkg_info = match self.load_entry(&request) {
-                    Ok(entry) => entry.pkg_info.clone(),
+                    Ok(entry) => entry.pkg_info().cloned(),
                     Err(error) => return State::Error(error),
                 };
                 if let Some(pkg_info) = pkg_info {

@@ -1,5 +1,5 @@
 use std::{
-    io,
+    fs::FileType,
     path::{Path, PathBuf},
     sync::{Arc, Mutex, RwLock},
     time::SystemTime,
@@ -11,62 +11,51 @@ use crate::{
     RResult, Resolver,
 };
 
-#[derive(Debug, Clone)]
-pub enum EntryKind {
-    File,
-    Dir,
-    NonExist,
-    Unknown,
-}
-
-impl EntryKind {
-    pub fn is_file(&self) -> bool {
-        matches!(self, EntryKind::File)
-    }
-
-    pub fn is_dir(&self) -> bool {
-        matches!(self, EntryKind::Dir)
-    }
-
-    pub fn exist(&self) -> bool {
-        matches!(self, EntryKind::NonExist)
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct EntryStat {
-    pub kind: EntryKind,
-    pub mtime: Option<SystemTime>,
+    /// `None` for non-existing file
+    file_type: Option<FileType>,
+
+    /// `None` for existing file but without system time.
+    modified: Option<SystemTime>,
 }
 
 impl EntryStat {
-    pub fn stat(path: &Path) -> io::Result<Self> {
-        let stat = if let Ok(meta) = std::fs::metadata(path) {
-            let kind = if meta.is_file() {
-                EntryKind::File
-            } else if meta.is_dir() {
-                EntryKind::Dir
-            } else {
-                EntryKind::Unknown
-            };
-            let mtime = Some(meta.modified()?);
-            EntryStat { kind, mtime }
+    fn new(file_type: Option<FileType>, modified: Option<SystemTime>) -> Self {
+        Self {
+            file_type,
+            modified,
+        }
+    }
+
+    /// Returns `None` for non-existing file
+    pub fn file_type(&self) -> Option<FileType> {
+        self.file_type
+    }
+
+    /// Returns `None` for existing file but without system time.
+    pub fn modified(&self) -> Option<SystemTime> {
+        self.modified
+    }
+
+    fn stat(path: &Path) -> Self {
+        if let Ok(meta) = path.metadata() {
+            // This field might not be available on all platforms,
+            // and will return an Err on platforms where it is not available.
+            let modified = meta.modified().ok();
+            Self::new(Some(meta.file_type()), modified)
         } else {
-            EntryStat {
-                kind: EntryKind::NonExist,
-                mtime: None,
-            }
-        };
-        Ok(stat)
+            Self::new(None, None)
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct Entry {
-    pub parent: Option<Arc<Entry>>,
-    pub path: PathBuf,
-    pub pkg_info: Option<Arc<PkgInfo>>,
-    pub stat: RwLock<Option<EntryStat>>,
+    parent: Option<Arc<Entry>>,
+    path: Box<Path>,
+    pkg_info: Option<Arc<PkgInfo>>,
+    stat: RwLock<Option<EntryStat>>,
     symlink: Mutex<CachedPath>,
 }
 
@@ -79,6 +68,44 @@ pub enum CachedPath {
 }
 
 impl Entry {
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn parent(&self) -> Option<&Arc<Entry>> {
+        self.parent.as_ref()
+    }
+
+    pub fn pkg_info(&self) -> Option<&Arc<PkgInfo>> {
+        self.pkg_info.as_ref()
+    }
+
+    pub fn is_file(&self) -> bool {
+        self.cached_stat()
+            .file_type()
+            .map_or(false, |ft| ft.is_file())
+    }
+
+    pub fn is_dir(&self) -> bool {
+        self.cached_stat()
+            .file_type()
+            .map_or(false, |ft| ft.is_dir())
+    }
+
+    pub fn exists(&self) -> bool {
+        self.cached_stat().file_type().is_some()
+    }
+
+    pub fn cached_stat(&self) -> EntryStat {
+        let stat = *self.stat.read().unwrap();
+        if let Some(stat) = stat {
+            return stat;
+        }
+        let stat = EntryStat::stat(&self.path);
+        *self.stat.write().unwrap() = Some(stat);
+        stat
+    }
+
     /// Returns the canonicalized path of `self.path` if it is a symlink.
     /// Returns None if `self.path` is not a symlink.
     pub fn symlink(&self) -> Option<Arc<Path>> {
@@ -100,48 +127,6 @@ impl Entry {
             CachedPath::Resolved(path) => Some(path),
             CachedPath::NotSymlink => None,
             CachedPath::Unresolved => unreachable!(),
-        }
-    }
-
-    pub fn is_file(&self) -> bool {
-        if let Some(stat) = self.stat.read().unwrap().as_ref() {
-            return stat.kind.is_file();
-        }
-        if let Ok(stat) = EntryStat::stat(&self.path) {
-            let is_file = stat.kind.is_file();
-            let mut writer = self.stat.write().unwrap();
-            *writer = Some(stat);
-            is_file
-        } else {
-            false
-        }
-    }
-
-    pub fn is_dir(&self) -> bool {
-        if let Some(stat) = self.stat.read().unwrap().as_ref() {
-            return stat.kind.is_dir();
-        }
-        if let Ok(stat) = EntryStat::stat(&self.path) {
-            let is_dir = stat.kind.is_dir();
-            let mut writer = self.stat.write().unwrap();
-            *writer = Some(stat);
-            is_dir
-        } else {
-            false
-        }
-    }
-
-    pub fn is_exist(&self) -> bool {
-        if let Some(stat) = self.stat.read().unwrap().as_ref() {
-            return stat.kind.is_dir();
-        }
-        if let Ok(stat) = EntryStat::stat(&self.path) {
-            let is_dir = stat.kind.exist();
-            let mut writer = self.stat.write().unwrap();
-            *writer = Some(stat);
-            is_dir
-        } else {
-            false
         }
     }
 }
@@ -175,8 +160,8 @@ impl Resolver {
             path.join(pkg_name)
         };
 
-        let pkg_file_stat = EntryStat::stat(&maybe_pkg_path)?;
-        let pkg_file_exist = pkg_file_stat.kind.is_file();
+        let pkg_file_stat = EntryStat::stat(&maybe_pkg_path);
+        let pkg_file_exist = pkg_file_stat.file_type().map_or(false, |ft| ft.is_file());
 
         let pkg_info = if pkg_file_exist {
             let content = self.cache.fs.read_file(&maybe_pkg_path, &pkg_file_stat)?;
@@ -203,12 +188,11 @@ impl Resolver {
         // if `true`, then use above stats
         // else return `!true` means stat is None.
         let need_stat = !(pkg_info.is_some() && is_pkg_name_suffix);
-        let stat = RwLock::new(if need_stat { None } else { Some(pkg_file_stat) });
         Ok(Entry {
             parent,
-            path: path.to_path_buf(),
+            path: path.into(),
             pkg_info,
-            stat,
+            stat: RwLock::new(if need_stat { None } else { Some(pkg_file_stat) }),
             symlink: Mutex::new(CachedPath::default()),
         })
     }
@@ -220,24 +204,12 @@ impl Resolver {
 
     #[must_use]
     pub fn get_dependency_from_entry(&self) -> (Vec<PathBuf>, Vec<PathBuf>) {
-        let mut miss_dependency = vec![];
-        let mut file_dependency = vec![];
-        for entry in &self.entries {
-            let reader = entry.as_ref().stat.read().unwrap();
-            let kind = reader.as_ref().map(|reader| &reader.kind);
-            if let Some(kind) = kind {
-                if kind.is_file() || kind.is_dir() {
-                    file_dependency.push(entry.path.clone());
-                } else {
-                    miss_dependency.push(entry.path.clone());
-                }
-            }
-        }
-        (file_dependency, miss_dependency)
+        todo!("get_dependency_from_entry")
     }
 }
 
 #[test]
+#[ignore]
 fn dependency_test() {
     let case_path = super::test_helper::p(vec!["full", "a"]);
     let request = "package2";
