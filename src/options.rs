@@ -15,6 +15,8 @@ pub enum EnforceExtension {
     Auto,
 }
 
+pub type Alias = Vec<(String, AliasMap)>;
+
 #[derive(Debug, Clone)]
 pub struct Options {
     /// Tried detect file with this extension.
@@ -26,7 +28,7 @@ pub struct Options {
     /// Maps key to value.
     /// Default is `vec![]`.
     /// The reason for using `Vec` instead `HashMap` to keep the order.
-    pub alias: Vec<(String, AliasMap)>,
+    pub alias: Alias,
     /// Prefer to resolve request as relative request and
     /// fallback to resolving as modules.
     /// Default is `false`
@@ -73,6 +75,9 @@ pub struct Options {
     /// A list of directories to resolve modules from, can be absolute path or folder name.
     /// Default is `["node_modules"]`
     pub modules: Vec<String>,
+    // Same as `alias`, but only used if default resolving fails.
+    // Default is `[]`.
+    pub fallback: Alias,
 }
 
 impl Default for Options {
@@ -95,7 +100,9 @@ impl Default for Options {
         let external_cache = None;
         let resolve_to_context = false;
         let modules = vec![String::from("node_modules")];
+        let fallback = vec![];
         Self {
+            fallback,
             modules,
             extensions,
             enforce_extension,

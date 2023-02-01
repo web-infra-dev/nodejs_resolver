@@ -609,11 +609,55 @@ fn alias_test() {
 }
 
 #[test]
-fn symlink_test() {
-    let symlink_cases_path = p(vec!["symlink"]);
+fn fallback_test() {
+    let alias_cases_path = p(vec!["alias"]);
     let resolver = Resolver::new(Options {
+        fallback: vec![
+            (
+                String::from("aliasA"),
+                AliasMap::Target(String::from("./a")),
+            ),
+            // -- exists
+            (String::from("./e"), AliasMap::Target(String::from("./d"))),
+            (String::from("./d"), AliasMap::Target(String::from("./e"))),
+            // --
+            // in-exists
+            (String::from("./ee"), AliasMap::Target(String::from("./dd"))),
+            (String::from("./dd"), AliasMap::Target(String::from("./ee"))),
+            (
+                String::from("./ff"),
+                AliasMap::Target(String::from("./ccc")),
+            ),
+        ],
         ..Default::default()
     });
+    // maybe better is `should_overflow(&resolver, &alias_cases_path, "./ee");`
+    should_resolve_failed(&resolver, &alias_cases_path, "./ee");
+    should_resolve_failed(&resolver, &alias_cases_path, "./ff");
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "./d",
+        p(vec!["alias", "d", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "./e",
+        p(vec!["alias", "e", "index"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "aliasA",
+        p(vec!["alias", "a", "index"]),
+    );
+}
+
+#[test]
+fn symlink_test() {
+    let symlink_cases_path = p(vec!["symlink"]);
+    let resolver = Resolver::new(Options::default());
 
     should_equal(
         &resolver,

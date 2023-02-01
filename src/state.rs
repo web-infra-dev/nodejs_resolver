@@ -25,6 +25,13 @@ impl State {
         }
     }
 
+    pub fn map_failed<F: FnOnce(Info) -> State>(self, op: F) -> Self {
+        match self {
+            State::Failed(info) => op(info),
+            _ => self,
+        }
+    }
+
     pub fn is_finished(&self) -> bool {
         matches!(self, State::Success(_) | State::Error(_))
     }

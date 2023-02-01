@@ -171,10 +171,7 @@ impl Resolver {
             }
         });
 
-        match state {
-            State::Resolving(info) => State::Failed(info),
-            _ => state,
-        }
+        state
     }
 
     fn resolve_node_modules(

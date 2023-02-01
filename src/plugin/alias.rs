@@ -1,13 +1,22 @@
 use super::Plugin;
-use crate::{log::depth, AliasMap, Context, Info, ResolveResult, Resolver, State};
+use crate::{log::depth, options::Alias, AliasMap, Context, Info, ResolveResult, Resolver, State};
 
-#[derive(Default)]
-pub struct AliasPlugin;
+pub struct AliasPlugin<'a>(&'a Alias);
 
-impl Plugin for AliasPlugin {
+impl<'a> AliasPlugin<'a> {
+    pub fn new(alias: &'a Alias) -> Self {
+        Self(alias)
+    }
+
+    fn alias(&self) -> &Alias {
+        self.0
+    }
+}
+
+impl<'a> Plugin for AliasPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         let inner_target = info.request().target();
-        for (from, to) in &resolver.options.alias {
+        for (from, to) in self.alias() {
             if inner_target == from || inner_target.starts_with(&format!("{from}/")) {
                 tracing::debug!(
                     "AliasPlugin works, triggered by '{from}'({})",
