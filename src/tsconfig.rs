@@ -3,7 +3,7 @@
 use crate::context::Context;
 use crate::{Error, Info, RResult, ResolveResult, Resolver, State};
 use rustc_hash::FxHashMap;
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 #[derive(Debug, Clone, Default)]
 pub struct TsConfig {
@@ -15,6 +15,17 @@ pub struct TsConfig {
 pub struct CompilerOptions {
     pub base_url: Option<String>,
     pub paths: Option<FxHashMap<String, Vec<String>>>,
+}
+
+impl TsConfig {
+    pub fn parse(json_str: &str, location: &Path) -> RResult<serde_json::Value> {
+        let serde_value = jsonc_parser::parse_to_serde_value(json_str, &Default::default())
+            .map_err(|err| {
+                Error::UnexpectedValue(format!("Parse {} failed. Error: {err}", location.display()))
+            })?
+            .unwrap_or_else(|| panic!("Transfer {} to serde value failed", location.display()));
+        Ok(serde_value)
+    }
 }
 
 impl Resolver {
@@ -66,17 +77,9 @@ impl Resolver {
             // Its role is to ensure that `stat` exists
             return Err(Error::CantFindTsConfig);
         }
-        let json_str = self.cache.fs.read_file(location, &entry.cached_stat())?;
-        // TODO: should cache `json_str` -> TsConfig
-        let mut json: serde_json::Value =
-            jsonc_parser::parse_to_serde_value(&json_str, &Default::default())
-                .map_err(|err| {
-                    Error::UnexpectedValue(format!(
-                        "Parse {} failed. Error: {err}",
-                        location.display()
-                    ))
-                })?
-                .unwrap_or_else(|| panic!("Transfer {} to serde value failed", location.display()));
+
+        let value = self.cache.fs.read_tsconfig(location, entry.cached_stat())?;
+        let mut json = Arc::as_ref(&value).clone();
 
         // merge `extends`.
         if let serde_json::Value::String(s) = &json["extends"] {

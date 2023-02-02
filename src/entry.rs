@@ -5,11 +5,7 @@ use std::{
     time::SystemTime,
 };
 
-use crate::{
-    description::{PkgInfo, PkgJSON},
-    normalize::NormalizePath,
-    RResult, Resolver,
-};
+use crate::{description::PkgInfo, normalize::NormalizePath, RResult, Resolver};
 
 #[derive(Debug, Clone, Copy)]
 pub struct EntryStat {
@@ -164,20 +160,11 @@ impl Resolver {
         let pkg_file_exist = pkg_file_stat.file_type().map_or(false, |ft| ft.is_file());
 
         let pkg_info = if pkg_file_exist {
-            let content = self.cache.fs.read_file(&maybe_pkg_path, &pkg_file_stat)?;
-            let pkg_json = if let Some(cached) = self.cache.pkg_json.get(&content) {
-                cached.clone()
-            } else {
-                let result = Arc::new(PkgJSON::parse(&content, &maybe_pkg_path)?);
-                self.cache.pkg_json.insert(content, result.clone());
-                result
-            };
-            let dir_path = maybe_pkg_path.parent().unwrap().into();
-            let pkg_info = Arc::new(PkgInfo {
-                json: pkg_json,
-                dir_path,
-            });
-            Some(pkg_info)
+            let info = self
+                .cache
+                .fs
+                .read_description_file(&maybe_pkg_path, pkg_file_stat)?;
+            Some(info)
         } else if let Some(parent) = &parent {
             parent.pkg_info.clone()
         } else {

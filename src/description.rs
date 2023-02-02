@@ -21,12 +21,21 @@ pub struct PkgJSON {
     pub raw: serde_json::Value,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PkgInfo {
     pub json: Arc<PkgJSON>,
     /// The path to the directory where the description file located.
     /// It not a property in package.json.
     pub dir_path: Box<Path>,
+}
+
+impl PkgInfo {
+    pub fn new<P: AsRef<Path>>(json: PkgJSON, dir_path: P) -> Self {
+        Self {
+            json: Arc::new(json),
+            dir_path: dir_path.as_ref().into(),
+        }
+    }
 }
 
 impl PkgJSON {
