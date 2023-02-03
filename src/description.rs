@@ -43,7 +43,7 @@ impl PkgJSON {
         let json: serde_json::Value =
             tracing::debug_span!("serde_json_from_str").in_scope(|| {
                 serde_json::from_str(content)
-                    .map_err(|error| Error::UnexpectedJson((file_path.to_path_buf(), error)))
+                    .map_err(|error| Error::UnexpectedJson((file_path.into(), error)))
             })?;
 
         let mut alias_fields = Vec::new();
