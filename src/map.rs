@@ -83,26 +83,28 @@ pub struct PathTreeNode {
 /// TODO: should seal all functions except
 ///  `build_field_path_tree` and `field_process`.
 pub trait Field {
-    fn check_target(relative_path: &str) -> bool {
-        let relative_path = relative_path.chars().collect::<Vec<char>>();
-        let slash_index_list = PathTreeNode::get_next_list(&relative_path, '/');
+    fn check_target(relative_path: &str) -> Result<(), String> {
+        let relative_path_chars = relative_path.chars().collect::<Vec<char>>();
+        let slash_index_list = PathTreeNode::get_next_list(&relative_path_chars, '/');
         let mut last_non_slash_index = 0;
         let mut cd = 0;
         while let Some(&Some(slash_index)) = slash_index_list.get(last_non_slash_index) {
-            if relative_path[last_non_slash_index] == '.'
-                && relative_path[last_non_slash_index + 1] == '.'
+            if relative_path_chars[last_non_slash_index] == '.'
+                && relative_path_chars[last_non_slash_index + 1] == '.'
             {
                 cd -= 1;
                 if cd < 0 {
-                    return false;
+                    return Err(format!(
+                        "Trying to access out of package scope. Requesting {relative_path}"
+                    ));
                 }
-            } else if relative_path[last_non_slash_index] == '.' {
+            } else if relative_path_chars[last_non_slash_index] == '.' {
             } else {
                 cd += 1;
             }
             last_non_slash_index = slash_index + 1;
         }
-        true
+        Ok(())
     }
 
     fn assert_target(exp: &str, expect_folder: bool) -> RResult<bool>;
@@ -3008,13 +3010,13 @@ fn imports_field_map_test() {
 
 #[test]
 fn check_target_test() {
-    assert!(!ExportsField::check_target("../a.js"));
-    assert!(!ExportsField::check_target("../"));
-    assert!(!ExportsField::check_target("./a/b/../../../c.js"));
-    assert!(!ExportsField::check_target("./a/b/../../../"));
-    assert!(!ExportsField::check_target("./../../c.js"));
-    assert!(!ExportsField::check_target("./../../"));
-    assert!(!ExportsField::check_target("./a/../b/../../c.js"));
-    assert!(!ExportsField::check_target("./a/../b/../../"));
-    assert!(!ExportsField::check_target("./././../"));
+    assert!(ExportsField::check_target("../a.js").is_err());
+    assert!(ExportsField::check_target("../").is_err());
+    assert!(ExportsField::check_target("./a/b/../../../c.js").is_err());
+    assert!(ExportsField::check_target("./a/b/../../../").is_err());
+    assert!(ExportsField::check_target("./../../c.js").is_err());
+    assert!(ExportsField::check_target("./../../").is_err());
+    assert!(ExportsField::check_target("./a/../b/../../c.js").is_err());
+    assert!(ExportsField::check_target("./a/../b/../../").is_err());
+    assert!(ExportsField::check_target("./././../").is_err());
 }

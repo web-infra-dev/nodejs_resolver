@@ -1818,7 +1818,7 @@ fn exports_fields_test() {
         &resolver,
         &export_cases_path,
         "exports-field/dist/a.js",
-        "Package path exports-field/dist/a.js is not exported".to_string(),
+        "Trying to access out of package scope. Requesting ./../../a.js".to_string(),
     );
     should_unexpected_value_error(
         &resolver,
@@ -1837,7 +1837,7 @@ fn exports_fields_test() {
         &resolver,
         &export_cases_path,
         "exports-field/dist/../../../a.js",
-        "Package path exports-field/dist/../../../a.js is not exported".to_string(),
+        "Trying to access out of package scope. Requesting ./lib/lib2/../../../a.js".to_string(),
     );
     should_equal(
         &resolver,
@@ -2171,7 +2171,8 @@ fn exports_fields_test() {
         &resolver,
         &p(vec!["exports-field-error"]),
         "exports-field",
-        "Package path exports-field is not exported".to_string(),
+        "Trying to access out of package scope. Requesting ./a/../b/../../pack1/index.js"
+            .to_string(),
     );
 }
 
@@ -2213,7 +2214,7 @@ fn imports_fields_test() {
         &resolver,
         &import_cases_path,
         "#b",
-        "Package path ../b.js can't imported in".to_string(),
+        "Trying to access out of package scope. Requesting ../b.js".to_string(),
     );
     should_equal(
         &resolver,

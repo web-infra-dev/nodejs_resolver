@@ -87,8 +87,9 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
             );
             let request = Resolver::parse(&item);
             let info = Info::new(self.pkg_info.dir_path.clone(), request);
-            if !ExportsField::check_target(info.request().target()) {
-                continue;
+            if let Err(msg) = ExportsField::check_target(info.request().target()) {
+                let msg = format!("{msg} in {:?}/package.json", &self.pkg_info.dir_path);
+                return State::Error(Error::UnexpectedValue(msg));
             }
             let state = resolver._resolve(info, context);
             if state.is_finished() {
