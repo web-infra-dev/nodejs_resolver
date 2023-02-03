@@ -46,4 +46,4 @@ RS_OUTPUT="rs_bench.txt"
 
 # node ../esbuildResolve.js | tee $ESBUILD_OUTPUT
 # node ../enhanceResolve.js | tee $ENHANCED_OUTPUT
-cargo +nightly bench --package nodejs-resolver --test bench --all-features -- bench_test::ant_design_bench | tee $RS_OUTPUT
+cargo bench --package nodejs-resolver --test bench --all-features -- bench_test::ant_design_bench | tee $RS_OUTPUT
