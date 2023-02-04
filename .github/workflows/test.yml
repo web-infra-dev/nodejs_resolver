@@ -22,29 +22,26 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
-      - name: Install minimal nightly
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          components: clippy
-          override: true
-      - name: Configure cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: test-${{ runner.os }}-cargo-gcc-${{ matrix.gcc }}-clang-${{ matrix.clang }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install toolchain
+        run: rustup show
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
       - if: ${{ matrix.os == 'ubuntu-latest' }}
         name: Clippy
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-targets --all-features
+          args: --all-targets --all-features -- --deny warnings
+
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all-features --release
+
       - name: Test
         uses: actions-rs/cargo@v1
         with:
