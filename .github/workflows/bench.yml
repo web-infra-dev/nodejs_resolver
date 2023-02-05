@@ -34,7 +34,7 @@ jobs:
           cache-dependency-path: bench/package-lock.json
 
       - name: Cache
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
 
       - name: Generate bench case and run
         run: |
