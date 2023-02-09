@@ -1,7 +1,8 @@
+use once_cell::sync::OnceCell;
 use std::{
     fs::FileType,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, RwLock},
+    sync::Arc,
     time::SystemTime,
 };
 
@@ -51,16 +52,9 @@ pub struct Entry {
     parent: Option<Arc<Entry>>,
     path: Box<Path>,
     pkg_info: Option<Arc<PkgInfo>>,
-    stat: RwLock<Option<EntryStat>>,
-    symlink: Mutex<CachedPath>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub enum CachedPath {
-    #[default]
-    Unresolved,
-    NotSymlink,
-    Resolved(Arc<Path>),
+    stat: OnceCell<EntryStat>,
+    // None: `self.path` is not a symlink
+    symlink: OnceCell<Option<Arc<Path>>>,
 }
 
 impl Entry {
@@ -93,37 +87,21 @@ impl Entry {
     }
 
     pub fn cached_stat(&self) -> EntryStat {
-        let stat = *self.stat.read().unwrap();
-        if let Some(stat) = stat {
-            return stat;
-        }
-        let stat = EntryStat::stat(&self.path);
-        *self.stat.write().unwrap() = Some(stat);
-        stat
+        *self.stat.get_or_init(|| EntryStat::stat(&self.path))
     }
 
     /// Returns the canonicalized path of `self.path` if it is a symlink.
     /// Returns None if `self.path` is not a symlink.
-    pub fn symlink(&self) -> Option<Arc<Path>> {
-        let mut cached_path = self.symlink.lock().unwrap().clone();
-
-        if matches!(cached_path, CachedPath::Unresolved) {
+    pub fn symlink(&self) -> &Option<Arc<Path>> {
+        self.symlink.get_or_init(|| {
             if self.path.read_link().is_err() {
-                *self.symlink.lock().unwrap() = CachedPath::NotSymlink;
                 return None;
             }
-            cached_path = match dunce::canonicalize(&self.path) {
-                Ok(symlink_path) => CachedPath::Resolved(Arc::from(symlink_path)),
-                Err(_) => CachedPath::NotSymlink,
-            };
-            *self.symlink.lock().unwrap() = cached_path.clone();
-        }
-
-        match cached_path {
-            CachedPath::Resolved(path) => Some(path),
-            CachedPath::NotSymlink => None,
-            CachedPath::Unresolved => unreachable!(),
-        }
+            match dunce::canonicalize(&self.path) {
+                Ok(symlink_path) => Some(Arc::from(symlink_path)),
+                Err(_) => None,
+            }
+        })
     }
 }
 
@@ -171,16 +149,16 @@ impl Resolver {
             None
         };
 
-        // Is path ended with `package.json`?
-        // if `true`, then use above stats
-        // else return `!true` means stat is None.
-        let need_stat = !(pkg_info.is_some() && is_pkg_name_suffix);
+        let stat = OnceCell::new();
+        if pkg_info.is_some() && is_pkg_name_suffix {
+            stat.set(pkg_file_stat).unwrap();
+        }
         Ok(Entry {
             parent,
             path: path.into(),
             pkg_info,
-            stat: RwLock::new(if need_stat { None } else { Some(pkg_file_stat) }),
-            symlink: Mutex::new(CachedPath::default()),
+            stat,
+            symlink: OnceCell::default(),
         })
     }
 
