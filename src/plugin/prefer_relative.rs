@@ -13,10 +13,7 @@ impl Plugin for PreferRelativePlugin {
         if resolver.options.prefer_relative {
             tracing::debug!("AliasPlugin works({})", depth(&context.depth));
             let target = format!("./{}", info.request().target());
-            let info = Info::new(
-                info.path(),
-                info.request().clone().with_target(&target),
-            );
+            let info = Info::new(info.path(), info.request().clone().with_target(&target));
             let stats = resolver._resolve(info, context);
             if stats.is_finished() {
                 return stats;

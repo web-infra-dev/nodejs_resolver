@@ -39,7 +39,9 @@ impl EntryStat {
     }
 
     fn stat(path: &Path) -> Self {
-        if let Ok(meta) = path.metadata() {
+        if !path.is_absolute() {
+            Self::new(None, None)
+        } else if let Ok(meta) = path.metadata() {
             // This field might not be available on all platforms,
             // and will return an Err on platforms where it is not available.
             let modified = meta.modified().ok();
@@ -110,9 +112,8 @@ impl Entry {
     /// Returns None if `self.path` is not a symlink.
     pub fn symlink(&self) -> Option<Arc<Path>> {
         let mut cached_path = self.symlink.lock().unwrap().clone();
-
         if matches!(cached_path, CachedPath::Unresolved) {
-            if self.path.read_link().is_err() {
+            if !self.exists() || self.path.read_link().is_err() {
                 *self.symlink.lock().unwrap() = CachedPath::NotSymlink;
                 return None;
             }
