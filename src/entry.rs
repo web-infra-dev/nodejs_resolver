@@ -1,14 +1,15 @@
 use once_cell::sync::OnceCell;
 use std::{
+    borrow::Cow,
     fs::FileType,
     path::{Path, PathBuf},
     sync::Arc,
     time::SystemTime,
 };
 
-use crate::{description::PkgInfo, normalize::NormalizePath, RResult, Resolver};
+use crate::{description::PkgInfo, normalize::NormalizePath, Error, RResult, Resolver};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct EntryStat {
     /// `None` for non-existing file
     file_type: Option<FileType>,
@@ -127,41 +128,49 @@ impl Resolver {
             None
         };
 
-        let pkg_name = &self.options.description_file;
-        let is_pkg_name_suffix = path.ends_with(pkg_name);
-        let maybe_pkg_path = if is_pkg_name_suffix {
-            // path is xxxxx/xxxxx/package.json
-            path.to_path_buf()
-        } else {
-            path.join(pkg_name)
+        let mut entry = Entry {
+            parent: parent.clone(),
+            path: path.into(),
+            pkg_info: None,
+            stat: OnceCell::default(),
+            symlink: OnceCell::default(),
         };
 
-        let pkg_file_stat = EntryStat::stat(&maybe_pkg_path);
-        let pkg_file_exist = pkg_file_stat.file_type().map_or(false, |ft| ft.is_file());
-
-        let pkg_info = if pkg_file_exist {
-            let info = self
+        // Attempt to cache package.json
+        let pkg_name = &self.options.description_file;
+        let is_pkg_suffix = path.ends_with(pkg_name);
+        if entry.is_dir() || is_pkg_suffix {
+            let pkg_path = if is_pkg_suffix {
+                Cow::Borrowed(path)
+            } else {
+                Cow::Owned(path.join(pkg_name))
+            };
+            match self
                 .cache
                 .fs
-                .read_description_file(&maybe_pkg_path, pkg_file_stat)?;
-            Some(info)
-        } else if let Some(parent) = &parent {
-            parent.pkg_info.clone()
-        } else {
-            None
-        };
-
-        let stat = OnceCell::new();
-        if pkg_info.is_some() && is_pkg_name_suffix {
-            stat.set(pkg_file_stat).unwrap();
+                .read_description_file(&pkg_path, EntryStat::default())
+            {
+                Ok(info) => {
+                    entry.pkg_info.replace(info);
+                }
+                Err(error @ (Error::UnexpectedJson(_) | Error::UnexpectedValue(_))) => {
+                    // Return bad json
+                    return Err(error);
+                }
+                Err(Error::Io(_)) => {
+                    // package.json does not exists
+                }
+                _ => unreachable!(),
+            }
         }
-        Ok(Entry {
-            parent,
-            path: path.into(),
-            pkg_info,
-            stat,
-            symlink: OnceCell::default(),
-        })
+
+        if entry.pkg_info().is_none() {
+            if let Some(parent) = &parent {
+                entry.pkg_info = parent.pkg_info.clone();
+            }
+        }
+
+        Ok(entry)
     }
 
     // TODO: should put entries as a parament.
