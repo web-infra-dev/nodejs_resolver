@@ -131,7 +131,7 @@ impl Resolver {
     #[tracing::instrument]
     pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolveResult> {
         tracing::debug!(
-            "{:-^30}\nTry to resolve '{}' in '{}'\n",
+            "{:-^30}\nTry to resolve '{}' in '{}'",
             color::green(&"[RESOLVER]"),
             color::cyan(&request),
             color::cyan(&path.display().to_string())
