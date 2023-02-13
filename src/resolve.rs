@@ -28,8 +28,12 @@ impl Resolver {
             if is_file {
                 return State::Success(ResolveResult::Info(info.with_path(path).with_target("")));
             }
-            tracing::debug!("'{}' is not a file", color::red(&path.display()));
         }
+        tracing::debug!(
+            "'{}[{}]' is not a file",
+            color::red(&path.display()),
+            color::red(&self.options.extensions.join("|"))
+        );
         State::Resolving(info)
     }
 
@@ -102,17 +106,22 @@ impl Resolver {
     pub(crate) fn resolve_as_modules(&self, info: Info, context: &mut Context) -> State {
         let original_dir = info.path();
         for module in &self.options.modules {
-            let node_modules_path = if Path::new(module).is_absolute() {
-                PathBuf::from(module)
+            let (node_modules_path, need_find_up) = if Path::new(module).is_absolute() {
+                (PathBuf::from(module), false)
             } else {
-                original_dir.join(module)
+                (original_dir.join(module), true)
             };
-            let state = self._resolve_as_modules(
-                info.clone(),
-                original_dir.to_path_buf(),
-                node_modules_path,
-                context,
-            );
+            let state = self
+                ._resolve_as_modules(info.clone(), original_dir, &node_modules_path, context)
+                .then(|info| {
+                    if !need_find_up {
+                        State::Resolving(info)
+                    } else if let Some(parent_dir) = original_dir.parent() {
+                        self._resolve(info.with_path(parent_dir), context)
+                    } else {
+                        State::Resolving(info)
+                    }
+                });
             if state.is_finished() {
                 return state;
             }
@@ -123,18 +132,18 @@ impl Resolver {
     fn _resolve_as_modules(
         &self,
         info: Info,
-        original_dir: PathBuf,
-        node_modules_path: PathBuf,
+        original_dir: &Path,
+        node_modules_path: &Path,
         context: &mut Context,
     ) -> State {
-        let entry = match self.load_entry(&node_modules_path) {
+        let entry = match self.load_entry(node_modules_path) {
             Ok(entry) => entry,
             Err(err) => return State::Error(err),
         };
 
         let state = if entry.is_dir() {
             // is there had `node_modules` folder?
-            self.resolve_node_modules(info, &node_modules_path, context)
+            self.resolve_node_modules(info, node_modules_path, context)
                 .then(|info| {
                     let is_resolve_self = entry.pkg_info().map_or(false, |pkg_info| {
                         let request_module_name =
@@ -161,14 +170,7 @@ impl Resolver {
             }
         } else {
             State::Resolving(info)
-        }
-        .then(|info| {
-            if let Some(parent_dir) = original_dir.parent() {
-                self._resolve(info.with_path(parent_dir), context)
-            } else {
-                State::Resolving(info)
-            }
-        });
+        };
 
         state
     }

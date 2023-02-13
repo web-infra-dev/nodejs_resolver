@@ -3047,4 +3047,22 @@ fn resolve_modules_test() {
         "node_modules/browser",
         p(vec!["alias", "node_modules", "browser", "index.js"]),
     );
+
+    let fixture = p(vec!["scoped", "node_modules"]);
+    let resolver = Resolver::new(Options {
+        modules: vec![fixture.display().to_string(), "node_modules".to_string()],
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &p(vec![]),
+        "recursive-module",
+        p(vec!["node_modules", "recursive-module", "index.js"]),
+    );
+
+    let resolver = Resolver::new(Options {
+        modules: vec![fixture.display().to_string()],
+        ..Default::default()
+    });
+    should_resolve_failed(&resolver, &p(vec![]), "recursive-module");
 }

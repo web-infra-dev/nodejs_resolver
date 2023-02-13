@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.0.65
+
+align to https://webpack.js.org/configuration/resolve/#resolvemodules
+
 # 0.0.64
 
 - fix a bug when comparing paths in browser_filed plugin.
