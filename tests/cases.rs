@@ -2322,6 +2322,43 @@ fn cache_fs() {
 }
 
 #[test]
+fn cache_fs2() {
+    use std::fs::rename;
+    use std::thread::sleep;
+    use std::time::Duration;
+    let fixture_path = p(vec!["cache-fs2"]);
+    let resolver = Resolver::new(Options {
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &fixture_path,
+        "./index",
+        p(vec!["cache-fs2", "index.js"]),
+    );
+    rename(fixture_path.join("index.js"), fixture_path.join("temp.js")).expect("rename failed");
+    sleep(Duration::from_secs(1));
+    should_equal(
+        &resolver,
+        &fixture_path,
+        "./index",
+        p(vec!["cache-fs2", "index.js"]),
+    );
+    resolver.clear_entries();
+    should_resolve_failed(&resolver, &fixture_path, "./index");
+    rename(fixture_path.join("temp.js"), fixture_path.join("index.js")).expect("rename failed");
+    sleep(Duration::from_secs(1));
+    should_resolve_failed(&resolver, &fixture_path, "./index");
+    resolver.clear_entries();
+    should_equal(
+        &resolver,
+        &fixture_path,
+        "./index",
+        p(vec!["cache-fs2", "index.js"]),
+    );
+}
+
+#[test]
 fn main_fields_test() {
     let fixture_path = p(vec![]);
     let resolver = Resolver::new(Options {
