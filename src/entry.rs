@@ -36,7 +36,9 @@ impl EntryStat {
     }
 
     fn stat(path: &Path) -> Self {
-        if let Ok(meta) = path.metadata() {
+        if !path.is_absolute() {
+            Self::new(None, None)
+        } else if let Ok(meta) = path.metadata() {
             // This field might not be available on all platforms,
             // and will return an Err on platforms where it is not available.
             let modified = meta.modified().ok();
