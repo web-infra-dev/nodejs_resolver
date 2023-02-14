@@ -106,10 +106,11 @@ impl Resolver {
     pub(crate) fn resolve_as_modules(&self, info: Info, context: &mut Context) -> State {
         let original_dir = info.path();
         for module in &self.options.modules {
-            let (node_modules_path, need_find_up) = if Path::new(module).is_absolute() {
-                (PathBuf::from(module), false)
+            let node_modules_path = Path::new(module);
+            let (node_modules_path, need_find_up) = if node_modules_path.is_absolute() {
+                (Cow::Borrowed(node_modules_path), false)
             } else {
-                (original_dir.join(module), true)
+                (Cow::Owned(original_dir.join(module)), true)
             };
             let state = self
                 ._resolve_as_modules(info.clone(), original_dir, &node_modules_path, context)
