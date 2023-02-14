@@ -92,7 +92,10 @@ impl Resolver {
         if !entry.is_dir() {
             return State::Failed(info);
         }
-        let pkg_info = entry.pkg_info();
+        let pkg_info = match entry.pkg_info(self) {
+            Ok(pkg_info) => pkg_info,
+            Err(err) => return State::Error(err),
+        };
         let dir = dir.to_path_buf();
         let info = info.with_path(dir).with_target(".");
         if let Some(pkg_info) = pkg_info {
@@ -142,30 +145,34 @@ impl Resolver {
             Err(err) => return State::Error(err),
         };
 
+        let pkg_info = match entry.pkg_info(self) {
+            Ok(pkg_info) => pkg_info.as_ref(),
+            Err(err) => return State::Error(err),
+        };
+
         let state = if entry.is_dir() {
             // is there had `node_modules` folder?
             self.resolve_node_modules(info, node_modules_path, context)
                 .then(|info| {
-                    let is_resolve_self = entry.pkg_info().map_or(false, |pkg_info| {
+                    let is_resolve_self = pkg_info.map_or(false, |pkg_info| {
                         let request_module_name =
                             get_module_name_from_request(info.request().target());
                         is_resolve_self(pkg_info, request_module_name)
                     });
                     if is_resolve_self {
-                        let pkg_info = entry.pkg_info().unwrap();
+                        let pkg_info = pkg_info.unwrap();
                         ExportsFieldPlugin::new(pkg_info).apply(self, info, context)
                     } else {
                         State::Resolving(info)
                     }
                 })
-        } else if entry.pkg_info().map_or(false, |pkg_info| {
+        } else if pkg_info.map_or(false, |pkg_info| {
             original_dir.normalized_eq(&pkg_info.dir_path)
         }) {
             // is `info.path` on the same level as package.json
             let request_module_name = get_module_name_from_request(info.request().target());
-            let pkg_info = entry.pkg_info().unwrap();
-            if is_resolve_self(pkg_info, request_module_name) {
-                ExportsFieldPlugin::new(pkg_info).apply(self, info, context)
+            if is_resolve_self(pkg_info.unwrap(), request_module_name) {
+                ExportsFieldPlugin::new(pkg_info.unwrap()).apply(self, info, context)
             } else {
                 State::Resolving(info)
             }
@@ -198,7 +205,11 @@ impl Resolver {
                 State::Resolving(info)
             }
         } else {
-            let state = if let Some(pkg_info) = entry.pkg_info() {
+            let pkg_info = match entry.pkg_info(self) {
+                Ok(pkg_info) => pkg_info,
+                Err(err) => return State::Error(err),
+            };
+            let state = if let Some(pkg_info) = pkg_info {
                 let out_node_modules = original_dir.normalized_eq(&pkg_info.dir_path);
                 if !out_node_modules || is_resolve_self(pkg_info, request_module_name) {
                     ExportsFieldPlugin::new(pkg_info).apply(self, module_info, context)

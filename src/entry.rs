@@ -37,9 +37,7 @@ impl EntryStat {
     }
 
     fn stat(path: &Path) -> Self {
-        if !path.is_absolute() {
-            Self::new(None, None)
-        } else if let Ok(meta) = path.metadata() {
+        if let Ok(meta) = path.metadata() {
             // This field might not be available on all platforms,
             // and will return an Err on platforms where it is not available.
             let modified = meta.modified().ok();
@@ -54,7 +52,8 @@ impl EntryStat {
 pub struct Entry {
     parent: Option<Arc<Entry>>,
     path: Box<Path>,
-    pkg_info: Option<Arc<PkgInfo>>,
+    // None: package.json does not exist
+    pkg_info: OnceCell<Option<Arc<PkgInfo>>>,
     stat: OnceCell<EntryStat>,
     // None: `self.path` is not a symlink
     symlink: OnceCell<Option<Arc<Path>>>,
@@ -69,8 +68,40 @@ impl Entry {
         self.parent.as_ref()
     }
 
-    pub fn pkg_info(&self) -> Option<&Arc<PkgInfo>> {
-        self.pkg_info.as_ref()
+    pub fn pkg_info(&self, resolver: &Resolver) -> RResult<&Option<Arc<PkgInfo>>> {
+        self.pkg_info.get_or_try_init(|| {
+            let pkg_name = &resolver.options.description_file;
+            let path = self.path();
+            let is_pkg_suffix = path.ends_with(pkg_name);
+            if self.is_dir() || is_pkg_suffix {
+                let pkg_path = if is_pkg_suffix {
+                    Cow::Borrowed(path)
+                } else {
+                    Cow::Owned(path.join(pkg_name))
+                };
+                match resolver
+                    .cache
+                    .fs
+                    .read_description_file(&pkg_path, EntryStat::default())
+                {
+                    Ok(info) => {
+                        return Ok(Some(info));
+                    }
+                    Err(error @ (Error::UnexpectedJson(_) | Error::UnexpectedValue(_))) => {
+                        // Return bad json
+                        return Err(error);
+                    }
+                    Err(Error::Io(_)) => {
+                        // package.json not found
+                    }
+                    _ => unreachable!(),
+                };
+            }
+            if let Some(parent) = &self.parent() {
+                return parent.pkg_info(resolver).cloned();
+            }
+            Ok(None)
+        })
     }
 
     pub fn is_file(&self) -> bool {
@@ -130,50 +161,13 @@ impl Resolver {
         } else {
             None
         };
-
-        let mut entry = Entry {
-            parent: parent.clone(),
+        Ok(Entry {
+            parent,
             path: path.into(),
-            pkg_info: None,
+            pkg_info: OnceCell::default(),
             stat: OnceCell::default(),
             symlink: OnceCell::default(),
-        };
-
-        // Attempt to cache package.json
-        let pkg_name = &self.options.description_file;
-        let is_pkg_suffix = path.ends_with(pkg_name);
-        if entry.is_dir() || is_pkg_suffix {
-            let pkg_path = if is_pkg_suffix {
-                Cow::Borrowed(path)
-            } else {
-                Cow::Owned(path.join(pkg_name))
-            };
-            match self
-                .cache
-                .fs
-                .read_description_file(&pkg_path, EntryStat::default())
-            {
-                Ok(info) => {
-                    entry.pkg_info.replace(info);
-                }
-                Err(error @ (Error::UnexpectedJson(_) | Error::UnexpectedValue(_))) => {
-                    // Return bad json
-                    return Err(error);
-                }
-                Err(Error::Io(_)) => {
-                    // package.json does not exists
-                }
-                _ => unreachable!(),
-            }
-        }
-
-        if entry.pkg_info().is_none() {
-            if let Some(parent) = &parent {
-                entry.pkg_info = parent.pkg_info.clone();
-            }
-        }
-
-        Ok(entry)
+        })
     }
 
     // TODO: should put entries as a parament.
