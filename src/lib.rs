@@ -61,9 +61,7 @@ mod tsconfig_path;
 
 pub use cache::Cache;
 use context::Context;
-use dashmap::DashMap;
 pub use description::SideEffects;
-use entry::Entry;
 pub use error::Error;
 pub use info::Info;
 use kind::PathKind;
@@ -74,16 +72,13 @@ use plugin::{
     AliasPlugin, BrowserFieldPlugin, ImportsFieldPlugin, ParsePlugin, Plugin, PreferRelativePlugin,
     SymlinkPlugin,
 };
-use rustc_hash::FxHasher;
 use state::State;
-use std::{hash::BuildHasherDefault, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 #[derive(Debug)]
 pub struct Resolver {
     pub options: Options,
     pub(crate) cache: Arc<Cache>,
-    /// File entries keyed by normalized paths
-    pub(crate) entries: dashmap::DashMap<Box<Path>, Arc<Entry>, BuildHasherDefault<FxHasher>>,
 }
 
 #[derive(Debug)]
@@ -120,12 +115,7 @@ impl Resolver {
             enforce_extension,
             ..options
         };
-        let entries = DashMap::default();
-        Self {
-            options,
-            cache,
-            entries,
-        }
+        Self { options, cache }
     }
 
     #[tracing::instrument]
