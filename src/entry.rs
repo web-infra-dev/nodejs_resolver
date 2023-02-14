@@ -111,11 +111,14 @@ impl Entry {
 impl Resolver {
     pub(super) fn load_entry(&self, path: &Path) -> RResult<Arc<Entry>> {
         let key = path.normalize();
-        if let Some(cached) = self.entries.get(key.as_ref()) {
+        if let Some(cached) = self.cache.entries.get(key.as_ref()) {
             Ok(cached.clone())
         } else {
             let entry = Arc::new(self.load_entry_uncached(&key)?);
-            self.entries.entry(key.into()).or_insert(entry.clone());
+            self.cache
+                .entries
+                .entry(key.into())
+                .or_insert(entry.clone());
             Ok(entry)
         }
     }
@@ -175,7 +178,7 @@ impl Resolver {
 
     // TODO: should put entries as a parament.
     pub fn clear_entries(&self) {
-        self.entries.clear();
+        self.cache.entries.clear();
     }
 
     #[must_use]

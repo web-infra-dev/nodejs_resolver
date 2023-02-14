@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.0.66
+
+put file entires into Cache.
+
 # 0.0.65
 
 align to https://webpack.js.org/configuration/resolve/#resolvemodules
