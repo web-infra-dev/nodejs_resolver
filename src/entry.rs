@@ -60,6 +60,16 @@ pub struct Entry {
 }
 
 impl Entry {
+    fn new<P: AsRef<Path>>(parent: Option<Arc<Entry>>, path: P) -> Self {
+        Self {
+            parent,
+            path: path.as_ref().into(),
+            pkg_info: OnceCell::default(),
+            stat: OnceCell::default(),
+            symlink: OnceCell::default(),
+        }
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -140,34 +150,18 @@ impl Entry {
 }
 
 impl Resolver {
-    pub(super) fn load_entry(&self, path: &Path) -> RResult<Arc<Entry>> {
+    pub(super) fn load_entry(&self, path: &Path) -> Arc<Entry> {
         let key = path.normalize();
-        if let Some(cached) = self.cache.entries.get(key.as_ref()) {
-            Ok(cached.clone())
-        } else {
-            let entry = Arc::new(self.load_entry_uncached(&key)?);
-            self.cache
-                .entries
-                .entry(key.into())
-                .or_insert(entry.clone());
-            Ok(entry)
+        if let Some(entry) = self.cache.entries.get(key.as_ref()) {
+            return entry.clone();
         }
-    }
-
-    fn load_entry_uncached(&self, path: &Path) -> RResult<Entry> {
-        let parent = if let Some(parent) = path.parent() {
-            let entry = self.load_entry(parent)?;
-            Some(entry)
-        } else {
-            None
-        };
-        Ok(Entry {
-            parent,
-            path: path.into(),
-            pkg_info: OnceCell::default(),
-            stat: OnceCell::default(),
-            symlink: OnceCell::default(),
-        })
+        let parent = path.parent().map(|parent| self.load_entry(parent));
+        self.cache
+            .entries
+            .entry(key.to_path_buf().into_boxed_path())
+            .or_insert_with(|| Arc::new(Entry::new(parent, key.as_ref())))
+            .value()
+            .clone()
     }
 
     // TODO: should put entries as a parament.

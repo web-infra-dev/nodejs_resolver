@@ -1,5 +1,5 @@
 use super::Plugin;
-use crate::{log::depth, Context, Info, RResult, ResolveResult, Resolver, State};
+use crate::{log::depth, Context, Info, ResolveResult, Resolver, State};
 
 #[derive(Default)]
 pub struct SymlinkPlugin;
@@ -22,11 +22,7 @@ impl Plugin for SymlinkPlugin {
 
 impl SymlinkPlugin {
     fn resolve_symlink(&self, resolver: &Resolver, info: Info, _context: &mut Context) -> State {
-        let entry = match resolver.load_entry(info.path()) {
-            RResult::Ok(entry) => entry,
-            RResult::Err(error) => return State::Error(error),
-        };
-
+        let entry = resolver.load_entry(info.path());
         let entry_path = entry.path();
         let mut entry = entry.as_ref();
         let mut index = 0;

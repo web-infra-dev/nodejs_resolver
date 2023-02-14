@@ -21,10 +21,7 @@ impl Resolver {
     fn resolve_file_with_ext(&self, path: PathBuf, info: Info) -> State {
         for ext in &self.options.extensions {
             let path = Self::append_ext_for_path(&path, ext);
-            let is_file = match self.load_entry(&path) {
-                Ok(entry) => entry.is_file(),
-                Err(err) => return State::Error(err),
-            };
+            let is_file = self.load_entry(&path).is_file();
             if is_file {
                 return State::Success(ResolveResult::Info(info.with_path(path).with_target("")));
             }
@@ -46,10 +43,7 @@ impl Resolver {
             "Attempting to load '{}' as a context",
             color::blue(&path.display())
         );
-        let is_dir = match self.load_entry(&path) {
-            Ok(entry) => entry.is_dir(),
-            Err(err) => return State::Error(err),
-        };
+        let is_dir = self.load_entry(&path).is_dir();
         if is_dir {
             State::Success(ResolveResult::Info(Info::from(path)))
         } else {
@@ -70,10 +64,7 @@ impl Resolver {
         if matches!(self.options.enforce_extension, EnforceExtension::Enabled) {
             return self.resolve_file_with_ext(path.to_path_buf(), info);
         }
-        let is_file = match self.load_entry(&path) {
-            Ok(entry) => entry.is_file(),
-            Err(err) => return State::Error(err),
-        };
+        let is_file = self.load_entry(&path).is_file();
         if is_file {
             let path = path.to_path_buf();
             State::Success(ResolveResult::Info(info.with_path(path).with_target("")))
@@ -85,10 +76,7 @@ impl Resolver {
     #[tracing::instrument]
     pub(crate) fn resolve_as_dir(&self, info: Info, context: &mut Context) -> State {
         let dir = info.to_resolved_path();
-        let entry = match self.load_entry(&dir) {
-            Ok(entry) => entry,
-            Err(err) => return State::Error(err),
-        };
+        let entry = self.load_entry(&dir);
         if !entry.is_dir() {
             return State::Failed(info);
         }
@@ -140,11 +128,7 @@ impl Resolver {
         node_modules_path: &Path,
         context: &mut Context,
     ) -> State {
-        let entry = match self.load_entry(node_modules_path) {
-            Ok(entry) => entry,
-            Err(err) => return State::Error(err),
-        };
-
+        let entry = self.load_entry(node_modules_path);
         let pkg_info = match entry.pkg_info(self) {
             Ok(pkg_info) => pkg_info.as_ref(),
             Err(err) => return State::Error(err),
@@ -192,10 +176,7 @@ impl Resolver {
         let original_dir = info.path();
         let request_module_name = get_module_name_from_request(info.request().target());
         let module_path = node_modules_path.join(request_module_name);
-        let entry = match self.load_entry(&module_path) {
-            Ok(entry) => entry,
-            Err(err) => return State::Error(err),
-        };
+        let entry = self.load_entry(&module_path);
         let module_info = Info::new(node_modules_path, info.request().clone());
         if !entry.is_dir() {
             let state = self.resolve_as_file(module_info);
