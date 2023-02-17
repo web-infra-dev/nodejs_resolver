@@ -55,8 +55,11 @@ pub struct Entry {
     // None: package.json does not exist
     pkg_info: OnceCell<Option<Arc<PkgInfo>>>,
     stat: OnceCell<EntryStat>,
-    // None: `self.path` is not a symlink
-    symlink: OnceCell<Option<Arc<Path>>>,
+    /// None represent the `self.path` is not a symlink
+    symlink: OnceCell<Option<Box<Path>>>,
+    /// If `self.path` is a symlink, then return canonicalized path,
+    /// else return `self.path`
+    real: OnceCell<Box<Path>>,
 }
 
 impl Entry {
@@ -124,15 +127,24 @@ impl Entry {
         *self.stat.get_or_init(|| EntryStat::stat(&self.path))
     }
 
+    pub fn real(&self) -> Option<&Path> {
+        self.real.get().map(|p| &**p)
+    }
+
+    pub fn init_real(&self, path: Box<Path>) {
+        self.real.get_or_init(|| path);
+    }
+
     /// Returns the canonicalized path of `self.path` if it is a symlink.
     /// Returns None if `self.path` is not a symlink.
-    pub fn symlink(&self) -> &Option<Arc<Path>> {
+    pub fn symlink(&self) -> &Option<Box<Path>> {
         self.symlink.get_or_init(|| {
+            debug_assert!(self.path.is_absolute());
             if self.path.read_link().is_err() {
                 return None;
             }
             match dunce::canonicalize(&self.path) {
-                Ok(symlink_path) => Some(Arc::from(symlink_path)),
+                Ok(symlink_path) => Some(Box::from(symlink_path)),
                 Err(_) => None,
             }
         })
@@ -167,6 +179,7 @@ impl Resolver {
             pkg_info: OnceCell::default(),
             stat: OnceCell::default(),
             symlink: OnceCell::default(),
+            real: OnceCell::default(),
         })
     }
 

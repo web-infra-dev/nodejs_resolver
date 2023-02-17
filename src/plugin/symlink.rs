@@ -22,21 +22,30 @@ impl Plugin for SymlinkPlugin {
 
 impl SymlinkPlugin {
     fn resolve_symlink(&self, resolver: &Resolver, info: Info, _context: &mut Context) -> State {
-        let entry = match resolver.load_entry(info.path()) {
+        let head = match resolver.load_entry(info.path()) {
             RResult::Ok(entry) => entry,
             RResult::Err(error) => return State::Error(error),
         };
 
-        let entry_path = entry.path();
-        let mut entry = entry.as_ref();
+        let entry_path = head.path();
+        let mut entry = head.as_ref();
         let mut index = 0;
         let mut symlink = None;
+        let mut stack = vec![];
 
         loop {
+            if let Some(real) = entry.real() {
+                symlink = Some(real.to_path_buf());
+                break;
+            }
+
             if let Some(link) = entry.symlink() {
                 symlink = Some(link.to_path_buf());
                 break;
             }
+
+            stack.push(entry);
+
             if let Some(e) = entry.parent() {
                 index += 1;
                 entry = e;
@@ -55,8 +64,12 @@ impl SymlinkPlugin {
             for c in tail.into_iter().rev() {
                 path.push(c);
             }
+            head.init_real(path.clone().into_boxed_path());
             info.with_path(path)
         } else {
+            stack
+                .into_iter()
+                .for_each(|entry| entry.init_real(entry.path().into()));
             info.normalize()
         };
 
