@@ -887,9 +887,7 @@ fn simple_test() {
 #[test]
 fn pnpm_structure_test() {
     let case_path = p(vec!["pnpm-structure", "node_modules"]);
-    let resolver = Resolver::new(Options {
-        ..Default::default()
-    });
+    let resolver = Resolver::new(Default::default());
     should_equal(
         &resolver,
         &case_path.join("exports-field-a").join("lib"),
@@ -3059,7 +3057,6 @@ fn resolve_modules_test() {
         "recursive-module",
         p(vec!["node_modules", "recursive-module", "index.js"]),
     );
-
     let resolver = Resolver::new(Options {
         modules: vec![fixture.display().to_string()],
         ..Default::default()
