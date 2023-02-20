@@ -17,7 +17,12 @@ impl<'a> Plugin for AliasPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         let inner_target = info.request().target();
         for (from, to) in self.alias() {
-            if inner_target == from || inner_target.starts_with(&format!("{from}/")) {
+            if inner_target
+                .strip_prefix(from)
+                .into_iter()
+                .next()
+                .map_or(false, |c| c.is_empty() || c.starts_with('/'))
+            {
                 tracing::debug!(
                     "AliasPlugin works, triggered by '{from}'({})",
                     depth(&context.depth)
