@@ -19,11 +19,7 @@ impl<'a> ImportsFieldPlugin<'a> {
 
     fn check_target(&self, resolver: &Resolver, info: Info) -> State {
         let path = info.to_resolved_path();
-        let is_file = match resolver.load_entry(&path) {
-            Ok(entry) => entry.is_file(),
-            Err(err) => return State::Error(err),
-        };
-        if is_file {
+        if resolver.load_entry(&path).is_file() {
             if let Err(msg) = ImportsField::check_target(info.request().target()) {
                 let msg = format!("{msg} in {:?}/package.json", &self.pkg_info.dir_path);
                 State::Error(Error::UnexpectedValue(msg))

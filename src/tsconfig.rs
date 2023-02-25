@@ -69,10 +69,7 @@ impl Resolver {
         location: &Path,
         context: &mut Context,
     ) -> RResult<serde_json::Value> {
-        let entry = match self.load_entry(location) {
-            Ok(entry) => entry,
-            Err(error) => return Err(error),
-        };
+        let entry = self.load_entry(location);
         if !entry.is_file() {
             // Its role is to ensure that `stat` exists
             return Err(Error::CantFindTsConfig);
