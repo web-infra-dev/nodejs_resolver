@@ -33,11 +33,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 Some(target) => format!(".{target}"),
                 None => {
                     let path = info.path().join(target);
-                    let is_exist = match resolver.load_entry(&path) {
-                        Ok(entry) => entry.exists(),
-                        Err(err) => return State::Error(err),
-                    };
-                    if is_exist
+                    if resolver.load_entry(&path).exists()
                         || self
                             .pkg_info
                             .json

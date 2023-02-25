@@ -152,35 +152,35 @@ impl Entry {
 }
 
 impl Resolver {
-    pub(super) fn load_entry(&self, path: &Path) -> RResult<Arc<Entry>> {
+    pub(super) fn load_entry(&self, path: &Path) -> Arc<Entry> {
         let key = path.normalize();
         if let Some(cached) = self.cache.entries.get(key.as_ref()) {
-            Ok(cached.clone())
+            cached.clone()
         } else {
-            let entry = Arc::new(self.load_entry_uncached(&key)?);
+            let entry = Arc::new(self.load_entry_uncached(&key));
             self.cache
                 .entries
                 .entry(key.into())
                 .or_insert(entry.clone());
-            Ok(entry)
+            entry
         }
     }
 
-    fn load_entry_uncached(&self, path: &Path) -> RResult<Entry> {
+    fn load_entry_uncached(&self, path: &Path) -> Entry {
         let parent = if let Some(parent) = path.parent() {
-            let entry = self.load_entry(parent)?;
+            let entry = self.load_entry(parent);
             Some(entry)
         } else {
             None
         };
-        Ok(Entry {
+        Entry {
             parent,
             path: path.into(),
             pkg_info: OnceCell::default(),
             stat: OnceCell::default(),
             symlink: OnceCell::default(),
             real: OnceCell::default(),
-        })
+        }
     }
 
     // TODO: should put entries as a parament.

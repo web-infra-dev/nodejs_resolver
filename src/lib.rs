@@ -180,17 +180,15 @@ impl Resolver {
             .then(|info| PreferRelativePlugin::default().apply(self, info, context))
             .then(|info| {
                 let request = info.to_resolved_path();
-                let pkg_info = match self
-                    .load_entry(&request)
-                    .and_then(|entry| entry.pkg_info(self).cloned())
-                {
+                let entry = self.load_entry(&request);
+                let pkg_info = match entry.pkg_info(self) {
                     Ok(pkg_info) => pkg_info,
                     Err(error) => return State::Error(error),
                 };
                 if let Some(pkg_info) = pkg_info {
-                    ImportsFieldPlugin::new(&pkg_info)
+                    ImportsFieldPlugin::new(pkg_info)
                         .apply(self, info, context)
-                        .then(|info| BrowserFieldPlugin::new(&pkg_info).apply(self, info, context))
+                        .then(|info| BrowserFieldPlugin::new(pkg_info).apply(self, info, context))
                 } else {
                     State::Resolving(info)
                 }
