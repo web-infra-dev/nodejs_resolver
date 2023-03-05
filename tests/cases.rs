@@ -316,7 +316,7 @@ fn alias_test() {
         alias: vec![
             (
                 String::from("aliasA"),
-                AliasMap::Target(String::from("./a")),
+                vec![AliasMap::Target(String::from("./a"))],
             ),
             // (
             //     String::from("./b$"),
@@ -324,46 +324,87 @@ fn alias_test() {
             // ), // TODO: should we use trailing?
             (
                 String::from("fs"),
-                AliasMap::Target(
+                vec![AliasMap::Target(
                     alias_cases_path
                         .join("node_modules")
                         .join("browser")
                         .join("index.js")
                         .to_string_lossy()
                         .to_string(),
-                ),
+                )],
             ),
-            (String::from("./e"), AliasMap::Target(String::from("./d"))),
-            (String::from("./d"), AliasMap::Target(String::from("./e"))),
-            (String::from("./f"), AliasMap::Target(String::from("./g"))),
-            (String::from("./g"), AliasMap::Target(String::from("./h"))),
+            // ---
+            (
+                String::from("./e"),
+                vec![AliasMap::Target(String::from("./d"))],
+            ),
+            (
+                String::from("./d"),
+                vec![AliasMap::Target(String::from("./e"))],
+            ),
+            // ---
+            (
+                String::from("./f"),
+                vec![AliasMap::Target(String::from("./g"))],
+            ),
+            (
+                String::from("./g"),
+                vec![AliasMap::Target(String::from("./h"))],
+            ),
+            (
+                String::from("multiAlias"),
+                vec![
+                    AliasMap::Target(String::from("./a1")),
+                    AliasMap::Target(String::from("./a2")),
+                    AliasMap::Target(String::from("./a")),
+                ],
+            ),
             (
                 String::from("recursive"),
-                AliasMap::Target(String::from("./recursive/dir")),
+                vec![AliasMap::Target(String::from("./recursive/dir"))],
             ),
-            (String::from("#"), AliasMap::Target(String::from("./c/dir"))),
-            (String::from("@"), AliasMap::Target(String::from("./c/dir"))),
+            (
+                String::from("#"),
+                vec![AliasMap::Target(String::from("./c/dir"))],
+            ),
+            (
+                String::from("@"),
+                vec![AliasMap::Target(String::from("./c/dir"))],
+            ),
             (
                 String::from("@start"),
-                AliasMap::Target(p(vec!["alias"]).display().to_string()),
+                vec![AliasMap::Target(p(vec!["alias"]).display().to_string())],
             ),
             (
                 String::from("@recursive/pointed"),
-                AliasMap::Target(String::from("@recursive/general/index.js")),
+                vec![AliasMap::Target(String::from(
+                    "@recursive/general/index.js",
+                ))],
             ),
             (
                 String::from("@recursive/general"),
-                AliasMap::Target(String::from("@recursive/general/redirect.js")),
+                vec![AliasMap::Target(String::from(
+                    "@recursive/general/redirect.js",
+                ))],
             ),
             (
                 String::from("@recursive"),
-                AliasMap::Target(String::from("@recursive/general")),
+                vec![AliasMap::Target(String::from("@recursive/general"))],
             ),
-            (String::from("./c"), AliasMap::Target(String::from("./c"))),
-            (String::from("ignore"), AliasMap::Ignored),
+            (
+                String::from("./c"),
+                vec![AliasMap::Target(String::from("./c"))],
+            ),
+            (String::from("ignore"), vec![AliasMap::Ignored]),
         ],
         ..Default::default()
     });
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "multiAlias",
+        p(vec!["alias", "a", "index"]),
+    );
     should_resolve_failed(&resolver, &alias_cases_path, "ignored/a");
     should_ignored(&resolver, &alias_cases_path, "ignore/a");
     should_equal(
@@ -578,9 +619,12 @@ fn alias_test() {
         alias: vec![
             (
                 String::from("@A/index"),
-                AliasMap::Target(String::from("./a")),
+                vec![AliasMap::Target(String::from("./a"))],
             ),
-            (String::from("@A"), AliasMap::Target(String::from("./b"))),
+            (
+                String::from("@A"),
+                vec![AliasMap::Target(String::from("./b"))],
+            ),
         ],
         ..Default::default()
     });
@@ -592,10 +636,13 @@ fn alias_test() {
     );
     let resolver = Resolver::new(Options {
         alias: vec![
-            (String::from("@A"), AliasMap::Target(String::from("./b"))),
+            (
+                String::from("@A"),
+                vec![AliasMap::Target(String::from("./b"))],
+            ),
             (
                 String::from("@A/index"),
-                AliasMap::Target(String::from("./a")),
+                vec![AliasMap::Target(String::from("./a"))],
             ),
         ],
         ..Default::default()
@@ -615,18 +662,30 @@ fn fallback_test() {
         fallback: vec![
             (
                 String::from("aliasA"),
-                AliasMap::Target(String::from("./a")),
+                vec![AliasMap::Target(String::from("./a"))],
             ),
             // -- exists
-            (String::from("./e"), AliasMap::Target(String::from("./d"))),
-            (String::from("./d"), AliasMap::Target(String::from("./e"))),
+            (
+                String::from("./e"),
+                vec![AliasMap::Target(String::from("./d"))],
+            ),
+            (
+                String::from("./d"),
+                vec![AliasMap::Target(String::from("./e"))],
+            ),
             // --
             // in-exists
-            (String::from("./ee"), AliasMap::Target(String::from("./dd"))),
-            (String::from("./dd"), AliasMap::Target(String::from("./ee"))),
+            (
+                String::from("./ee"),
+                vec![AliasMap::Target(String::from("./dd"))],
+            ),
+            (
+                String::from("./dd"),
+                vec![AliasMap::Target(String::from("./ee"))],
+            ),
             (
                 String::from("./ff"),
-                AliasMap::Target(String::from("./ccc")),
+                vec![AliasMap::Target(String::from("./ccc"))],
             ),
         ],
         ..Default::default()
@@ -1336,7 +1395,7 @@ fn browser_filed_test() {
         browser_field: true,
         alias: vec![(
             String::from("./lib/toString.js"),
-            AliasMap::Target(String::from("module-d")),
+            vec![AliasMap::Target(String::from("module-d"))],
         )],
         ..Default::default()
     });
@@ -1519,9 +1578,12 @@ fn full_specified_test() {
         alias: vec![
             (
                 String::from("alias1"),
-                AliasMap::Target(String::from("./abc")),
+                vec![AliasMap::Target(String::from("./abc"))],
             ),
-            (String::from("alias2"), AliasMap::Target(String::from("./"))),
+            (
+                String::from("alias2"),
+                vec![AliasMap::Target(String::from("./"))],
+            ),
         ],
         browser_field: true,
         ..Default::default()
