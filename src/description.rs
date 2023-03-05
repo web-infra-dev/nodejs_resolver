@@ -10,15 +10,22 @@ pub enum SideEffects {
     Array(Vec<String>),
 }
 
+type Name = Box<str>;
+
 #[derive(Debug)]
 pub struct PkgJSON {
-    pub name: Option<String>,
-    pub version: Option<String>,
+    name: Option<Name>,
     pub alias_fields: Vec<(String, AliasMap)>,
     pub exports_field_tree: Option<PathTreeNode>,
     pub imports_field_tree: Option<PathTreeNode>,
     pub side_effects: Option<SideEffects>,
     pub raw: serde_json::Value,
+}
+
+impl PkgJSON {
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -86,10 +93,7 @@ impl PkgJSON {
             None
         };
 
-        let name = json
-            .get("name")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+        let name = json.get("name").and_then(|v| v.as_str()).map(|s| s.into());
 
         let side_effects: Option<SideEffects> = json.get("sideEffects").and_then(|value| {
             // TODO: should optimized
@@ -112,14 +116,8 @@ impl PkgJSON {
             }
         });
 
-        let version = json
-            .get("version")
-            .and_then(|value| value.as_str())
-            .map(|str| str.to_string());
-
         Ok(Self {
             name,
-            version,
             alias_fields,
             exports_field_tree,
             imports_field_tree,

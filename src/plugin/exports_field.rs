@@ -37,9 +37,8 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                         || self
                             .pkg_info
                             .json
-                            .name
-                            .as_ref()
-                            .map_or(false, |name| name.eq(target))
+                            .name()
+                            .map_or(false, |name| target == name)
                     {
                         ".".to_string()
                     } else {
