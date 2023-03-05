@@ -219,9 +219,8 @@ impl Resolver {
 fn is_resolve_self(pkg_info: &PkgInfo, request_module_name: &str) -> bool {
     pkg_info
         .json
-        .name
-        .as_ref()
-        .map(|pkg_name| request_module_name.eq(pkg_name))
+        .name()
+        .map(|pkg_name| request_module_name == pkg_name)
         .map_or(false, |ans| ans)
 }
 
