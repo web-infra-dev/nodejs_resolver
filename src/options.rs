@@ -15,7 +15,7 @@ pub enum EnforceExtension {
     Auto,
 }
 
-pub type Alias = Vec<(String, AliasMap)>;
+pub type Alias = Vec<(String, Vec<AliasMap>)>;
 
 #[derive(Debug, Clone)]
 pub struct Options {
