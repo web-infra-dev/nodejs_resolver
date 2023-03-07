@@ -229,8 +229,7 @@ fn split_slash_from_request(target: &str) -> Option<usize> {
     let has_namespace_scope = target.starts_with('@');
     let chars = target.chars().enumerate();
     let slash_index_list: Vec<usize> = chars
-        .filter(|(_, char)| '/'.eq(char))
-        .map(|(index, _)| index)
+        .filter_map(|(index, char)| if '/' == char { Some(index) } else { None })
         .collect();
     if has_namespace_scope {
         slash_index_list.get(1)
