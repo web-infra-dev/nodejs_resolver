@@ -2520,66 +2520,106 @@ fn main_fields_test() {
 
 #[test]
 fn tsconfig_paths_test() {
-    let tsconfig_paths = p(vec!["tsconfig-paths"]);
+    let tsconfig_path = p(vec!["tsconfig-paths"]);
     let resolver = Resolver::new(Options {
         extensions: vec![".ts".to_string()],
-        tsconfig: Some(tsconfig_paths.join("tsconfig.json")),
+        tsconfig: Some(tsconfig_path.join("tsconfig.json")),
         ..Default::default()
     });
-
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
+        "",
+        p(vec!["tsconfig-paths", "index.ts"]),
+    );
+    should_equal(
+        &resolver,
+        &tsconfig_path,
+        "?a",
+        p(vec!["tsconfig-paths", "index.ts?a"]),
+    );
+    should_equal(
+        &resolver,
+        &tsconfig_path,
+        "actual/test",
+        p(vec!["tsconfig-paths", "actual", "test.ts"]),
+    );
+    should_equal(
+        &resolver,
+        &tsconfig_path,
+        "test0-success",
+        p(vec!["tsconfig-paths", "test0-success.ts"]),
+    );
+    should_equal(
+        &resolver,
+        &tsconfig_path,
+        "test0-success?a",
+        p(vec!["tsconfig-paths", "test0-success.ts?a"]),
+    );
+    should_equal(
+        &resolver,
+        &tsconfig_path,
+        "test0-success.ts",
+        p(vec!["tsconfig-paths", "test0-success.ts"]),
+    );
+    should_equal(
+        &resolver,
+        &tsconfig_path,
         "test2/foo",
         p(vec!["tsconfig-paths", "test2-success", "foo.ts"]),
     );
-
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
+        "test2/foo?a",
+        p(vec!["tsconfig-paths", "test2-success", "foo.ts?a"]),
+    );
+    should_equal(
+        &resolver,
+        &tsconfig_path,
         "test0",
         p(vec!["tsconfig-paths", "test0-success.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "test1/foo",
         p(vec!["tsconfig-paths", "test1-success.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "test2/foo",
         p(vec!["tsconfig-paths", "test2-success", "foo.ts"]),
     );
-    should_resolve_failed(&resolver, &tsconfig_paths, "te*t3/foo");
+    should_resolve_failed(&resolver, &tsconfig_path, "te*t3/foo");
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "test3/foo",
         p(vec!["tsconfig-paths", "test3-success.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "test4/foo",
         p(vec!["tsconfig-paths", "test4-first", "foo.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "test5/foo",
         p(vec!["tsconfig-paths", "test5-second", "foo.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "/virtual-in/test",
         p(vec!["tsconfig-paths", "actual", "test.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "/virtual-in-star/test",
         p(vec!["tsconfig-paths", "actual", "test.ts"]),
     );
@@ -2587,43 +2627,43 @@ fn tsconfig_paths_test() {
     // normal
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "./test0-success",
         p(vec!["tsconfig-paths", "test0-success.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "./test1-success",
         p(vec!["tsconfig-paths", "test1-success.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "./test2-success/foo",
         p(vec!["tsconfig-paths", "test2-success", "foo.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "./test3-success",
         p(vec!["tsconfig-paths", "test3-success.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "./test4-first/foo",
         p(vec!["tsconfig-paths", "test4-first", "foo.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "./test5-second/foo",
         p(vec!["tsconfig-paths", "test5-second", "foo.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "./actual/test",
         p(vec!["tsconfig-paths", "actual", "test.ts"]),
     );
@@ -2631,28 +2671,28 @@ fn tsconfig_paths_test() {
 
 #[test]
 fn tsconfig_paths_nested() {
-    let tsconfig_paths = p(vec!["tsconfig-paths-nested"]);
+    let tsconfig_path = p(vec!["tsconfig-paths-nested"]);
     let resolver = Resolver::new(Options {
         extensions: vec![".ts".to_string()],
-        tsconfig: Some(tsconfig_paths.join("tsconfig.json")),
+        tsconfig: Some(tsconfig_path.join("tsconfig.json")),
         ..Default::default()
     });
 
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "test0",
         p(vec!["tsconfig-paths-nested", "nested", "test0-success.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "test1/foo",
         p(vec!["tsconfig-paths-nested", "nested", "test1-success.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "test2/foo",
         p(vec![
             "tsconfig-paths-nested",
@@ -2661,16 +2701,16 @@ fn tsconfig_paths_nested() {
             "foo.ts",
         ]),
     );
-    should_resolve_failed(&resolver, &tsconfig_paths, "te*t3/foo");
+    should_resolve_failed(&resolver, &tsconfig_path, "te*t3/foo");
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "test3/foo",
         p(vec!["tsconfig-paths-nested", "nested", "test3-success.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "test4/foo",
         p(vec![
             "tsconfig-paths-nested",
@@ -2681,7 +2721,7 @@ fn tsconfig_paths_nested() {
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "test5/foo",
         p(vec![
             "tsconfig-paths-nested",
@@ -2692,13 +2732,13 @@ fn tsconfig_paths_nested() {
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "/virtual-in/test",
         p(vec!["tsconfig-paths-nested", "nested", "actual", "test.ts"]),
     );
     should_equal(
         &resolver,
-        &tsconfig_paths,
+        &tsconfig_path,
         "/virtual-in-star/test",
         p(vec!["tsconfig-paths-nested", "nested", "actual", "test.ts"]),
     );

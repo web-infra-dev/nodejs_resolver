@@ -1,6 +1,6 @@
 // Copy from https://github.com/dividab/tsconfig-paths
 
-use crate::{context::Context, parse::Request, Info, RResult, Resolver, State};
+use crate::{context::Context, Info, RResult, Resolver, State};
 use rustc_hash::FxHashMap;
 use std::path::{Path, PathBuf};
 
@@ -67,20 +67,12 @@ impl Resolver {
     }
 
     fn create_match_list(
-        location: &Path,
-        base_url: &Option<String>,
+        absolute_base_url: &Path,
         paths: &Option<FxHashMap<String, Vec<String>>>,
     ) -> Vec<MappingEntry> {
-        let location_dir = location.parent().unwrap();
-
-        let absolute_base_url = if let Some(base_url) = base_url.as_ref() {
-            location_dir.join(base_url)
-        } else {
-            return vec![];
-        };
         paths
             .as_ref()
-            .map(|paths| Self::get_absolute_mapping_entries(&absolute_base_url, paths))
+            .map(|paths| Self::get_absolute_mapping_entries(absolute_base_url, paths))
             .unwrap_or_default()
     }
 
@@ -94,8 +86,25 @@ impl Resolver {
             Ok(tsconfig) => tsconfig,
             Err(error) => return State::Error(error),
         };
+        let location_dir = location.parent().unwrap();
+        let absolute_base_url = if let Some(base_url) = tsconfig.base_url.as_ref() {
+            location_dir.join(base_url)
+        } else {
+            return self._resolve(info, context);
+        };
+
+        // resolve absolute path that relative from base_url
+        if !info.request().target().starts_with('.') {
+            let target = absolute_base_url.join(info.request().target());
+            let info = info.clone().with_path(target).with_target("");
+            let result = self._resolve(info, context);
+            if result.is_finished() {
+                return result;
+            }
+        }
+
         let absolute_path_mappings =
-            Resolver::create_match_list(location, &tsconfig.base_url, &tsconfig.paths);
+            Resolver::create_match_list(&absolute_base_url, &tsconfig.paths);
 
         for entry in absolute_path_mappings {
             let star_match = if entry.pattern == info.request().target() {
@@ -112,9 +121,8 @@ impl Resolver {
                     .display()
                     .to_string()
                     .replace('*', star_match);
-
-                let path = PathBuf::from(physical_path);
-                let result = self._resolve(Info::new(path, Request::default()), context);
+                let info = info.clone().with_path(physical_path).with_target("");
+                let result = self._resolve(info, context);
                 if result.is_finished() {
                     return result;
                 }
