@@ -1,7 +1,7 @@
 // copy from https://github.com/drivasperez/tsconfig
 
 use crate::context::Context;
-use crate::{Error, Info, RResult, ResolveResult, Resolver, State};
+use crate::{Error, Info, Options, RResult, ResolveResult, Resolver, State};
 use rustc_hash::FxHashMap;
 use std::{path::Path, sync::Arc};
 
@@ -72,7 +72,7 @@ impl Resolver {
         let entry = self.load_entry(location);
         if !entry.is_file() {
             // Its role is to ensure that `stat` exists
-            return Err(Error::CantFindTsConfig);
+            return Err(Error::CantFindTsConfig(entry.path().into()));
         }
 
         let value = self.cache.fs.read_tsconfig(location, entry.cached_stat())?;
@@ -83,7 +83,11 @@ impl Resolver {
             // `location` pointed to `dir/tsconfig.json`
             let dir = location.parent().unwrap().to_path_buf();
             let request = Self::parse(s);
-            let state = self._resolve(Info::new(dir, request), context);
+            let new_resolver = Self::new(Options {
+                external_cache: Some(self.cache.clone()),
+                ..Default::default()
+            });
+            let state = new_resolver._resolve(Info::new(dir, request), context);
             // Is it better to use cache?
             if let State::Success(result) = state {
                 let extends_tsconfig_json = match result {

@@ -7,7 +7,7 @@ pub enum Error {
     UnexpectedValue(String),
     ResolveFailedTag,
     Overflow,
-    CantFindTsConfig,
+    CantFindTsConfig(Box<Path>),
 }
 
 impl From<std::io::Error> for Error {

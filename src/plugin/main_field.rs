@@ -20,9 +20,7 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
         if !path.normalized_eq(&self.pkg_info.dir_path) {
             return State::Resolving(info);
         }
-
         let main_field_info = Info::new(&path, info.request().clone());
-
         for user_main_field in &resolver.options.main_fields {
             if let Some(main_field) = self
                 .pkg_info
