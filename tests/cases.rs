@@ -2819,7 +2819,7 @@ fn tsconfig_inexist() {
     });
     assert!(matches!(
         resolver.resolve(&p(vec![]), "./a.js"),
-        Err(Error::CantFindTsConfig)
+        Err(Error::CantFindTsConfig(_))
     ))
 }
 
