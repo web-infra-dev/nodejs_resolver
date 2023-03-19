@@ -61,6 +61,7 @@ mod tsconfig_path;
 
 pub use cache::Cache;
 use context::Context;
+pub use description::DescriptionData;
 pub use error::Error;
 use info::Info;
 use kind::PathKind;
