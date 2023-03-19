@@ -80,8 +80,8 @@ pub struct Resolver {
     pub(crate) cache: std::sync::Arc<Cache>,
 }
 
-#[derive(Debug)]
-pub enum ResolveResult<T> {
+#[derive(Debug, Clone)]
+pub enum ResolveResult<T: Clone> {
     Resource(T),
     Ignored,
 }
