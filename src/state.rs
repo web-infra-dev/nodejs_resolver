@@ -2,7 +2,7 @@ use crate::{Error, Info, ResolveResult};
 
 #[derive(Debug)]
 pub enum State {
-    Success(ResolveResult),
+    Success(ResolveResult<Info>),
     Resolving(Info),
     /// return error directly
     Error(Error),
@@ -20,7 +20,7 @@ impl State {
 
     pub fn map_success<F: FnOnce(Info) -> State>(self, op: F) -> Self {
         match self {
-            State::Success(ResolveResult::Info(info)) => op(info),
+            State::Success(ResolveResult::Resource(info)) => op(info),
             _ => self,
         }
     }

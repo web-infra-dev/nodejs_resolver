@@ -18,7 +18,7 @@ impl Plugin for ParsePlugin {
                 if request.is_directory() { "/" } else { "" },
                 request.fragment()
             );
-            let info = Info::from(info.path()).with_target(&target);
+            let info = Info::from(info.normalized_path().clone()).with_target(&target);
             let state = resolver._resolve(info, context);
             if state.is_finished() {
                 return state;

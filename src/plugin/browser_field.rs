@@ -1,15 +1,16 @@
 use crate::{
-    context::Context, description::PkgInfo, log::color, log::depth, normalize::NormalizePath,
-    AliasMap, Info, PathKind, Plugin, ResolveResult, Resolver, State,
+    context::Context, description::DescriptionData, log::color, log::depth, AliasMap, Info,
+    PathKind, Plugin, ResolveResult, Resolver, State,
 };
+use path_absolutize::Absolutize;
 use std::path::Path;
 
 pub struct BrowserFieldPlugin<'a> {
-    pkg_info: &'a PkgInfo,
+    pkg_info: &'a DescriptionData,
 }
 
 impl<'a> BrowserFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a PkgInfo) -> Self {
+    pub fn new(pkg_info: &'a DescriptionData) -> Self {
         Self { pkg_info }
     }
 
@@ -22,9 +23,9 @@ impl<'a> BrowserFieldPlugin<'a> {
         info: &Info,
         extensions: &[String],
     ) -> bool {
-        let alias_path = alias_path.normalize();
+        let alias_path = alias_path.absolutize_from(Path::new("")).unwrap();
         let request_path = info.to_resolved_path();
-        let request_path = request_path.normalize();
+        let request_path = request_path.absolutize_from(Path::new("")).unwrap();
         alias_path.eq(&request_path)
             || extensions.iter().any(|ext| {
                 let path_with_extension = Resolver::append_ext_for_path(&request_path, ext);
@@ -38,11 +39,11 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
         if !resolver.options.browser_field {
             return State::Resolving(info);
         }
-        for (alias_key, alias_target) in &self.pkg_info.json.alias_fields {
+        for (alias_key, alias_target) in self.pkg_info.data().alias_fields() {
             let should_deal_alias = match matches!(info.request().kind(), PathKind::Normal) {
                 true => Self::request_target_is_module_and_equal_alias_key(alias_key, &info),
                 false => Self::request_path_is_equal_alias_key_path(
-                    &self.pkg_info.dir_path.join(alias_key),
+                    &self.pkg_info.dir().as_ref().join(alias_key),
                     &info,
                     &resolver.options.extensions,
                 ),
@@ -54,7 +55,7 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
                 "BrowserFiled in '{}' works, trigger by '{}'({})",
                 color::blue(&format!(
                     "{}/package.json",
-                    self.pkg_info.dir_path.display()
+                    self.pkg_info.dir().as_ref().display()
                 )),
                 color::blue(alias_key),
                 depth(&context.depth)
@@ -68,10 +69,10 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
                         // }
                         return State::Resolving(info);
                     }
-                    let alias_info = Info::new(
-                        &self.pkg_info.dir_path,
-                        info.request().clone().with_target(converted),
-                    );
+
+                    let alias_info = Info::from(self.pkg_info.dir().clone())
+                        .with_request(info.request().clone())
+                        .with_target(converted);
                     let state = resolver._resolve(alias_info, context);
                     if state.is_finished() {
                         return state;

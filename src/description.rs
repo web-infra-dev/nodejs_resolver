@@ -1,48 +1,17 @@
+use crate::info::NormalizedPath;
 use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
-use crate::{AliasMap, Error, RResult, Resolver};
-use std::path::{Path, PathBuf};
+use crate::{AliasMap, Error, RResult};
+use once_cell::sync::OnceCell;
+use std::path::Path;
 use std::sync::Arc;
-
-#[derive(Clone, Debug)]
-pub enum SideEffects {
-    Bool(bool),
-    String(String),
-    Array(Vec<String>),
-}
-
-type Name = Box<str>;
 
 #[derive(Debug)]
 pub struct PkgJSON {
-    name: Option<Name>,
-    pub alias_fields: Vec<(String, AliasMap)>,
-    pub exports_field_tree: Option<PathTreeNode>,
-    pub imports_field_tree: Option<PathTreeNode>,
-    pub side_effects: Option<SideEffects>,
-    pub raw: serde_json::Value,
-}
-
-impl PkgJSON {
-    pub fn name(&self) -> Option<&str> {
-        self.name.as_deref()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct PkgInfo {
-    pub json: Arc<PkgJSON>,
-    /// The path to the directory where the description file located.
-    /// It not a property in package.json.
-    pub dir_path: Box<Path>,
-}
-
-impl PkgInfo {
-    pub fn new<P: AsRef<Path>>(json: PkgJSON, dir_path: P) -> Self {
-        Self {
-            json: Arc::new(json),
-            dir_path: dir_path.as_ref().into(),
-        }
-    }
+    name: Option<Box<str>>,
+    alias_fields: OnceCell<Vec<(String, AliasMap)>>,
+    exports_field_tree: OnceCell<RResult<Option<PathTreeNode>>>,
+    imports_field_tree: OnceCell<RResult<Option<PathTreeNode>>>,
+    raw: serde_json::Value,
 }
 
 impl PkgJSON {
@@ -53,92 +22,91 @@ impl PkgJSON {
                     .map_err(|error| Error::UnexpectedJson((file_path.into(), error)))
             })?;
 
-        let mut alias_fields = Vec::new();
-
-        if let Some(value) = json.get("browser") {
-            // https://github.com/defunctzombie/package-browser-field-spec
-            if let Some(map) = value.as_object() {
-                for (key, value) in map {
-                    if let Some(false) = value.as_bool() {
-                        alias_fields.push((key.to_string(), AliasMap::Ignored));
-                    } else if let Some(s) = value.as_str() {
-                        alias_fields.push((key.to_string(), AliasMap::Target(s.to_string())));
-                    }
-                }
-            } else if let Some(false) = value.as_bool() {
-                alias_fields.push((String::from("."), AliasMap::Ignored));
-            } else if let Some(s) = value.as_str() {
-                alias_fields.push((String::from("."), AliasMap::Target(s.to_string())));
-            } else {
-                let msg = format!(
-                    "The browser is {} which meet unhandled value, error in {}/package.json",
-                    value,
-                    file_path.display()
-                );
-                println!("{msg}");
-            }
-        }
-
-        let exports_field_tree = if let Some(value) = json.get("exports") {
-            let tree = ExportsField::build_field_path_tree(value)?;
-            Some(tree)
-        } else {
-            None
-        };
-
-        let imports_field_tree = if let Some(value) = json.get("imports") {
-            let tree = ImportsField::build_field_path_tree(value)?;
-            Some(tree)
-        } else {
-            None
-        };
-
         let name = json.get("name").and_then(|v| v.as_str()).map(|s| s.into());
-
-        let side_effects: Option<SideEffects> = json.get("sideEffects").and_then(|value| {
-            // TODO: should optimized
-            if let Some(b) = value.as_bool() {
-                Some(SideEffects::Bool(b))
-            } else if let Some(s) = value.as_str() {
-                Some(SideEffects::String(s.to_owned()))
-            } else if let Some(vec) = value.as_array() {
-                let mut ans = vec![];
-                for value in vec {
-                    if let Some(str) = value.as_str() {
-                        ans.push(str.to_string());
-                    } else {
-                        return None;
-                    }
-                }
-                Some(SideEffects::Array(ans))
-            } else {
-                None
-            }
-        });
 
         Ok(Self {
             name,
-            alias_fields,
-            exports_field_tree,
-            imports_field_tree,
-            side_effects,
+            alias_fields: OnceCell::new(),
+            exports_field_tree: OnceCell::new(),
+            imports_field_tree: OnceCell::new(),
             raw: json,
         })
     }
+
+    pub fn alias_fields(&self) -> &Vec<(String, AliasMap)> {
+        self.alias_fields.get_or_init(|| {
+            let mut alias_fields = Vec::new();
+
+            if let Some(value) = self.raw.get("browser") {
+                // https://github.com/defunctzombie/package-browser-field-spec
+                if let Some(map) = value.as_object() {
+                    for (key, value) in map {
+                        if let Some(false) = value.as_bool() {
+                            alias_fields.push((key.to_string(), AliasMap::Ignored));
+                        } else if let Some(s) = value.as_str() {
+                            alias_fields.push((key.to_string(), AliasMap::Target(s.to_string())));
+                        }
+                    }
+                } else if let Some(false) = value.as_bool() {
+                    alias_fields.push((String::from("."), AliasMap::Ignored));
+                } else if let Some(s) = value.as_str() {
+                    alias_fields.push((String::from("."), AliasMap::Target(s.to_string())));
+                }
+            }
+            alias_fields
+        })
+    }
+
+    pub fn exports_tree(&self) -> &RResult<Option<PathTreeNode>> {
+        let tree = self.exports_field_tree.get_or_init(|| {
+            self.raw
+                .get("exports")
+                .map(ExportsField::build_field_path_tree)
+                .map_or(Ok(None), |v| v.map(Some))
+        });
+        tree
+    }
+
+    pub fn imports_tree(&self) -> &RResult<Option<PathTreeNode>> {
+        let tree = self.imports_field_tree.get_or_init(|| {
+            self.raw
+                .get("imports")
+                .map(ImportsField::build_field_path_tree)
+                .map_or(Ok(None), |v| v.map(Some))
+        });
+        tree
+    }
+
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    pub fn raw(&self) -> &serde_json::Value {
+        &self.raw
+    }
 }
 
-impl Resolver {
-    pub fn load_side_effects(
-        &self,
-        path: &Path,
-    ) -> RResult<Option<(PathBuf, Option<SideEffects>)>> {
-        let entry = self.load_entry(path);
-        let ans = entry.pkg_info(self)?.as_ref().map(|pkg_info| {
-            (
-                pkg_info.dir_path.join(&self.options.description_file),
-                pkg_info.json.side_effects.clone(),
-            )
-        });
-        Ok(ans)
+#[derive(Debug, Clone)]
+pub struct DescriptionData {
+    json: Arc<PkgJSON>,
+    /// The path to the directory where the description file located.
+    /// It not a property in package.json.
+    dir_path: NormalizedPath,
+}
+
+impl DescriptionData {
+    pub fn new<P: AsRef<Path>>(json: PkgJSON, dir_path: P) -> Self {
+        Self {
+            json: Arc::new(json),
+            dir_path: NormalizedPath::new(dir_path),
+        }
+    }
+
+    pub fn dir(&self) -> &NormalizedPath {
+        &self.dir_path
+    }
+
+    pub fn data(&self) -> &PkgJSON {
+        &self.json
     }
 }

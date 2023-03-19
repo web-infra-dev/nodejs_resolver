@@ -9,8 +9,7 @@ impl Plugin for SymlinkPlugin {
         debug_assert!(info.request().target().is_empty());
 
         if !resolver.options.symlinks {
-            let info = info.normalize();
-            return State::Success(ResolveResult::Info(info));
+            return State::Success(ResolveResult::Resource(info));
         }
 
         tracing::debug!("SymlinkPlugin works({})", depth(&context.depth));
@@ -22,7 +21,7 @@ impl Plugin for SymlinkPlugin {
 
 impl SymlinkPlugin {
     fn resolve_symlink(&self, resolver: &Resolver, info: Info, _context: &mut Context) -> State {
-        let head = resolver.load_entry(info.path());
+        let head = resolver.load_entry(info.normalized_path().as_ref());
 
         let entry_path = head.path();
         let mut entry = head.as_ref();
@@ -67,9 +66,9 @@ impl SymlinkPlugin {
             stack
                 .into_iter()
                 .for_each(|entry| entry.init_real(entry.path().into()));
-            info.normalize()
+            info
         };
 
-        State::Success(ResolveResult::Info(info))
+        State::Success(ResolveResult::Resource(info))
     }
 }

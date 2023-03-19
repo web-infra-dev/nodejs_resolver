@@ -172,12 +172,12 @@ extern crate test;
 #[cfg(test)] 
 mod bench_test {
 
-    use nodejs_resolver::{Resolver, Options, ResolveResult, RResult};
+    use nodejs_resolver::{Resolver, Options, ResolveResult, Resource, RResult};
     use std::path::PathBuf;
     use test::Bencher;
     // use std::time::Instant;
 
-    fn is_ok(result: RResult<ResolveResult>) {
+    fn is_ok(result: RResult<ResolveResult<Resource>>) {
       assert!(result.is_ok())
     }
 

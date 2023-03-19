@@ -1,31 +1,28 @@
 use super::Plugin;
-use crate::{
-    description::PkgInfo, log::color, log::depth, normalize::NormalizePath, Context, Info,
-    Resolver, State,
-};
+use crate::{description::DescriptionData, log::color, log::depth, Context, Info, Resolver, State};
 
 pub struct MainFieldPlugin<'a> {
-    pkg_info: &'a PkgInfo,
+    pkg_info: &'a DescriptionData,
 }
 
 impl<'a> MainFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a PkgInfo) -> Self {
+    pub fn new(pkg_info: &'a DescriptionData) -> Self {
         Self { pkg_info }
     }
 }
 
 impl<'a> Plugin for MainFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
-        let path = info.path().normalize();
-        if !path.normalized_eq(&self.pkg_info.dir_path) {
+        let path = info.normalized_path();
+        if !self.pkg_info.dir().eq(path) {
             return State::Resolving(info);
         }
-        let main_field_info = Info::new(&path, info.request().clone());
+        let main_field_info = Info::from(path.clone()).with_request(info.request().clone());
         for user_main_field in &resolver.options.main_fields {
             if let Some(main_field) = self
                 .pkg_info
-                .json
-                .raw
+                .data()
+                .raw()
                 .get(user_main_field)
                 .and_then(|value| value.as_str())
             {
@@ -35,10 +32,7 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
                 }
                 tracing::debug!(
                     "MainField in '{}' works, using {} field({})",
-                    color::blue(&format!(
-                        "{}/package.json",
-                        self.pkg_info.dir_path.display()
-                    )),
+                    color::blue(&format!("{:?}/package.json", self.pkg_info.dir().as_ref())),
                     color::blue(user_main_field),
                     depth(&context.depth)
                 );

@@ -91,7 +91,7 @@ impl Resolver {
             // Is it better to use cache?
             if let State::Success(result) = state {
                 let extends_tsconfig_json = match result {
-                    ResolveResult::Info(info) => {
+                    ResolveResult::Resource(info) => {
                         self.parse_file_to_value(&info.to_resolved_path(), context)
                     }
                     ResolveResult::Ignored => {

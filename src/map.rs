@@ -126,7 +126,9 @@ pub trait Field {
                             temp.push(AvailableMapping::Conditional(conditional));
                         }
                         MappingValue::Array(_) => {
-                            panic!("Array mapping is not allowed nested in exports field")
+                            return RResult::Err(Error::UnexpectedValue(
+                                "Array mapping is not allowed nested in exports field".into(),
+                            ))
                         }
                     }
                 }
