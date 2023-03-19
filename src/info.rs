@@ -4,11 +4,7 @@ use path_absolutize::Absolutize;
 use std::os::unix::ffi::OsStrExt;
 #[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
-use std::{
-    borrow::Cow,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{borrow::Cow, path::Path, sync::Arc};
 
 #[cfg(windows)]
 fn has_trailing_slash(p: &Path) -> bool {
@@ -102,16 +98,5 @@ impl Info {
         } else {
             Cow::Owned(self.path.as_ref().join(self.request.target()))
         }
-    }
-
-    #[must_use]
-    pub fn join(&self) -> PathBuf {
-        let buf = format!(
-            "{}{}{}",
-            self.path.0.display(),
-            self.request.query(),
-            self.request.fragment(),
-        );
-        PathBuf::from(buf)
     }
 }

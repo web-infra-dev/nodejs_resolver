@@ -9,7 +9,7 @@ impl Plugin for SymlinkPlugin {
         debug_assert!(info.request().target().is_empty());
 
         if !resolver.options.symlinks {
-            return State::Success(ResolveResult::Info(info));
+            return State::Success(ResolveResult::Resource(info));
         }
 
         tracing::debug!("SymlinkPlugin works({})", depth(&context.depth));
@@ -69,6 +69,6 @@ impl SymlinkPlugin {
             info
         };
 
-        State::Success(ResolveResult::Info(info))
+        State::Success(ResolveResult::Resource(info))
     }
 }

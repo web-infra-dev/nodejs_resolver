@@ -1,16 +1,16 @@
 use crate::{
-    context::Context, description::PkgInfo, log::color, log::depth, AliasMap, Info, PathKind,
-    Plugin, ResolveResult, Resolver, State,
+    context::Context, description::DescriptionData, log::color, log::depth, AliasMap, Info,
+    PathKind, Plugin, ResolveResult, Resolver, State,
 };
 use path_absolutize::Absolutize;
 use std::path::Path;
 
 pub struct BrowserFieldPlugin<'a> {
-    pkg_info: &'a PkgInfo,
+    pkg_info: &'a DescriptionData,
 }
 
 impl<'a> BrowserFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a PkgInfo) -> Self {
+    pub fn new(pkg_info: &'a DescriptionData) -> Self {
         Self { pkg_info }
     }
 
@@ -39,7 +39,7 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
         if !resolver.options.browser_field {
             return State::Resolving(info);
         }
-        for (alias_key, alias_target) in &self.pkg_info.json.alias_fields {
+        for (alias_key, alias_target) in self.pkg_info.data().alias_fields() {
             let should_deal_alias = match matches!(info.request().kind(), PathKind::Normal) {
                 true => Self::request_target_is_module_and_equal_alias_key(alias_key, &info),
                 false => Self::request_path_is_equal_alias_key_path(

@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 fn should_equal(resolver: &Resolver, path: &Path, request: &str, expected: PathBuf) {
     match resolver.resolve(path, request) {
-        Ok(ResolveResult::Info(info)) => {
-            assert_eq!(info.join(), expected);
+        Ok(ResolveResult::Resource(resource)) => {
+            assert_eq!(resource.join(), expected);
         }
         Ok(ResolveResult::Ignored) => panic!("should not ignored"),
         Err(error) => panic!("{error:?}"),
@@ -2831,127 +2831,118 @@ fn tsconfig_inexist() {
     ))
 }
 
-// #[test]
-// fn load_side_effects_test() {
-//     let case_path = p(vec!["exports-field"]);
-//     let resolver = Resolver::new(Options {
-//         ..Default::default()
-//     });
-//     let scope_import_require_path = if let ResolveResult::Info(info) = resolver
-//         .resolve(&case_path, "@scope/import-require")
-//         .unwrap()
-//     {
-//         info.normalized_path().as_ref().to_path_buf()
-//     } else {
-//         panic!("error")
-//     };
+#[test]
+fn load_description_data() {
+    let case_path = p(vec!["exports-field"]);
+    let resolver = Resolver::new(Options::default());
+    let resource = if let ResolveResult::Resource(resource) = resolver
+        .resolve(&case_path, "@scope/import-require")
+        .unwrap()
+    {
+        resource
+    } else {
+        panic!("error")
+    };
 
-//     // assert_eq!(
-//     //     resolver
-//     //         .load_side_effects(&scope_import_require_path)
-//     //         .unwrap()
-//     //         .unwrap()
-//     //         .0,
-//     //     p(vec![
-//     //         "exports-field",
-//     //         "node_modules",
-//     //         "@scope",
-//     //         "import-require",
-//     //         "package.json"
-//     //     ])
-//     // );
+    assert_eq!(
+        resource.description.as_ref().unwrap().dir().as_ref(),
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "@scope",
+            "import-require",
+        ])
+    );
 
-//     // assert!(matches!(
-//     //     resolver
-//     //         .load_side_effects(&scope_import_require_path)
-//     //         .unwrap()
-//     //         .unwrap()
-//     //         .1,
-//     //     Some(SideEffects::Array(_))
-//     // ));
+    assert_eq!(
+        *resource
+            .description
+            .as_ref()
+            .unwrap()
+            .data()
+            .raw()
+            .get("sideEffects")
+            .unwrap(),
+        serde_json::json!(["./index.js", "./a.js"])
+    );
 
-//     let exports_field_path =
-//         if let ResolveResult::Info(info) = resolver.resolve(&case_path, "exports-field").unwrap() {
-//             info.normalized_path().as_ref().to_path_buf()
-//         } else {
-//             panic!("error")
-//         };
+    let resource = if let ResolveResult::Resource(resource) =
+        resolver.resolve(&case_path, "exports-field").unwrap()
+    {
+        resource
+    } else {
+        panic!("error")
+    };
 
-//     // assert_eq!(
-//     //     resolver
-//     //         .load_side_effects(&exports_field_path)
-//     //         .unwrap()
-//     //         .unwrap()
-//     //         .0,
-//     //     p(vec![
-//     //         "exports-field",
-//     //         "node_modules",
-//     //         "exports-field",
-//     //         "package.json"
-//     //     ])
-//     // );
+    assert_eq!(
+        resource.description.as_ref().unwrap().dir().as_ref(),
+        p(vec!["exports-field", "node_modules", "exports-field"])
+    );
 
-//     // assert!(matches!(
-//     //     resolver
-//     //         .load_side_effects(&exports_field_path)
-//     //         .unwrap()
-//     //         .unwrap()
-//     //         .1,
-//     //     Some(SideEffects::Bool(false))
-//     // ));
+    assert_eq!(
+        *resource
+            .description
+            .as_ref()
+            .unwrap()
+            .data()
+            .raw()
+            .get("sideEffects")
+            .unwrap(),
+        serde_json::Value::Bool(false)
+    );
 
-//     // let string_side_effects_path = if let ResolveResult::Info(info) =
-//     //     resolver.resolve(&case_path, "string-side-effects").unwrap()
-//     // {
-//     //     info.path().to_path_buf()
-//     // } else {
-//     //     panic!("error")
-//     // };
+    let resource = if let ResolveResult::Resource(resource) =
+        resolver.resolve(&case_path, "string-side-effects").unwrap()
+    {
+        resource
+    } else {
+        panic!("error")
+    };
 
-//     // assert!(matches!(
-//     //     resolver
-//     //         .load_side_effects(&string_side_effects_path)
-//     //         .unwrap()
-//     //         .unwrap()
-//     //         .1,
-//     //     Some(SideEffects::String(s)) if s == "*.js"
-//     // ));
+    assert_eq!(
+        *resource
+            .description
+            .as_ref()
+            .unwrap()
+            .data()
+            .raw()
+            .get("sideEffects")
+            .unwrap(),
+        serde_json::Value::String("*.js".to_string())
+    );
 
-//     // match resolver
-//     //     .load_side_effects(&p(vec!["incorrect-package", "sideeffects-map"]))
-//     //     .unwrap_err()
-//     // {
-//     //     Error::UnexpectedValue(error) => assert_eq!(
-//     //         error,
-//     //         format!(
-//     //             "sideEffects in {} had unexpected value {{}}",
-//     //             p(vec!["incorrect-package", "sideeffects-map", "package.json"]).display()
-//     //         )
-//     //     ),
-//     //     _ => unreachable!(),
-//     // }
-
-//     // match resolver
-//     //     .load_side_effects(&p(vec!["incorrect-package", "sideeffects-other-in-array"]))
-//     //     .unwrap_err()
-//     // {
-//     //     Error::UnexpectedValue(error) => assert_eq!(
-//     //         error,
-//     //         format!(
-//     //             "sideEffects in {} had unexpected value 1",
-//     //             p(vec![
-//     //                 "incorrect-package",
-//     //                 "sideeffects-other-in-array",
-//     //                 "package.json"
-//     //             ])
-//     //             .display()
-//     //         )
-//     //     ),
-//     //     _ => unreachable!(),
-//     // }
-
-//     // assert!(resolver.load_side_effects(&p(vec![])).unwrap().is_none());
-// }
+    // match resolver
+    //     .load_side_effects(&p(vec!["incorrect-package", "sideeffects-map"]))
+    //     .unwrap_err()
+    // {
+    //     Error::UnexpectedValue(error) => assert_eq!(
+    //         error,
+    //         format!(
+    //             "sideEffects in {} had unexpected value {{}}",
+    //             p(vec!["incorrect-package", "sideeffects-map", "package.json"]).display()
+    //         )
+    //     ),
+    //     _ => unreachable!(),
+    // }
+    //     // match resolver
+    //     //     .load_side_effects(&p(vec!["incorrect-package", "sideeffects-other-in-array"]))
+    //     //     .unwrap_err()
+    //     // {
+    //     //     Error::UnexpectedValue(error) => assert_eq!(
+    //     //         error,
+    //     //         format!(
+    //     //             "sideEffects in {} had unexpected value 1",
+    //     //             p(vec![
+    //     //                 "incorrect-package",
+    //     //                 "sideeffects-other-in-array",
+    //     //                 "package.json"
+    //     //             ])
+    //     //             .display()
+    //     //         )
+    //     //     ),
+    //     //     _ => unreachable!(),
+    //     // }
+}
 
 #[test]
 fn shared_cache_test2() {

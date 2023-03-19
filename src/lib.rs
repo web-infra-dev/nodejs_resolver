@@ -54,15 +54,15 @@ mod options;
 mod parse;
 mod plugin;
 mod resolve;
+mod resource;
 mod state;
 mod tsconfig;
 mod tsconfig_path;
 
 pub use cache::Cache;
 use context::Context;
-pub use description::SideEffects;
 pub use error::Error;
-pub use info::Info;
+use info::Info;
 use kind::PathKind;
 use log::{color, depth};
 use options::EnforceExtension::{Auto, Disabled, Enabled};
@@ -71,18 +71,18 @@ use plugin::{
     AliasPlugin, BrowserFieldPlugin, ImportsFieldPlugin, ParsePlugin, Plugin, PreferRelativePlugin,
     SymlinkPlugin,
 };
+pub use resource::Resource;
 use state::State;
-use std::{path::Path, sync::Arc};
 
 #[derive(Debug)]
 pub struct Resolver {
     pub options: Options,
-    pub(crate) cache: Arc<Cache>,
+    pub(crate) cache: std::sync::Arc<Cache>,
 }
 
 #[derive(Debug)]
-pub enum ResolveResult {
-    Info(Info),
+pub enum ResolveResult<T> {
+    Resource(T),
     Ignored,
 }
 
@@ -96,7 +96,7 @@ impl Resolver {
         let cache = if let Some(external_cache) = options.external_cache.as_ref() {
             external_cache.clone()
         } else {
-            Arc::new(Cache::default())
+            std::sync::Arc::new(Cache::default())
         };
 
         let enforce_extension = match options.enforce_extension {
@@ -118,7 +118,11 @@ impl Resolver {
     }
 
     #[tracing::instrument]
-    pub fn resolve(&self, path: &Path, request: &str) -> RResult<ResolveResult> {
+    pub fn resolve(
+        &self,
+        path: &std::path::Path,
+        request: &str,
+    ) -> RResult<ResolveResult<Resource>> {
         tracing::debug!(
             "{:-^30}\nTry to resolve '{}' in '{}'",
             color::green(&"[RESOLVER]"),
@@ -154,7 +158,11 @@ impl Resolver {
         // }
 
         match result {
-            State::Success(result) => Ok(result),
+            State::Success(ResolveResult::Ignored) => Ok(ResolveResult::Ignored),
+            State::Success(ResolveResult::Resource(info)) => {
+                let resource = Resource::new(info, self);
+                Ok(ResolveResult::Resource(resource))
+            }
             State::Error(err) => Err(err),
             State::Resolving(_) | State::Failed(_) => Err(Error::ResolveFailedTag),
         }

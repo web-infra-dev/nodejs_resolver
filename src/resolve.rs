@@ -1,5 +1,5 @@
 use crate::{
-    description::PkgInfo,
+    description::DescriptionData,
     info::NormalizedPath,
     log::color,
     plugin::{
@@ -22,7 +22,9 @@ impl Resolver {
         for ext in &self.options.extensions {
             let path = Self::append_ext_for_path(&path, ext);
             if self.load_entry(&path).is_file() {
-                return State::Success(ResolveResult::Info(info.with_path(path).with_target("")));
+                return State::Success(ResolveResult::Resource(
+                    info.with_path(path).with_target(""),
+                ));
             }
         }
         tracing::debug!(
@@ -43,7 +45,7 @@ impl Resolver {
             color::blue(&path.display())
         );
         if self.load_entry(&path).is_dir() {
-            State::Success(ResolveResult::Info(Info::new(path, Default::default())))
+            State::Success(ResolveResult::Resource(Info::new(path, Default::default())))
         } else {
             State::Failed(info)
         }
@@ -64,7 +66,9 @@ impl Resolver {
         }
         if self.load_entry(&path).is_file() {
             let path = path.to_path_buf();
-            State::Success(ResolveResult::Info(info.with_path(path).with_target("")))
+            State::Success(ResolveResult::Resource(
+                info.with_path(path).with_target(""),
+            ))
         } else {
             self.resolve_file_with_ext(path.to_path_buf(), info)
         }
@@ -216,9 +220,9 @@ impl Resolver {
     }
 }
 
-fn is_resolve_self(pkg_info: &PkgInfo, request_module_name: &str) -> bool {
+fn is_resolve_self(pkg_info: &DescriptionData, request_module_name: &str) -> bool {
     pkg_info
-        .json
+        .data()
         .name()
         .map(|pkg_name| request_module_name == pkg_name)
         .map_or(false, |ans| ans)

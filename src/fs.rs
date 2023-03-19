@@ -1,5 +1,5 @@
 use crate::{
-    description::{PkgInfo, PkgJSON},
+    description::{DescriptionData, PkgJSON},
     entry::EntryStat,
     tsconfig::TsConfig,
     RResult,
@@ -24,7 +24,7 @@ pub struct CachedFS {
     entries: CachedMap<String>,
 
     /// Caches parsed package.json
-    descriptions: CachedMap<PkgInfo>,
+    descriptions: CachedMap<DescriptionData>,
 
     /// Caches tsconfig.json
     tsconfigs: CachedMap<serde_json::Value>,
@@ -70,7 +70,7 @@ impl CachedFS {
         &self,
         path: &Path,
         file_stat: EntryStat,
-    ) -> RResult<Arc<PkgInfo>> {
+    ) -> RResult<Arc<DescriptionData>> {
         if let Some(cached) = self.descriptions.get(path) {
             if self.is_modified(file_stat.modified(), cached.stat.modified()) {
                 return Ok(cached.value().content());
@@ -79,7 +79,7 @@ impl CachedFS {
         let string = fs::read_to_string(path)?;
         let json = PkgJSON::parse(&string, path)?;
         let dir = path.parent().unwrap().to_path_buf();
-        let info = PkgInfo::new(json, dir);
+        let info = DescriptionData::new(json, dir);
         let entry = CachedEntry::new(info, file_stat);
         self.descriptions.insert(path.to_path_buf(), entry.clone());
         Ok(entry.content())

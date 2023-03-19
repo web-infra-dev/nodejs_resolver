@@ -7,7 +7,7 @@ use std::{
     time::SystemTime,
 };
 
-use crate::{description::PkgInfo, Error, RResult, Resolver};
+use crate::{description::DescriptionData, Error, RResult, Resolver};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct EntryStat {
@@ -53,7 +53,7 @@ pub struct Entry {
     parent: Option<Arc<Entry>>,
     path: Box<Path>,
     // None: package.json does not exist
-    pkg_info: OnceCell<Option<Arc<PkgInfo>>>,
+    pkg_info: OnceCell<Option<Arc<DescriptionData>>>,
     stat: OnceCell<EntryStat>,
     /// None represent the `self.path` is not a symlink
     symlink: OnceCell<Option<Box<Path>>>,
@@ -71,7 +71,7 @@ impl Entry {
         self.parent.as_ref()
     }
 
-    pub fn pkg_info(&self, resolver: &Resolver) -> RResult<&Option<Arc<PkgInfo>>> {
+    pub fn pkg_info(&self, resolver: &Resolver) -> RResult<&Option<Arc<DescriptionData>>> {
         self.pkg_info.get_or_try_init(|| {
             let pkg_name = &resolver.options.description_file;
             let path = self.path();

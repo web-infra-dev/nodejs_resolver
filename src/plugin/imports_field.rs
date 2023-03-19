@@ -1,7 +1,7 @@
 use super::Plugin;
 use crate::{
     context::Context,
-    description::PkgInfo,
+    description::DescriptionData,
     log::color,
     log::depth,
     map::{Field, ImportsField},
@@ -9,11 +9,11 @@ use crate::{
 };
 
 pub struct ImportsFieldPlugin<'a> {
-    pkg_info: &'a PkgInfo,
+    pkg_info: &'a DescriptionData,
 }
 
 impl<'a> ImportsFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a PkgInfo) -> Self {
+    pub fn new(pkg_info: &'a DescriptionData) -> Self {
         Self { pkg_info }
     }
 
@@ -42,17 +42,24 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
             return State::Resolving(info);
         }
 
-        let list = if let Some(root) = &self.pkg_info.json.imports_field_tree {
-            match ImportsField::field_process(
-                root,
-                info.request().target(),
-                &resolver.options.condition_names,
-            ) {
-                Ok(list) => list,
-                Err(err) => return State::Error(err),
-            }
-        } else {
-            return State::Resolving(info);
+        let root = match self.pkg_info.data().imports_tree() {
+            Ok(Some(tree)) => tree,
+            Ok(None) => return State::Resolving(info),
+            Err(error) => match error {
+                Error::UnexpectedValue(value) => {
+                    return State::Error(Error::UnexpectedValue(value.to_string()))
+                }
+                _ => unreachable!(),
+            },
+        };
+
+        let list = match ImportsField::field_process(
+            root,
+            info.request().target(),
+            &resolver.options.condition_names,
+        ) {
+            Ok(list) => list,
+            Err(err) => return State::Error(err),
         };
 
         if let Some(item) = list.first() {

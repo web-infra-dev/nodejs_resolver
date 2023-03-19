@@ -1,12 +1,12 @@
 use super::Plugin;
-use crate::{description::PkgInfo, log::color, log::depth, Context, Info, Resolver, State};
+use crate::{description::DescriptionData, log::color, log::depth, Context, Info, Resolver, State};
 
 pub struct MainFieldPlugin<'a> {
-    pkg_info: &'a PkgInfo,
+    pkg_info: &'a DescriptionData,
 }
 
 impl<'a> MainFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a PkgInfo) -> Self {
+    pub fn new(pkg_info: &'a DescriptionData) -> Self {
         Self { pkg_info }
     }
 }
@@ -21,8 +21,8 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
         for user_main_field in &resolver.options.main_fields {
             if let Some(main_field) = self
                 .pkg_info
-                .json
-                .raw
+                .data()
+                .raw()
                 .get(user_main_field)
                 .and_then(|value| value.as_str())
             {
