@@ -1,7 +1,7 @@
 use crate::{description::DescriptionData, info::Info, Resolver};
 use std::{path::PathBuf, sync::Arc};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Resource {
     pub path: PathBuf,
     pub query: Option<String>,
