@@ -1,7 +1,7 @@
 use crate::{
     description::PkgInfo,
+    info::NormalizedPath,
     log::color,
-    normalize::NormalizePath,
     plugin::{
         BrowserFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin,
         MainFilePlugin, Plugin,
@@ -43,7 +43,7 @@ impl Resolver {
             color::blue(&path.display())
         );
         if self.load_entry(&path).is_dir() {
-            State::Success(ResolveResult::Info(Info::from(path)))
+            State::Success(ResolveResult::Info(Info::new(path, Default::default())))
         } else {
             State::Failed(info)
         }
@@ -92,20 +92,20 @@ impl Resolver {
     }
 
     pub(crate) fn resolve_as_modules(&self, info: Info, context: &mut Context) -> State {
-        let original_dir = info.path();
+        let original_dir = info.normalized_path();
         for module in &self.options.modules {
             let node_modules_path = Path::new(module);
             let (node_modules_path, need_find_up) = if node_modules_path.is_absolute() {
                 (Cow::Borrowed(node_modules_path), false)
             } else {
-                (Cow::Owned(original_dir.join(module)), true)
+                (Cow::Owned(original_dir.as_ref().join(module)), true)
             };
             let state = self
                 ._resolve_as_modules(info.clone(), original_dir, &node_modules_path, context)
                 .then(|info| {
                     if !need_find_up {
                         State::Resolving(info)
-                    } else if let Some(parent_dir) = original_dir.parent() {
+                    } else if let Some(parent_dir) = original_dir.as_ref().parent() {
                         self._resolve(info.with_path(parent_dir), context)
                     } else {
                         State::Resolving(info)
@@ -121,7 +121,7 @@ impl Resolver {
     fn _resolve_as_modules(
         &self,
         info: Info,
-        original_dir: &Path,
+        original_dir: &NormalizedPath,
         node_modules_path: &Path,
         context: &mut Context,
     ) -> State {
@@ -130,7 +130,6 @@ impl Resolver {
             Ok(pkg_info) => pkg_info.as_ref(),
             Err(err) => return State::Error(err),
         };
-
         let state = if entry.is_dir() {
             // is there had `node_modules` folder?
             self.resolve_node_modules(info, node_modules_path, context)
@@ -147,9 +146,7 @@ impl Resolver {
                         State::Resolving(info)
                     }
                 })
-        } else if pkg_info.map_or(false, |pkg_info| {
-            original_dir.normalized_eq(&pkg_info.dir_path)
-        }) {
+        } else if pkg_info.map_or(false, |pkg_info| pkg_info.dir().eq(original_dir)) {
             // is `info.path` on the same level as package.json
             let request_module_name = get_module_name_from_request(info.request().target());
             if is_resolve_self(pkg_info.unwrap(), request_module_name) {
@@ -170,7 +167,7 @@ impl Resolver {
         node_modules_path: &Path,
         context: &mut Context,
     ) -> State {
-        let original_dir = info.path();
+        let original_dir = info.normalized_path();
         let request_module_name = get_module_name_from_request(info.request().target());
         let module_path = node_modules_path.join(request_module_name);
         let entry = self.load_entry(&module_path);
@@ -188,7 +185,7 @@ impl Resolver {
                 Err(err) => return State::Error(err),
             };
             let state = if let Some(pkg_info) = pkg_info {
-                let out_node_modules = original_dir.normalized_eq(&pkg_info.dir_path);
+                let out_node_modules = pkg_info.dir().eq(original_dir);
                 if !out_node_modules || is_resolve_self(pkg_info, request_module_name) {
                     ExportsFieldPlugin::new(pkg_info).apply(self, module_info, context)
                 } else {
@@ -196,7 +193,10 @@ impl Resolver {
                 }
                 .then(|info| ImportsFieldPlugin::new(pkg_info).apply(self, info, context))
                 .then(|info| {
-                    let path = info.path().join(info.request().target());
+                    let path = info
+                        .normalized_path()
+                        .as_ref()
+                        .join(info.request().target());
                     let info = info.with_path(path).with_target(".");
                     MainFieldPlugin::new(pkg_info).apply(self, info, context)
                 })

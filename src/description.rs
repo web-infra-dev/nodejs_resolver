@@ -1,6 +1,7 @@
+use crate::info::NormalizedPath;
 use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
 use crate::{AliasMap, Error, RResult, Resolver};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -33,15 +34,19 @@ pub struct PkgInfo {
     pub json: Arc<PkgJSON>,
     /// The path to the directory where the description file located.
     /// It not a property in package.json.
-    pub dir_path: Box<Path>,
+    dir_path: NormalizedPath,
 }
 
 impl PkgInfo {
     pub fn new<P: AsRef<Path>>(json: PkgJSON, dir_path: P) -> Self {
         Self {
             json: Arc::new(json),
-            dir_path: dir_path.as_ref().into(),
+            dir_path: NormalizedPath::new(dir_path),
         }
+    }
+
+    pub fn dir(&self) -> &NormalizedPath {
+        &self.dir_path
     }
 }
 
@@ -128,17 +133,20 @@ impl PkgJSON {
 }
 
 impl Resolver {
-    pub fn load_side_effects(
-        &self,
-        path: &Path,
-    ) -> RResult<Option<(PathBuf, Option<SideEffects>)>> {
-        let entry = self.load_entry(path);
-        let ans = entry.pkg_info(self)?.as_ref().map(|pkg_info| {
-            (
-                pkg_info.dir_path.join(&self.options.description_file),
-                pkg_info.json.side_effects.clone(),
-            )
-        });
-        Ok(ans)
-    }
+    // pub fn load_side_effects(
+    //     &self,
+    //     path: &Path,
+    // ) -> RResult<Option<(PathBuf, Option<SideEffects>)>> {
+    //     let entry = self.load_entry(path);
+    //     let ans = entry.pkg_info(self)?.as_ref().map(|pkg_info| {
+    //         (
+    //             pkg_info
+    //                 .dir_path
+    //                 .path()
+    //                 .join(&self.options.description_file),
+    //             pkg_info.json.side_effects.clone(),
+    //         )
+    //     });
+    //     Ok(ans)
+    // }
 }

@@ -21,16 +21,16 @@ impl<'a> ImportsFieldPlugin<'a> {
         let path = info.to_resolved_path();
         if resolver.load_entry(&path).is_file() {
             if let Err(msg) = ImportsField::check_target(info.request().target()) {
-                let msg = format!("{msg} in {:?}/package.json", &self.pkg_info.dir_path);
+                let msg = format!("{msg} in {:?}/package.json", &self.pkg_info.dir().as_ref());
                 State::Error(Error::UnexpectedValue(msg))
             } else {
                 State::Resolving(info)
             }
         } else {
             State::Error(Error::UnexpectedValue(format!(
-                "Package path {} can't imported in {}",
+                "Package path {} can't imported in {:?}",
                 info.request().target(),
-                info.path().display()
+                info.normalized_path().as_ref()
             )))
         }
     }
@@ -58,17 +58,14 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
         if let Some(item) = list.first() {
             tracing::debug!(
                 "ImportsField in '{}' works, trigger by '{}', mapped to '{}'({})",
-                color::blue(&format!(
-                    "{}/package.json",
-                    self.pkg_info.dir_path.display()
-                )),
+                color::blue(&format!("{:?}/package.json", self.pkg_info.dir().as_ref())),
                 color::blue(&info.request().target()),
                 color::blue(&item),
                 depth(&context.depth)
             );
             let request = Resolver::parse(item);
             let is_relative = !matches!(request.kind(), PathKind::Normal | PathKind::Internal);
-            let info = Info::new(&self.pkg_info.dir_path, request);
+            let info = Info::from(self.pkg_info.dir().clone()).with_request(request);
             if is_relative {
                 self.check_target(resolver, info)
             } else {
@@ -76,9 +73,9 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
             }
         } else {
             State::Error(Error::UnexpectedValue(format!(
-                "Package path {} can't imported in {}",
+                "Package path {} can't imported in {:?}",
                 info.request().target(),
-                info.path().display()
+                info.normalized_path().as_ref()
             )))
         }
     }

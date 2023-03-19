@@ -32,7 +32,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
             let target = match request_path {
                 Some(target) => format!(".{target}"),
                 None => {
-                    let path = info.path().join(target);
+                    let path = info.normalized_path().as_ref().join(target);
                     if resolver.load_entry(&path).exists()
                         || self
                             .pkg_info
@@ -74,16 +74,16 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 "ExportsField in '{}' works, trigger by '{}', mapped to '{}'({})",
                 color::blue(&format!(
                     "{}/package.json",
-                    self.pkg_info.dir_path.display()
+                    self.pkg_info.dir().as_ref().display()
                 )),
                 color::blue(&target),
                 color::blue(&item),
                 depth(&context.depth)
             );
             let request = Resolver::parse(&item);
-            let info = Info::new(self.pkg_info.dir_path.clone(), request);
+            let info = Info::from(self.pkg_info.dir().clone()).with_request(request);
             if let Err(msg) = ExportsField::check_target(info.request().target()) {
-                let msg = format!("{msg} in {:?}/package.json", &self.pkg_info.dir_path);
+                let msg = format!("{msg} in {:?}/package.json", &self.pkg_info.dir());
                 return State::Error(Error::UnexpectedValue(msg));
             }
             let state = resolver._resolve(info, context);
@@ -94,7 +94,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
 
         State::Error(Error::UnexpectedValue(format!(
             "Package path {target} is not exported in {}/package.json",
-            self.pkg_info.dir_path.display()
+            self.pkg_info.dir().as_ref().display()
         )))
         // TODO: `info.abs_dir_path.as_os_str().to_str().unwrap(),` has abs_path
     }

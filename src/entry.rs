@@ -7,7 +7,7 @@ use std::{
     time::SystemTime,
 };
 
-use crate::{description::PkgInfo, normalize::NormalizePath, Error, RResult, Resolver};
+use crate::{description::PkgInfo, Error, RResult, Resolver};
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct EntryStat {
@@ -153,14 +153,13 @@ impl Entry {
 
 impl Resolver {
     pub(super) fn load_entry(&self, path: &Path) -> Arc<Entry> {
-        let key = path.normalize();
-        if let Some(cached) = self.cache.entries.get(key.as_ref()) {
+        if let Some(cached) = self.cache.entries.get(path) {
             cached.clone()
         } else {
-            let entry = Arc::new(self.load_entry_uncached(&key));
+            let entry = Arc::new(self.load_entry_uncached(path));
             self.cache
                 .entries
-                .entry(key.into())
+                .entry(path.into())
                 .or_insert(entry.clone());
             entry
         }

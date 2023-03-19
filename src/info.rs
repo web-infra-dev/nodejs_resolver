@@ -1,18 +1,59 @@
-use crate::{normalize::NormalizePath, parse::Request};
+use crate::parse::Request;
+use path_absolutize::Absolutize;
+#[cfg(unix)]
+use std::os::unix::ffi::OsStrExt;
+#[cfg(windows)]
+use std::os::windows::ffi::OsStrExt;
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
+    sync::Arc,
 };
+
+#[cfg(windows)]
+fn has_trailing_slash(p: &Path) -> bool {
+    let last = p.as_os_str().encode_wide().last();
+    last == Some(b'\\' as u16) || last == Some(b'/' as u16)
+}
+#[cfg(unix)]
+fn has_trailing_slash(p: &Path) -> bool {
+    p.as_os_str().as_bytes().last() == Some(&b'/')
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NormalizedPath(Arc<Path>);
+
+impl NormalizedPath {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+        // perf: this method does not re-allocate memory if the path does not contain any dots.
+        let normalized = path.as_ref().absolutize_from(Path::new("")).unwrap();
+        let path = if has_trailing_slash(path.as_ref()) {
+            Path::new(&format!("{}/", normalized.display())).into()
+        } else {
+            normalized.into()
+        };
+        NormalizedPath(path)
+    }
+}
+
+impl AsRef<Path> for NormalizedPath {
+    fn as_ref(&self) -> &Path {
+        &self.0
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Info {
-    path: Box<Path>,
+    path: NormalizedPath,
     request: Request,
 }
 
-impl<P: AsRef<Path>> From<P> for Info {
-    fn from(path: P) -> Self {
-        Self::new(path, Default::default())
+impl From<NormalizedPath> for Info {
+    fn from(value: NormalizedPath) -> Self {
+        Info {
+            path: value,
+            request: Default::default(),
+        }
     }
 }
 
@@ -20,7 +61,7 @@ impl Info {
     #[must_use]
     pub fn new<P: AsRef<Path>>(path: P, request: Request) -> Self {
         Self {
-            path: path.as_ref().into(),
+            path: NormalizedPath::new(path),
             request,
         }
     }
@@ -28,7 +69,7 @@ impl Info {
     #[must_use]
     pub fn with_path<P: AsRef<Path>>(self, path: P) -> Self {
         Self {
-            path: path.as_ref().into(),
+            path: NormalizedPath::new(path),
             ..self
         }
     }
@@ -45,7 +86,7 @@ impl Info {
     }
 
     #[must_use]
-    pub fn path(&self) -> &Path {
+    pub fn normalized_path(&self) -> &NormalizedPath {
         &self.path
     }
 
@@ -57,23 +98,17 @@ impl Info {
     #[must_use]
     pub fn to_resolved_path(&self) -> Cow<'_, Path> {
         if self.request.target().is_empty() || self.request.target() == "." {
-            Cow::Borrowed(&self.path)
+            Cow::Borrowed(&self.path.0)
         } else {
-            Cow::Owned(self.path.join(self.request.target()))
+            Cow::Owned(self.path.as_ref().join(self.request.target()))
         }
-    }
-
-    #[must_use]
-    pub fn normalize(mut self) -> Self {
-        self.path = self.path.normalize().into();
-        self
     }
 
     #[must_use]
     pub fn join(&self) -> PathBuf {
         let buf = format!(
             "{}{}{}",
-            self.path.display(),
+            self.path.0.display(),
             self.request.query(),
             self.request.fragment(),
         );

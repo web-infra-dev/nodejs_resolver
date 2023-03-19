@@ -11,7 +11,7 @@ fn main() {
     let resolver = Resolver::new(Default::default());
     let path_to_resolve = PathBuf::from(&path);
     match resolver.resolve(&path_to_resolve, &request) {
-        Ok(ResolveResult::Info(info)) => println!("{:?}", info.path()),
+        Ok(ResolveResult::Info(info)) => println!("{:?}", info.normalized_path()),
         Ok(ResolveResult::Ignored) => println!("Ignored"),
         Err(err) => println!("{err:?}"),
     }

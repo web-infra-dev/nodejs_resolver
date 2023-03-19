@@ -50,7 +50,6 @@ mod info;
 mod kind;
 mod log;
 mod map;
-mod normalize;
 mod options;
 mod parse;
 mod plugin;
@@ -166,7 +165,7 @@ impl Resolver {
         tracing::debug!(
             "Resolving '{request}' in '{path}'",
             request = color::cyan(&info.request().target()),
-            path = color::cyan(&info.path().display())
+            path = color::cyan(&info.normalized_path().as_ref().display())
         );
 
         context.depth.increase();

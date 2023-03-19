@@ -35,10 +35,10 @@ impl<'a> Plugin for AliasPlugin<'a> {
                                 continue;
                             }
                             let normalized_target = inner_target.replacen(from, to, 1);
-                            let alias_info = Info::new(
-                                info.path(),
-                                info.request().clone().with_target(&normalized_target),
-                            );
+                            let alias_info = info
+                                .clone()
+                                .with_request(info.request().clone())
+                                .with_target(&normalized_target);
                             let state = resolver._resolve(alias_info, context);
                             if state.is_finished() {
                                 return state;
