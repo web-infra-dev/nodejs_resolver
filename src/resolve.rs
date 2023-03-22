@@ -14,22 +14,23 @@ use std::{
 };
 
 impl Resolver {
-    pub(crate) fn append_ext_for_path(path: &Path, ext: &str) -> PathBuf {
-        PathBuf::from(&format!("{}{ext}", path.display()))
-    }
-
     fn resolve_file_with_ext(&self, path: PathBuf, info: Info) -> State {
+        let mut path = path.display().to_string();
         for ext in &self.options.extensions {
-            let path = Self::append_ext_for_path(&path, ext);
-            if self.load_entry(&path).is_file() {
+            let len = ext.len();
+            path.push_str(ext);
+            if self.load_entry(Path::new(&path)).is_file() {
                 return State::Success(ResolveResult::Resource(
                     info.with_path(path).with_target(""),
                 ));
             }
+            for _ in 0..len {
+                path.pop();
+            }
         }
         tracing::debug!(
             "'{}[{}]' is not a file",
-            color::red(&path.display()),
+            color::red(&path),
             color::red(&self.options.extensions.join("|"))
         );
         State::Resolving(info)

@@ -3,10 +3,14 @@ use crate::{
     PathKind, Plugin, ResolveResult, Resolver, State,
 };
 use path_absolutize::Absolutize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub struct BrowserFieldPlugin<'a> {
     pkg_info: &'a DescriptionData,
+}
+
+fn append_ext_for_path(path: &Path, ext: &str) -> PathBuf {
+    PathBuf::from(&format!("{}{ext}", path.display()))
 }
 
 impl<'a> BrowserFieldPlugin<'a> {
@@ -28,7 +32,7 @@ impl<'a> BrowserFieldPlugin<'a> {
         let request_path = request_path.absolutize_from(Path::new("")).unwrap();
         alias_path.eq(&request_path)
             || extensions.iter().any(|ext| {
-                let path_with_extension = Resolver::append_ext_for_path(&request_path, ext);
+                let path_with_extension = append_ext_for_path(&request_path, ext);
                 alias_path.eq(&path_with_extension)
             })
     }
