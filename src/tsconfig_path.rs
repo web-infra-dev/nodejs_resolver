@@ -52,18 +52,30 @@ impl Resolver {
         if pattern == "*" {
             return Some(search);
         }
-        pattern.find(|c| c == '*').and_then(|star_index| {
-            let part1 = &pattern[..star_index];
-            let part2 = &pattern[star_index + 1..];
-            if &search[0..star_index] != part1 {
-                return None;
-            }
-            if &search[search.len() - part2.len()..] != part2 {
-                return None;
-            }
-            let len = search.len() - part2.len() - part1.len();
-            Some(&search[star_index..star_index + len])
-        })
+        let p = pattern.as_bytes();
+        let s = search.as_bytes();
+        p.iter()
+            .enumerate()
+            .find(|&(_, &c)| c == 42) // 42 -> '*'
+            .and_then(|(star_index, _)| {
+                let part1 = &p[..star_index];
+                if &s[0..star_index] != part1 {
+                    return None;
+                }
+                let part2 = &p[star_index + 1..];
+                if &s[s.len() - part2.len()..] != part2 {
+                    return None;
+                }
+                let len = s.len() - part2.len() - part1.len();
+                match std::str::from_utf8(&s[star_index..star_index + len]) {
+                    Ok(result) => Some(result),
+                    Err(error) => {
+                        panic!(
+                            "There has unexpected error when matching {pattern} and {search}, error: {error}"
+                        )
+                    }
+                }
+            })
     }
 
     fn create_match_list(
@@ -173,4 +185,10 @@ fn test_get_absolute_mapping_entries() {
         &FxHashMap::from_iter([]),
     );
     assert!(result.is_empty());
+}
+
+#[test]
+fn test_match_star() {
+    // should not panic
+    assert_eq!(Resolver::match_star("abc/*", "./中文"), None)
 }

@@ -14,17 +14,17 @@ use std::{
 };
 
 impl Resolver {
-    pub(crate) fn append_ext_for_path(path: &Path, ext: &str) -> PathBuf {
-        PathBuf::from(&format!("{}{ext}", path.display()))
-    }
-
-    fn resolve_file_with_ext(&self, path: PathBuf, info: Info) -> State {
+    fn resolve_file_with_ext(&self, mut path: PathBuf, info: Info) -> State {
+        let v = unsafe { &mut *(&mut path as *mut PathBuf as *mut Vec<u8>) };
         for ext in &self.options.extensions {
-            let path = Self::append_ext_for_path(&path, ext);
-            if self.load_entry(&path).is_file() {
+            v.extend_from_slice(ext.as_bytes());
+            if self.load_entry(path.as_ref()).is_file() {
                 return State::Success(ResolveResult::Resource(
                     info.with_path(path).with_target(""),
                 ));
+            }
+            unsafe {
+                v.set_len(v.len() - ext.len());
             }
         }
         tracing::debug!(
