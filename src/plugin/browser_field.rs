@@ -9,10 +9,6 @@ pub struct BrowserFieldPlugin<'a> {
     pkg_info: &'a DescriptionData,
 }
 
-fn append_ext_for_path(path: &Path, ext: &str) -> PathBuf {
-    PathBuf::from(&format!("{}{ext}", path.display()))
-}
-
 impl<'a> BrowserFieldPlugin<'a> {
     pub fn new(pkg_info: &'a DescriptionData) -> Self {
         Self { pkg_info }
@@ -29,11 +25,20 @@ impl<'a> BrowserFieldPlugin<'a> {
     ) -> bool {
         let alias_path = alias_path.absolutize_from(Path::new("")).unwrap();
         let request_path = info.to_resolved_path();
-        let request_path = request_path.absolutize_from(Path::new("")).unwrap();
+        let mut request_path = request_path
+            .absolutize_from(Path::new(""))
+            .unwrap()
+            .to_path_buf();
+        let v = unsafe { &mut *(&mut request_path as *mut PathBuf as *mut Vec<u8>) };
+
         alias_path.eq(&request_path)
             || extensions.iter().any(|ext| {
-                let path_with_extension = append_ext_for_path(&request_path, ext);
-                alias_path.eq(&path_with_extension)
+                v.extend_from_slice(ext.as_bytes());
+                let result = alias_path.eq(&request_path);
+                unsafe {
+                    v.set_len(v.len() - ext.len());
+                }
+                result
             })
     }
 }
