@@ -2631,7 +2631,6 @@ fn tsconfig_paths_test() {
         "/virtual-in-star/test",
         p(vec!["tsconfig-paths", "actual", "test.ts"]),
     );
-
     // normal
     should_equal(
         &resolver,
@@ -2673,6 +2672,18 @@ fn tsconfig_paths_test() {
         &resolver,
         &tsconfig_path,
         "./actual/test",
+        p(vec!["tsconfig-paths", "actual", "test.ts"]),
+    );
+    let resolver = Resolver::new(Options {
+        extensions: vec![".ts".to_string()],
+        prefer_relative: true,
+        tsconfig: Some(tsconfig_path.join("tsconfig.json")),
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &tsconfig_path,
+        "actual/test.ts",
         p(vec!["tsconfig-paths", "actual", "test.ts"]),
     );
 }

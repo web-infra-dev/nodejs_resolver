@@ -6,7 +6,12 @@ pub struct PreferRelativePlugin;
 
 impl Plugin for PreferRelativePlugin {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
-        if info.request().target().starts_with("../") || info.request().target().starts_with("./") {
+        let target = info.request().target();
+        if target.is_empty()
+            || target.eq(".")
+            || target.starts_with("./")
+            || target.starts_with("../")
+        {
             return State::Resolving(info);
         }
 
