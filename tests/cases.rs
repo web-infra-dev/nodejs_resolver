@@ -1069,16 +1069,13 @@ fn pnpm_structure_test() {
 #[test]
 fn resolve_test() {
     let fixture_path = p(vec![]);
-    let resolver = Resolver::new(Options {
-        ..Default::default()
-    });
+    let resolver = Resolver::new(Options::default());
     should_equal(
         &resolver,
         &fixture_path,
         "m1/a.js",
         p(vec!["node_modules", "m1", "a.js"]),
     );
-
     should_equal(
         &resolver,
         &fixture_path,
@@ -1092,6 +1089,15 @@ fn resolve_test() {
         &fixture_path,
         "./main1.js?query",
         p(vec!["main1.js?query"]),
+    );
+    should_equal(
+        &resolver,
+        &fixture_path,
+        p(vec!["./中文.js?query#fragment"])
+            .display()
+            .to_string()
+            .as_str(),
+        p(vec!["./中文.js?query#fragment"]),
     );
     should_equal(
         &resolver,
@@ -3157,7 +3163,6 @@ fn resolve_modules_test() {
         "node_modules/browser",
         p(vec!["alias", "node_modules", "browser", "index.js"]),
     );
-
     let fixture = p(vec!["scoped", "node_modules"]);
     let resolver = Resolver::new(Options {
         modules: vec![fixture.display().to_string(), "node_modules".to_string()],

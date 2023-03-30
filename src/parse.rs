@@ -78,9 +78,9 @@ impl Request {
         let mut query: Option<usize> = None;
         let mut fragment: Option<usize> = None;
         let mut stats = ParseStats::Start;
-        for (index, c) in ident.chars().enumerate() {
+        for (index, c) in ident.as_bytes().iter().enumerate() {
             match c {
-                '#' => match stats {
+                b'#' => match stats {
                     ParseStats::Request | ParseStats::Query => {
                         stats = ParseStats::Fragment;
                         fragment = Some(index);
@@ -90,7 +90,7 @@ impl Request {
                     }
                     ParseStats::Fragment => (),
                 },
-                '?' => match stats {
+                b'?' => match stats {
                     ParseStats::Request | ParseStats::Query | ParseStats::Start => {
                         stats = ParseStats::Query;
                         query = Some(index);
@@ -102,7 +102,7 @@ impl Request {
                         stats = ParseStats::Request;
                     }
                 }
-            };
+            }
         }
 
         match (query, fragment) {
