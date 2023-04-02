@@ -39,10 +39,14 @@ impl<'a> Plugin for AliasPlugin<'a> {
                                 .clone()
                                 .with_request(info.request().clone())
                                 .with_target(&normalized_target);
-                            let fully_specified = resolver.internal.fully_specified.get();
-                            resolver.internal.fully_specified.set(false);
+                            let fully_specified = context.fully_specified.get();
+                            if fully_specified {
+                                context.fully_specified.set(false);
+                            }
                             let state = resolver._resolve(alias_info, context);
-                            resolver.internal.fully_specified.set(fully_specified);
+                            if fully_specified {
+                                context.fully_specified.set(true);
+                            }
                             if state.is_finished() {
                                 return state;
                             }
