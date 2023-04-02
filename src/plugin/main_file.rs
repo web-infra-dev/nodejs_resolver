@@ -5,6 +5,10 @@ pub struct MainFilePlugin;
 
 impl Plugin for MainFilePlugin {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
+        if resolver.internal.fully_specified.get() {
+            return State::Resolving(info);
+        }
+
         for main_file in &resolver.options.main_files {
             tracing::debug!(
                 "MainFile works, it pointed to {}({})",

@@ -56,7 +56,7 @@ impl Resolver {
         let s = search.as_bytes();
         p.iter()
             .enumerate()
-            .find(|&(_, &c)| c == 42) // 42 -> '*'
+            .find(|&(_, &c)| c == b'*')
             .and_then(|(star_index, _)| {
                 let part1 = &p[..star_index];
                 if &s[0..star_index] != part1 {

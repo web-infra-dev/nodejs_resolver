@@ -76,7 +76,11 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
             if is_relative {
                 self.check_target(resolver, info)
             } else {
-                resolver._resolve(info, context)
+                let fully_specified = resolver.internal.fully_specified.get();
+                resolver.internal.fully_specified.set(false);
+                let state = resolver._resolve(info, context);
+                resolver.internal.fully_specified.set(fully_specified);
+                state
             }
         } else {
             State::Error(Error::UnexpectedValue(format!(

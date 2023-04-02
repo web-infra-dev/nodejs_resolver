@@ -75,9 +75,13 @@ pub struct Options {
     /// A list of directories to resolve modules from, can be absolute path or folder name.
     /// Default is `["node_modules"]`
     pub modules: Vec<String>,
-    // Same as `alias`, but only used if default resolving fails.
-    // Default is `[]`.
+    /// Same as `alias`, but only used if default resolving fails.
+    /// Default is `[]`.
     pub fallback: Alias,
+    /// Request passed to resolve is already fully specified and
+    /// extensions or main files are not resolved for it.
+    /// Default is `false`.
+    pub fully_specified: bool,
 }
 
 impl Default for Options {
@@ -101,6 +105,7 @@ impl Default for Options {
         let resolve_to_context = false;
         let modules = vec![String::from("node_modules")];
         let fallback = vec![];
+        let fully_specified = false;
         Self {
             fallback,
             modules,
@@ -117,6 +122,7 @@ impl Default for Options {
             browser_field,
             condition_names,
             tsconfig,
+            fully_specified,
         }
     }
 }

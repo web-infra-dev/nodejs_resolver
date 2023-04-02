@@ -1,17 +1,12 @@
 use super::Plugin;
-use crate::{log::depth, Context, Info, Resolver, State};
+use crate::{kind::PathKind, log::depth, Context, Info, Resolver, State};
 
 #[derive(Default)]
 pub struct PreferRelativePlugin;
 
 impl Plugin for PreferRelativePlugin {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
-        let target = info.request().target();
-        if target.is_empty()
-            || target.eq(".")
-            || target.starts_with("./")
-            || target.starts_with("../")
-        {
+        if matches!(info.request().kind(), PathKind::Relative) {
             return State::Resolving(info);
         }
 
