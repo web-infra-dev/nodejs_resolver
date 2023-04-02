@@ -59,8 +59,6 @@ mod state;
 mod tsconfig;
 mod tsconfig_path;
 
-use std::cell::Cell;
-
 pub use cache::Cache;
 use context::Context;
 pub use description::DescriptionData;
@@ -78,16 +76,9 @@ pub use resource::Resource;
 use state::State;
 
 #[derive(Debug)]
-pub(crate) struct InternalRequestOption {
-    pub fully_specified: Cell<bool>,
-    pub resolve_to_context: Cell<bool>,
-}
-
-#[derive(Debug)]
 pub struct Resolver {
     pub options: Options,
     pub(crate) cache: std::sync::Arc<Cache>,
-    pub(crate) internal: InternalRequestOption,
 }
 
 #[derive(Debug, Clone)]
@@ -124,15 +115,7 @@ impl Resolver {
             enforce_extension,
             ..options
         };
-        let internal = InternalRequestOption {
-            fully_specified: Cell::new(options.fully_specified),
-            resolve_to_context: Cell::new(options.resolve_to_context),
-        };
-        Self {
-            options,
-            cache,
-            internal,
-        }
+        Self { options, cache }
     }
 
     #[tracing::instrument]
@@ -150,7 +133,10 @@ impl Resolver {
         // let start = std::time::Instant::now();
         let parsed = Self::parse(request);
         let info = Info::new(path, parsed);
-        let mut context = Context::new();
+        let mut context = Context::new(
+            self.options.fully_specified,
+            self.options.resolve_to_context,
+        );
         let result = if let Some(tsconfig_location) = self.options.tsconfig.as_ref() {
             self._resolve_with_tsconfig(info, tsconfig_location, &mut context)
         } else {
@@ -223,7 +209,7 @@ impl Resolver {
                     info.request().kind(),
                     PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
                 ) {
-                    self.resolve_as_context(info)
+                    self.resolve_as_context(info, context)
                         .then(|info| self.resolve_as_fully_specified(info, context))
                         .then(|info| self.resolve_as_file(info))
                         .then(|info| self.resolve_as_dir(info, context))

@@ -76,10 +76,14 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
             if is_relative {
                 self.check_target(resolver, info)
             } else {
-                let fully_specified = resolver.internal.fully_specified.get();
-                resolver.internal.fully_specified.set(false);
+                let fully_specified = context.fully_specified.get();
+                if fully_specified {
+                    context.fully_specified.set(false);
+                }
                 let state = resolver._resolve(info, context);
-                resolver.internal.fully_specified.set(fully_specified);
+                if fully_specified {
+                    context.fully_specified.set(true);
+                }
                 state
             }
         } else {

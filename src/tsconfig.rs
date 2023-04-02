@@ -83,12 +83,14 @@ impl Resolver {
             // `location` pointed to `dir/tsconfig.json`
             let dir = location.parent().unwrap().to_path_buf();
             let request = Self::parse(s);
-            let prev_resolve_to_context = self.internal.resolve_to_context.get();
-            self.internal.resolve_to_context.set(false);
+            let prev_resolve_to_context = context.resolve_to_context.get();
+            if prev_resolve_to_context {
+                context.resolve_to_context.set(false);
+            }
             let state = self._resolve(Info::new(dir, request), context);
-            self.internal
-                .resolve_to_context
-                .set(prev_resolve_to_context);
+            if prev_resolve_to_context {
+                context.resolve_to_context.set(true);
+            }
             // Is it better to use cache?
             if let State::Success(result) = state {
                 let extends_tsconfig_json = match result {

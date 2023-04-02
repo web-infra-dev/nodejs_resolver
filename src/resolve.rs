@@ -36,9 +36,8 @@ impl Resolver {
         State::Resolving(info)
     }
 
-    pub(crate) fn resolve_as_context(&self, info: Info) -> State {
-        let resolve_to_context = self.internal.resolve_to_context.get();
-        if !resolve_to_context {
+    pub(crate) fn resolve_as_context(&self, info: Info, context: &Context) -> State {
+        if !context.resolve_to_context.get() {
             return State::Resolving(info);
         }
         let path = info.to_resolved_path();
@@ -54,7 +53,7 @@ impl Resolver {
     }
 
     pub(crate) fn resolve_as_fully_specified(&self, info: Info, context: &mut Context) -> State {
-        let fully_specified = self.internal.fully_specified.get();
+        let fully_specified = context.fully_specified.get();
         if !fully_specified {
             return State::Resolving(info);
         }
@@ -72,9 +71,9 @@ impl Resolver {
         } else {
             let dir = info.to_resolved_path().to_path_buf();
             let info = info.with_path(dir).with_target(".");
-            self.internal.fully_specified.set(false);
+            context.fully_specified.set(false);
             let state = MainFilePlugin.apply(self, info.clone(), context);
-            self.internal.fully_specified.set(fully_specified);
+            context.fully_specified.set(true);
             if state.is_finished() {
                 state
             } else {
@@ -238,7 +237,7 @@ impl Resolver {
             } else {
                 State::Resolving(module_info)
             }
-            .then(|info| self.resolve_as_context(info))
+            .then(|info| self.resolve_as_context(info, context))
             .then(|info| self.resolve_as_fully_specified(info, context))
             .then(|info| self.resolve_as_file(info))
             .then(|info| self.resolve_as_dir(info, context));
