@@ -1,6 +1,7 @@
 use crate::{
     description::DescriptionData,
     info::NormalizedPath,
+    kind::PathKind,
     log::color,
     plugin::{
         BrowserFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin,
@@ -36,7 +37,8 @@ impl Resolver {
     }
 
     pub(crate) fn resolve_as_context(&self, info: Info) -> State {
-        if !self.options.resolve_to_context {
+        let resolve_to_context = self.internal.resolve_to_context.get();
+        if !resolve_to_context {
             return State::Resolving(info);
         }
         let path = info.to_resolved_path();
@@ -51,7 +53,36 @@ impl Resolver {
         }
     }
 
-    #[tracing::instrument]
+    pub(crate) fn resolve_as_fully_specified(&self, info: Info, context: &mut Context) -> State {
+        let fully_specified = self.internal.fully_specified.get();
+        if !fully_specified {
+            return State::Resolving(info);
+        }
+        let path = info.to_resolved_path();
+        if self.load_entry(&path).is_file() {
+            let path = path.to_path_buf();
+            State::Success(ResolveResult::Resource(
+                info.with_path(path).with_target(""),
+            ))
+        } else if matches!(
+            info.request().kind(),
+            PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
+        ) {
+            State::Failed(info)
+        } else {
+            let dir = info.to_resolved_path().to_path_buf();
+            let info = info.with_path(dir).with_target(".");
+            self.internal.fully_specified.set(false);
+            let state = MainFilePlugin.apply(self, info.clone(), context);
+            self.internal.fully_specified.set(fully_specified);
+            if state.is_finished() {
+                state
+            } else {
+                State::Failed(info)
+            }
+        }
+    }
+
     pub(crate) fn resolve_as_file(&self, info: Info) -> State {
         if info.request().is_directory() {
             return State::Resolving(info);
@@ -74,7 +105,6 @@ impl Resolver {
         }
     }
 
-    #[tracing::instrument]
     pub(crate) fn resolve_as_dir(&self, info: Info, context: &mut Context) -> State {
         let dir = info.to_resolved_path();
         let entry = self.load_entry(&dir);
@@ -209,6 +239,7 @@ impl Resolver {
                 State::Resolving(module_info)
             }
             .then(|info| self.resolve_as_context(info))
+            .then(|info| self.resolve_as_fully_specified(info, context))
             .then(|info| self.resolve_as_file(info))
             .then(|info| self.resolve_as_dir(info, context));
 

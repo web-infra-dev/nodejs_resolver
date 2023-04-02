@@ -82,7 +82,10 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
                     let alias_info = Info::from(self.pkg_info.dir().clone())
                         .with_request(info.request().clone())
                         .with_target(converted);
+                    let fully_specified = resolver.internal.fully_specified.get();
+                    resolver.internal.fully_specified.set(false);
                     let state = resolver._resolve(alias_info, context);
+                    resolver.internal.fully_specified.set(fully_specified);
                     if state.is_finished() {
                         return state;
                     }

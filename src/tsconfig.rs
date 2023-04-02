@@ -1,7 +1,7 @@
 // copy from https://github.com/drivasperez/tsconfig
 
 use crate::context::Context;
-use crate::{Error, Info, Options, RResult, ResolveResult, Resolver, State};
+use crate::{Error, Info, RResult, ResolveResult, Resolver, State};
 use rustc_hash::FxHashMap;
 use std::{path::Path, sync::Arc};
 
@@ -83,11 +83,12 @@ impl Resolver {
             // `location` pointed to `dir/tsconfig.json`
             let dir = location.parent().unwrap().to_path_buf();
             let request = Self::parse(s);
-            let new_resolver = Self::new(Options {
-                external_cache: Some(self.cache.clone()),
-                ..Default::default()
-            });
-            let state = new_resolver._resolve(Info::new(dir, request), context);
+            let prev_resolve_to_context = self.internal.resolve_to_context.get();
+            self.internal.resolve_to_context.set(false);
+            let state = self._resolve(Info::new(dir, request), context);
+            self.internal
+                .resolve_to_context
+                .set(prev_resolve_to_context);
             // Is it better to use cache?
             if let State::Success(result) = state {
                 let extends_tsconfig_json = match result {

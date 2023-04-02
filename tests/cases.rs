@@ -23,11 +23,11 @@ fn should_ignored(resolver: &Resolver, path: &Path, request: &str) {
     }
 }
 
-fn should_resolve_failed(resolver: &Resolver, path: &Path, request: &str) {
+fn should_failed(resolver: &Resolver, path: &Path, request: &str) {
     let result = resolver.resolve(path, request);
     if !matches!(result, Err(Error::ResolveFailedTag)) {
         println!("{result:?}");
-        unreachable!();
+        panic!("should failed");
     }
 }
 
@@ -102,15 +102,13 @@ fn extensions_test() {
         "m/",
         p(vec!["extensions", "node_modules", "m", "index.ts"]),
     );
-
     should_equal(
         &resolver,
         &extensions_cases_path,
         "./a.js",
         p(vec!["extensions", "a.js"]),
     );
-    should_resolve_failed(&resolver, &extensions_cases_path, "./a.js/");
-
+    should_failed(&resolver, &extensions_cases_path, "./a.js/");
     should_equal(
         &resolver,
         &extensions_cases_path.join("./a"),
@@ -153,9 +151,8 @@ fn extensions_test() {
         ".",
         p(vec!["extensions", "index.js"]),
     );
-    should_resolve_failed(&resolver, &extensions_cases_path.join("index."), ".");
-    should_resolve_failed(&resolver, &extensions_cases_path.join("inde"), ".");
-
+    should_failed(&resolver, &extensions_cases_path.join("index."), ".");
+    should_failed(&resolver, &extensions_cases_path.join("inde"), ".");
     should_equal(
         &resolver,
         &extensions_cases_path,
@@ -168,10 +165,10 @@ fn extensions_test() {
         "m/",
         p(vec!["extensions", "node_modules", "m", "index.ts"]),
     );
-    should_resolve_failed(&resolver, &extensions_cases_path, "./b.js");
-    should_resolve_failed(&resolver, &extensions_cases_path, "fs");
-    should_resolve_failed(&resolver, &extensions_cases_path, "./a.js/");
-    should_resolve_failed(&resolver, &extensions_cases_path, "m.js/");
+    should_failed(&resolver, &extensions_cases_path, "./b.js");
+    should_failed(&resolver, &extensions_cases_path, "fs");
+    should_failed(&resolver, &extensions_cases_path, "./a.js/");
+    should_failed(&resolver, &extensions_cases_path, "m.js/");
     let resolver = Resolver::new(Options {
         extensions: vec![String::from("ts"), String::from(".js")],
         ..Default::default()
@@ -225,7 +222,7 @@ fn extensions_test() {
         ".",
         p(vec!["extensions", "index.ts"]),
     );
-    should_resolve_failed(&resolver, &extensions_cases_path.join("inde"), ".");
+    should_failed(&resolver, &extensions_cases_path.join("inde"), ".");
 
     should_equal(
         &resolver,
@@ -239,10 +236,10 @@ fn extensions_test() {
         "m/",
         p(vec!["extensions", "node_modules", "m", "index.js"]),
     );
-    should_resolve_failed(&resolver, &extensions_cases_path, "./b.js");
-    should_resolve_failed(&resolver, &extensions_cases_path, "fs");
-    should_resolve_failed(&resolver, &extensions_cases_path, "./a.js/");
-    should_resolve_failed(&resolver, &extensions_cases_path, "m.js/");
+    should_failed(&resolver, &extensions_cases_path, "./b.js");
+    should_failed(&resolver, &extensions_cases_path, "fs");
+    should_failed(&resolver, &extensions_cases_path, "./a.js/");
+    should_failed(&resolver, &extensions_cases_path, "m.js/");
 
     let extensions_cases_path = p(vec!["extensions2"]);
     let resolver = Resolver::new(Options {
@@ -413,7 +410,7 @@ fn alias_test() {
         "multiAlias",
         p(vec!["alias", "a", "index"]),
     );
-    should_resolve_failed(&resolver, &alias_cases_path, "ignored/a");
+    should_failed(&resolver, &alias_cases_path, "ignored/a");
     should_ignored(&resolver, &alias_cases_path, "ignore/a");
     should_equal(
         &resolver,
@@ -554,7 +551,7 @@ fn alias_test() {
         "@/index",
         p(vec!["alias", "c", "dir", "index"]),
     );
-    should_resolve_failed(&resolver, &alias_cases_path, "@/a.js");
+    should_failed(&resolver, &alias_cases_path, "@/a.js");
     should_equal(
         &resolver,
         &alias_cases_path,
@@ -579,7 +576,7 @@ fn alias_test() {
         "@start/a",
         p(vec!["alias", "a", "index"]),
     );
-    should_resolve_failed(&resolver, Path::new("@start/a"), "");
+    should_failed(&resolver, Path::new("@start/a"), "");
     // TODO: exact alias
     // should_equal(resolver, &alias_cases_path, "./b?aa#bb?cc", fixture!("alias/a/index?aa#bb?cc"));
     // should_equal(resolver, &alias_cases_path, "./b/?aa#bb?cc", fixture!("alias/a/index?aa#bb?cc"));
@@ -699,8 +696,8 @@ fn fallback_test() {
         ..Default::default()
     });
     // maybe better is `should_overflow(&resolver, &alias_cases_path, "./ee");`
-    should_resolve_failed(&resolver, &alias_cases_path, "./ee");
-    should_resolve_failed(&resolver, &alias_cases_path, "./ff");
+    should_failed(&resolver, &alias_cases_path, "./ee");
+    should_failed(&resolver, &alias_cases_path, "./ff");
     should_equal(
         &resolver,
         &alias_cases_path,
@@ -966,7 +963,7 @@ fn pnpm_structure_test() {
             "index.js",
         ]),
     );
-    should_resolve_failed(&resolver, &case_path.join("exports-field-c"), "./b");
+    should_failed(&resolver, &case_path.join("exports-field-c"), "./b");
     should_equal(
         &resolver,
         &case_path.join("exports-field-c").join("lib"),
@@ -1187,9 +1184,9 @@ fn resolve_test() {
         "./no#fragment/#/",
         p(vec!["no.js#fragment", "#"]),
     );
-    should_resolve_failed(&resolver, &p(vec!["no#fragment"]), "#/#");
-    should_resolve_failed(&resolver, &p(vec!["no#fragment", "#"]), "#");
-    should_resolve_failed(&resolver, &p(vec!["no#fragment", "#"]), "#.js");
+    should_failed(&resolver, &p(vec!["no#fragment"]), "#/#");
+    should_failed(&resolver, &p(vec!["no#fragment", "#"]), "#");
+    should_failed(&resolver, &p(vec!["no#fragment", "#"]), "#.js");
     should_equal(
         &resolver,
         &p(vec!["no#fragment", "#"]),
@@ -1377,8 +1374,8 @@ fn browser_filed_test() {
         "./toString",
         p(vec!["browser-module", "lib", "toString.js"]),
     );
-    should_resolve_failed(&resolver, &browser_module_case_path, "toString");
-    should_resolve_failed(&resolver, &browser_module_case_path, "./toString.js");
+    should_failed(&resolver, &browser_module_case_path, "toString");
+    should_failed(&resolver, &browser_module_case_path, "./toString.js");
     should_equal(
         &resolver,
         &browser_module_case_path,
@@ -1586,23 +1583,118 @@ fn dependencies_test() {
 
 #[test]
 fn full_specified_test() {
-    // TODO: should I need add `fullSpecified` flag?
     let full_cases_path = p(vec!["full", "a"]);
     let resolver = Resolver::new(Options {
         alias: vec![
             (
                 String::from("alias1"),
-                vec![AliasMap::Target(String::from("./abc"))],
+                vec![AliasMap::Target(
+                    p(vec!["full", "a", "abc"]).display().to_string(),
+                )],
             ),
             (
                 String::from("alias2"),
-                vec![AliasMap::Target(String::from("./"))],
+                vec![AliasMap::Target(p(vec!["full", "a"]).display().to_string())],
+            ),
+        ],
+        browser_field: true,
+        fully_specified: true,
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "package1",
+        full_cases_path.join("node_modules/package1/index.js"),
+    );
+
+    should_failed(&resolver, &full_cases_path, "./abc");
+    should_failed(
+        &resolver,
+        &full_cases_path,
+        full_cases_path.join("abc").display().to_string().as_str(),
+    );
+    should_failed(&resolver, &full_cases_path, "package1/file");
+    should_failed(&resolver, &full_cases_path, ".");
+    should_failed(&resolver, &full_cases_path, "./");
+    should_failed(&resolver, &full_cases_path, "package3/dir");
+    should_failed(&resolver, &full_cases_path, "package3/a");
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "./abc.js",
+        full_cases_path.join("abc.js"),
+    );
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        full_cases_path
+            .join("abc.js")
+            .display()
+            .to_string()
+            .as_str(),
+        full_cases_path.join("abc.js"),
+    );
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "package1/file.js",
+        full_cases_path.join("node_modules/package1/file.js"),
+    );
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "package1",
+        full_cases_path.join("node_modules/package1/index.js"),
+    );
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "package2",
+        full_cases_path.join("node_modules/package2/a.js"),
+    );
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "alias1",
+        full_cases_path.join("abc.js"),
+    );
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "alias2",
+        full_cases_path.join("index.js"),
+    );
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "package3",
+        full_cases_path.join("node_modules/package3/dir/index.js"),
+    );
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "package4/a.js",
+        full_cases_path.join("node_modules/package4/b.js"),
+    );
+
+    let resolver = Resolver::new(Options {
+        alias: vec![
+            (
+                String::from("alias1"),
+                vec![AliasMap::Target(
+                    p(vec!["full", "a", "abc"]).display().to_string(),
+                )],
+            ),
+            (
+                String::from("alias2"),
+                vec![AliasMap::Target(p(vec!["full", "a"]).display().to_string())],
             ),
         ],
         browser_field: true,
         ..Default::default()
     });
-    should_resolve_failed(&resolver, &full_cases_path.join(".."), ".");
+    should_failed(&resolver, &full_cases_path.join(".."), ".");
     should_equal(
         &resolver,
         &full_cases_path,
@@ -1723,12 +1815,12 @@ fn missing_test() {
     });
     // TODO: optimize error
     // TODO: path
-    should_resolve_failed(&resolver, &fixture_path, "./missing-file");
-    should_resolve_failed(&resolver, &fixture_path, "./missing-file.js");
-    should_resolve_failed(&resolver, &fixture_path, "missing-module");
-    should_resolve_failed(&resolver, &fixture_path, "missing-module/missing-file");
-    should_resolve_failed(&resolver, &fixture_path, "m1/missing-file");
-    should_resolve_failed(&resolver, &fixture_path, "m1/");
+    should_failed(&resolver, &fixture_path, "./missing-file");
+    should_failed(&resolver, &fixture_path, "./missing-file.js");
+    should_failed(&resolver, &fixture_path, "missing-module");
+    should_failed(&resolver, &fixture_path, "missing-module/missing-file");
+    should_failed(&resolver, &fixture_path, "m1/missing-file");
+    should_failed(&resolver, &fixture_path, "m1/");
     should_equal(
         &resolver,
         &fixture_path,
@@ -1879,7 +1971,7 @@ fn exports_fields_test() {
         condition_names: vec_to_set(vec!["webpack"]),
         ..Default::default()
     });
-    should_resolve_failed(&resolver, &export_cases_path, "@exports-field/coreaaaa");
+    should_failed(&resolver, &export_cases_path, "@exports-field/coreaaaa");
     // TODO: error stack
     should_unexpected_value_error(
         &resolver,
@@ -1988,7 +2080,7 @@ fn exports_fields_test() {
             "main.js",
         ]),
     );
-    should_resolve_failed(
+    should_failed(
         &resolver,
         &export_cases_path,
         "./node_modules/exports-field/dist/main",
@@ -2419,10 +2511,10 @@ fn cache_fs2() {
         p(vec!["cache-fs2", "index.js"]),
     );
     resolver.clear_entries();
-    should_resolve_failed(&resolver, &fixture_path, "./index");
+    should_failed(&resolver, &fixture_path, "./index");
     rename(fixture_path.join("temp.js"), fixture_path.join("index.js")).expect("rename failed");
     sleep(Duration::from_secs(1));
-    should_resolve_failed(&resolver, &fixture_path, "./index");
+    should_failed(&resolver, &fixture_path, "./index");
     resolver.clear_entries();
     should_equal(
         &resolver,
@@ -2606,7 +2698,7 @@ fn tsconfig_paths_test() {
         "test2/foo",
         p(vec!["tsconfig-paths", "test2-success", "foo.ts"]),
     );
-    should_resolve_failed(&resolver, &tsconfig_path, "te*t3/foo");
+    should_failed(&resolver, &tsconfig_path, "te*t3/foo");
     should_equal(
         &resolver,
         &tsconfig_path,
@@ -2726,7 +2818,7 @@ fn tsconfig_paths_nested() {
             "foo.ts",
         ]),
     );
-    should_resolve_failed(&resolver, &tsconfig_path, "te*t3/foo");
+    should_failed(&resolver, &tsconfig_path, "te*t3/foo");
     should_equal(
         &resolver,
         &tsconfig_path,
@@ -2777,7 +2869,7 @@ fn tsconfig_paths_without_base_url_test() {
         tsconfig: Some(case_path.join("tsconfig.json")),
         ..Default::default()
     });
-    should_resolve_failed(&resolver, &case_path, "should-not-be-imported")
+    should_failed(&resolver, &case_path, "should-not-be-imported")
 }
 
 #[test]
@@ -2804,7 +2896,7 @@ fn tsconfig_paths_missing_base_url() {
         tsconfig: Some(case_path.join("tsconfig.json")),
         ..Default::default()
     });
-    should_resolve_failed(&resolver, &case_path, "#/test");
+    should_failed(&resolver, &case_path, "#/test");
 }
 
 #[test]
@@ -3000,8 +3092,8 @@ fn shared_cache_test2() {
 fn empty_test() {
     let case_path = p(vec!["empty"]);
     let resolver = Resolver::new(Options::default());
-    should_resolve_failed(&resolver, &case_path, ".");
-    should_resolve_failed(&resolver, &p(vec![]), "./empty");
+    should_failed(&resolver, &case_path, ".");
+    should_failed(&resolver, &p(vec![]), "./empty");
 }
 
 #[test]
@@ -3100,7 +3192,7 @@ fn browser_it_self() {
         "a.js",
         p(vec!["browser-to-self", "node_modules", "a.js", "a.js"]),
     );
-    should_resolve_failed(&resolver, &case_path, "c.js");
+    should_failed(&resolver, &case_path, "c.js");
 }
 
 #[test]
@@ -3178,5 +3270,5 @@ fn resolve_modules_test() {
         modules: vec![fixture.display().to_string()],
         ..Default::default()
     });
-    should_resolve_failed(&resolver, &p(vec![]), "recursive-module");
+    should_failed(&resolver, &p(vec![]), "recursive-module");
 }
