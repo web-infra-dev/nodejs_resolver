@@ -118,7 +118,6 @@ impl Resolver {
         Self { options, cache }
     }
 
-    #[tracing::instrument]
     pub fn resolve(
         &self,
         path: &std::path::Path,
@@ -172,7 +171,6 @@ impl Resolver {
         }
     }
 
-    #[tracing::instrument]
     fn _resolve(&self, info: Info, context: &mut Context) -> State {
         tracing::debug!(
             "Resolving '{request}' in '{path}'",
@@ -199,7 +197,9 @@ impl Resolver {
                 if let Some(pkg_info) = pkg_info {
                     ImportsFieldPlugin::new(pkg_info)
                         .apply(self, info, context)
-                        .then(|info| BrowserFieldPlugin::new(pkg_info).apply(self, info, context))
+                        .then(|info| {
+                            BrowserFieldPlugin::new(pkg_info, false).apply(self, info, context)
+                        })
                 } else {
                     State::Resolving(info)
                 }

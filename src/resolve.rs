@@ -66,10 +66,11 @@ impl Resolver {
         } else if matches!(
             info.request().kind(),
             PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
-        ) {
+        ) || split_slash_from_request(info.request().target()).is_some()
+        {
             State::Failed(info)
         } else {
-            let dir = info.to_resolved_path().to_path_buf();
+            let dir = path.to_path_buf();
             let info = info.with_path(dir).with_target(".");
             context.fully_specified.set(false);
             let state = MainFilePlugin.apply(self, info.clone(), context);
@@ -91,6 +92,7 @@ impl Resolver {
             "Attempting to load '{}' as a file",
             color::blue(&path.display())
         );
+
         if matches!(self.options.enforce_extension, EnforceExtension::Enabled) {
             return self.resolve_file_with_ext(path.to_path_buf(), info);
         }
@@ -114,8 +116,6 @@ impl Resolver {
             Ok(pkg_info) => pkg_info,
             Err(err) => return State::Error(err),
         };
-        let dir = dir.to_path_buf();
-        let info = info.with_path(dir).with_target(".");
         if let Some(pkg_info) = pkg_info {
             MainFieldPlugin::new(pkg_info).apply(self, info, context)
         } else {
@@ -225,15 +225,8 @@ impl Resolver {
                     State::Resolving(module_info)
                 }
                 .then(|info| ImportsFieldPlugin::new(pkg_info).apply(self, info, context))
-                .then(|info| {
-                    let path = info
-                        .normalized_path()
-                        .as_ref()
-                        .join(info.request().target());
-                    let info = info.with_path(path).with_target(".");
-                    MainFieldPlugin::new(pkg_info).apply(self, info, context)
-                })
-                .then(|info| BrowserFieldPlugin::new(pkg_info).apply(self, info, context))
+                .then(|info| MainFieldPlugin::new(pkg_info).apply(self, info, context))
+                .then(|info| BrowserFieldPlugin::new(pkg_info, true).apply(self, info, context))
             } else {
                 State::Resolving(module_info)
             }
@@ -259,7 +252,7 @@ fn is_resolve_self(pkg_info: &DescriptionData, request_module_name: &str) -> boo
 }
 
 /// split the index from `[module-name]/[path]`
-fn split_slash_from_request(target: &str) -> Option<usize> {
+pub(crate) fn split_slash_from_request(target: &str) -> Option<usize> {
     let has_namespace_scope = target.starts_with('@');
     let chars = target.chars().enumerate();
     let slash_index_list: Vec<usize> = chars
