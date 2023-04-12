@@ -13,11 +13,12 @@ impl<'a> MainFieldPlugin<'a> {
 
 impl<'a> Plugin for MainFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
-        let path = info.normalized_path();
-        if !self.pkg_info.dir().eq(path) {
+        let resolved = info.to_resolved_path();
+        if !self.pkg_info.dir().as_ref().eq(&*resolved) {
             return State::Resolving(info);
         }
-        let main_field_info = Info::from(path.clone()).with_request(info.request().clone());
+        let main_field_info = info.clone().with_path(resolved).with_target(".");
+
         for user_main_field in &resolver.options.main_fields {
             if let Some(main_field) = self
                 .pkg_info

@@ -296,7 +296,6 @@ impl Field for ExportsField {
     }
 
     /// reference: https://nodejs.org/api/packages.html#exports
-    #[tracing::instrument]
     fn build_field_path_tree(exports_field_value: &serde_json::Value) -> RResult<PathTreeNode> {
         let field = Self::from_json(exports_field_value)?;
         let mut root = PathTreeNode::default();
@@ -379,7 +378,6 @@ impl Field for ImportsField {
     }
 
     /// reference: https://nodejs.org/api/packages.html#imports
-    #[tracing::instrument]
     fn build_field_path_tree(imports_field_value: &serde_json::Value) -> RResult<PathTreeNode> {
         let field = match Self::from_json(imports_field_value)? {
             MappingValue::Conditional(field) => field,
@@ -2064,7 +2062,6 @@ fn exports_field_map_test() {
         vec!["browser"],
         "Export field key should be relative path and start with \"./\", but got /utils/",
     );
-
     should_error(
         json!({
             "./utils/": {

@@ -7,11 +7,15 @@ use std::path::{Path, PathBuf};
 
 pub struct BrowserFieldPlugin<'a> {
     pkg_info: &'a DescriptionData,
+    may_request_package_self: bool,
 }
 
 impl<'a> BrowserFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a DescriptionData) -> Self {
-        Self { pkg_info }
+    pub fn new(pkg_info: &'a DescriptionData, may_request_package_self: bool) -> Self {
+        Self {
+            pkg_info,
+            may_request_package_self,
+        }
     }
 
     fn request_target_is_module_and_equal_alias_key(alias_key: &String, info: &Info) -> bool {
@@ -48,8 +52,11 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
         if !resolver.options.browser_field {
             return State::Resolving(info);
         }
+
         for (alias_key, alias_target) in self.pkg_info.data().alias_fields() {
-            let should_deal_alias = match matches!(info.request().kind(), PathKind::Normal) {
+            let should_deal_alias = match matches!(info.request().kind(), PathKind::Normal)
+                && !self.may_request_package_self
+            {
                 true => Self::request_target_is_module_and_equal_alias_key(alias_key, &info),
                 false => Self::request_path_is_equal_alias_key_path(
                     &self.pkg_info.dir().as_ref().join(alias_key),

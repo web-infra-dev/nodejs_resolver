@@ -95,7 +95,6 @@ fn extensions_test() {
         extensions: vec![String::from(".ts"), String::from(".js")],
         ..Default::default()
     });
-
     should_equal(
         &resolver,
         &extensions_cases_path,
@@ -1270,10 +1269,12 @@ fn browser_filed_test() {
             "a.js",
         ]),
     );
+
     let resolver = Resolver::new(Options {
         browser_field: true,
         ..Default::default()
     });
+
     should_equal(
         &resolver,
         &browser_module_case_path
@@ -1582,7 +1583,7 @@ fn dependencies_test() {
 }
 
 #[test]
-fn full_specified_test() {
+fn fully_specified_test() {
     let full_cases_path = p(vec!["full", "a"]);
     let resolver = Resolver::new(Options {
         alias: vec![
@@ -1601,13 +1602,26 @@ fn full_specified_test() {
         fully_specified: true,
         ..Default::default()
     });
+
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "package5",
+        full_cases_path.join("node_modules/package5/index.js"),
+    );
+    should_failed(&resolver, &full_cases_path, "package5/file");
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "package5/file.js",
+        full_cases_path.join("node_modules/package5/file.js"),
+    );
     should_equal(
         &resolver,
         &full_cases_path,
         "package1",
         full_cases_path.join("node_modules/package1/index.js"),
     );
-
     should_failed(&resolver, &full_cases_path, "./abc");
     should_failed(
         &resolver,
@@ -1618,7 +1632,14 @@ fn full_specified_test() {
     should_failed(&resolver, &full_cases_path, ".");
     should_failed(&resolver, &full_cases_path, "./");
     should_failed(&resolver, &full_cases_path, "package3/dir");
+    should_failed(&resolver, &full_cases_path, "package3/dir/index");
     should_failed(&resolver, &full_cases_path, "package3/a");
+    should_equal(
+        &resolver,
+        &full_cases_path,
+        "package3/dir/index.js",
+        full_cases_path.join("node_modules/package3/dir/index.js"),
+    );
     should_equal(
         &resolver,
         &full_cases_path,
