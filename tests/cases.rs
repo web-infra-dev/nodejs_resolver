@@ -399,6 +399,10 @@ fn alias_test() {
                 String::from("./c"),
                 vec![AliasMap::Target(String::from("./c"))],
             ),
+            (
+                String::from("query"),
+                vec![AliasMap::Target(String::from("./a?query"))],
+            ),
             (String::from("ignore"), vec![AliasMap::Ignored]),
         ],
         ..Default::default()
@@ -616,6 +620,12 @@ fn alias_test() {
         &alias_cases_path,
         "./c/dir/index",
         p(vec!["alias", "c", "dir", "index"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "query",
+        p(vec!["alias/a/index?query"]),
     );
     should_ignored(&resolver, &alias_cases_path, "ignore");
     // test alias ordered

@@ -35,10 +35,8 @@ impl<'a> Plugin for AliasPlugin<'a> {
                                 continue;
                             }
                             let normalized_target = inner_target.replacen(from, to, 1);
-                            let alias_info = info
-                                .clone()
-                                .with_request(info.request().clone())
-                                .with_target(&normalized_target);
+                            let request = Resolver::parse(&normalized_target);
+                            let alias_info = info.clone().with_request(request);
                             let fully_specified = context.fully_specified.get();
                             if fully_specified {
                                 context.fully_specified.set(false);
