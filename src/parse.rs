@@ -33,6 +33,11 @@ impl Request {
     pub fn from_request(request: &str) -> Self {
         let (target, query, fragment) = Self::parse_identifier(request);
         let is_directory = Self::is_target_directory(&target);
+        let target = if is_directory {
+            target[0..target.len() - 1].into()
+        } else {
+            target
+        };
         Request {
             kind: Resolver::get_target_kind(&target),
             target,
@@ -70,6 +75,20 @@ impl Request {
             kind: Resolver::get_target_kind(target),
             target: target.into(),
             is_directory,
+            ..self
+        }
+    }
+
+    pub fn with_query(self, query: &str) -> Self {
+        Self {
+            query: (!query.is_empty()).then(|| query.into()),
+            ..self
+        }
+    }
+
+    pub fn with_fragment(self, fragment: &str) -> Self {
+        Self {
+            fragment: (!fragment.is_empty()).then(|| fragment.into()),
             ..self
         }
     }
@@ -139,31 +158,39 @@ enum ParseStats {
 
 #[test]
 fn parse_identifier_test() {
-    macro_rules! should_parsed {
-        ($ident: expr; $t: expr, $q: expr, $f: expr) => {
-            let request = Resolver::parse($ident);
-            let target = request.target();
-            let query = request.query();
-            let fragment = request.fragment();
-            assert_eq!((target, query, fragment), ($t, $q, $f));
-        };
+    fn should_parsed(input: &str, t: &str, q: &str, f: &str) {
+        let (target, query, fragment) = Request::parse_identifier(input);
+        assert_eq!(&*target, t);
+        assert_eq!(query.as_ref().map_or("", |q| q.as_ref()), q);
+        assert_eq!(fragment.as_ref().map_or("", |f| f.as_ref()), f);
     }
 
-    should_parsed!("path/#"; "path/", "", "#");
-    should_parsed!("path/as/?"; "path/as/", "?", "");
-    should_parsed!("path/#/?"; "path/", "", "#/?");
-    should_parsed!("path/#repo#hash"; "path/", "", "#repo#hash");
-    should_parsed!("path/#r#hash"; "path/", "", "#r#hash");
-    should_parsed!("path/#repo/#repo2#hash"; "path/", "", "#repo/#repo2#hash");
-    should_parsed!("path/#r/#r#hash"; "path/", "", "#r/#r#hash");
-    should_parsed!("path/#/not/a/hash?not-a-query"; "path/", "", "#/not/a/hash?not-a-query");
-    should_parsed!("#a?b#c?d"; "#a", "?b", "#c?d");
+    should_parsed("path/abc", "path/abc", "", "");
+    should_parsed("path/#", "path/", "", "#");
+    should_parsed("path/as/?", "path/as/", "?", "");
+    should_parsed("path/#/?", "path/", "", "#/?");
+    should_parsed("path/#repo#hash", "path/", "", "#repo#hash");
+    should_parsed("path/#r#hash", "path/", "", "#r#hash");
+    should_parsed("path/#repo/#repo2#hash", "path/", "", "#repo/#repo2#hash");
+    should_parsed("path/#r/#r#hash", "path/", "", "#r/#r#hash");
+    should_parsed(
+        "path/#/not/a/hash?not-a-query",
+        "path/",
+        "",
+        "#/not/a/hash?not-a-query",
+    );
+    should_parsed("#a?b#c?d", "#a", "?b", "#c?d");
 
     // windows like
-    should_parsed!("path\\#"; "path\\", "", "#");
-    should_parsed!("C:path\\as\\?"; "C:path\\as\\", "?", "");
-    should_parsed!("path\\#\\?"; "path\\", "", "#\\?");
-    should_parsed!("path\\#repo#hash"; "path\\", "", "#repo#hash");
-    should_parsed!("path\\#r#hash"; "path\\", "", "#r#hash");
-    should_parsed!("path\\#/not/a/hash?not-a-query"; "path\\", "", "#/not/a/hash?not-a-query");
+    should_parsed("path\\#", "path\\", "", "#");
+    should_parsed("C:path\\as\\?", "C:path\\as\\", "?", "");
+    should_parsed("path\\#\\?", "path\\", "", "#\\?");
+    should_parsed("path\\#repo#hash", "path\\", "", "#repo#hash");
+    should_parsed("path\\#r#hash", "path\\", "", "#r#hash");
+    should_parsed(
+        "path\\#/not/a/hash?not-a-query",
+        "path\\",
+        "",
+        "#/not/a/hash?not-a-query",
+    );
 }

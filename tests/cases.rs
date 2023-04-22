@@ -2,7 +2,6 @@ use nodejs_resolver::{
     test_helper::{p, vec_to_set},
     AliasMap, Cache, EnforceExtension, Error, Options, ResolveResult, Resolver,
 };
-
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -322,10 +321,20 @@ fn alias_test() {
                 String::from("aliasA"),
                 vec![AliasMap::Target(String::from("./a"))],
             ),
-            // (
-            //     String::from("./b$"),
-            //     AliasMap::Target(String::from("./a/index")),
-            // ), // TODO: should we use trailing?
+            (
+                String::from("b$"),
+                vec![AliasMap::Target(String::from("./a/index"))],
+            ),
+            (
+                String::from("./b$"),
+                vec![AliasMap::Target(String::from("./a/index"))],
+            ),
+            (
+                String::from("c$"),
+                vec![AliasMap::Target(
+                    p(vec!["alias", "a", "index"]).display().to_string(),
+                )],
+            ),
             (
                 String::from("fs"),
                 vec![AliasMap::Target(
@@ -400,13 +409,76 @@ fn alias_test() {
                 vec![AliasMap::Target(String::from("./c"))],
             ),
             (
-                String::from("query"),
-                vec![AliasMap::Target(String::from("./a?query"))],
+                String::from("alias_with_query"),
+                vec![AliasMap::Target(String::from("./a?q2"))],
+            ),
+            (
+                String::from("alias_with_fragment"),
+                vec![AliasMap::Target(String::from("./a#f2"))],
+            ),
+            (
+                String::from("alias_with_query_fragment"),
+                vec![AliasMap::Target(String::from("./a?q2#f2"))],
             ),
             (String::from("ignore"), vec![AliasMap::Ignored]),
         ],
         ..Default::default()
     });
+
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "./b/index",
+        p(vec!["alias", "b", "index"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "./b?aa#bb?cc",
+        p(vec!["alias", "a", "index?aa#bb?cc"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "./b/?aa#bb?cc",
+        p(vec!["alias", "a", "index?aa#bb?cc"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "./b",
+        p(vec!["alias", "a", "index"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "./b/",
+        p(vec!["alias", "a", "index"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "c?query",
+        p(vec!["alias", "a", "index?query"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "b?query",
+        p(vec!["alias", "a", "index?query"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "b",
+        p(vec!["alias", "a", "index"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "c",
+        p(vec!["alias", "a", "index"]),
+    );
     should_equal(
         &resolver,
         &alias_cases_path,
@@ -515,6 +587,12 @@ fn alias_test() {
     should_equal(
         &resolver,
         &alias_cases_path,
+        "aliasA/",
+        p(vec!["alias", "a", "index"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
         "aliasA/index",
         p(vec!["alias", "a", "index"]),
     );
@@ -580,11 +658,6 @@ fn alias_test() {
         p(vec!["alias", "a", "index"]),
     );
     should_failed(&resolver, Path::new("@start/a"), "");
-    // TODO: exact alias
-    // should_equal(resolver, &alias_cases_path, "./b?aa#bb?cc", fixture!("alias/a/index?aa#bb?cc"));
-    // should_equal(resolver, &alias_cases_path, "./b/?aa#bb?cc", fixture!("alias/a/index?aa#bb?cc"));
-    // should_equal(resolver, &alias_cases_path, "./b", fixture!("alias/a/index"));
-    // should_equal(resolver, &alias_cases_path, "./b/", fixture!("alias/a/index"));
     should_equal(
         &resolver,
         &alias_cases_path,
@@ -624,8 +697,38 @@ fn alias_test() {
     should_equal(
         &resolver,
         &alias_cases_path,
-        "query",
-        p(vec!["alias/a/index?query"]),
+        "alias_with_query",
+        p(vec!["alias/a/index?q2"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "alias_with_query/",
+        p(vec!["alias/a/index?q2"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "alias_with_query#f1",
+        p(vec!["alias/a/index?q2#f1"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "alias_with_query?q1",
+        p(vec!["alias/a/index?q2"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "alias_with_fragment?q1",
+        p(vec!["alias/a/index?q1#f2"]),
+    );
+    should_equal(
+        &resolver,
+        &alias_cases_path,
+        "alias_with_query_fragment?q1",
+        p(vec!["alias/a/index?q2#f2"]),
     );
     should_ignored(&resolver, &alias_cases_path, "ignore");
     // test alias ordered
@@ -2021,7 +2124,7 @@ fn exports_fields_test() {
         &resolver,
         &export_cases_path,
         "exports-field/dist/",
-        "Only requesting file allowed".to_string(),
+        "Resolving to directories is not possible with the exports field (request was exports-field/dist/ in".to_string(),
     );
     should_unexpected_value_error(
         &resolver,
@@ -2128,7 +2231,7 @@ fn exports_fields_test() {
         &resolver,
         &export_cases_path,
         "exports-field/",
-        "Only requesting file allowed".to_string(),
+        "Resolving to directories is not possible with the exports field (request was exports-field/ in".to_string(),
     );
     // TODO: error stack
     should_unexpected_value_error(

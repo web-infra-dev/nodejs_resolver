@@ -3,7 +3,6 @@
 TodoList:
 
 - [ ] more exports/imports test cases.
-- [ ] dollar symbol and `onlyModule` in alias
 
 ## Benchmark
 

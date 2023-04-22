@@ -17,12 +17,24 @@ impl<'a> Plugin for AliasPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
         let inner_target = info.request().target();
         for (from, array) in self.alias() {
-            if inner_target
-                .strip_prefix(from)
-                .into_iter()
-                .next()
-                .map_or(false, |c| c.is_empty() || c.starts_with('/'))
-            {
+            let only_module = from.ends_with('$');
+            let from_to = from.len();
+            let (hit, key) = if only_module {
+                let sub = &from[0..from_to - 1];
+                if inner_target.eq(sub) {
+                    (true, sub)
+                } else {
+                    (false, sub)
+                }
+            } else {
+                let hit = inner_target
+                    .strip_prefix(from)
+                    .into_iter()
+                    .next()
+                    .map_or(false, |c| c.is_empty() || c.starts_with('/'));
+                (hit, from.as_str())
+            };
+            if hit {
                 tracing::debug!(
                     "AliasPlugin works, triggered by '{from}'({})",
                     depth(&context.depth)
@@ -34,8 +46,20 @@ impl<'a> Plugin for AliasPlugin<'a> {
                                 // skip `target.starts_with(to)` to prevent infinite loop.
                                 continue;
                             }
-                            let normalized_target = inner_target.replacen(from, to, 1);
+                            let normalized_target = inner_target.replacen(key, to, 1);
+                            let old_request = info.request();
+                            let old_query = old_request.query();
+                            let old_fragment = old_request.fragment();
                             let request = Resolver::parse(&normalized_target);
+                            let request =
+                                match (request.query().is_empty(), request.fragment().is_empty()) {
+                                    (true, true) => {
+                                        request.with_query(old_query).with_fragment(old_fragment)
+                                    }
+                                    (true, false) => request.with_query(old_query),
+                                    (false, true) => request.with_fragment(old_fragment),
+                                    (false, false) => request,
+                                };
                             let alias_info = info.clone().with_request(request);
                             let fully_specified = context.fully_specified.get();
                             if fully_specified {
