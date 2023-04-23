@@ -21,14 +21,6 @@ impl<'a> ExportsFieldPlugin<'a> {
 
 impl<'a> Plugin for ExportsFieldPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
-        let request = info.request();
-        let target = request.target();
-        if request.is_directory() {
-            return State::Error(Error::UnexpectedValue(format!(
-                "Resolving to directories is not possible with the exports field (request was {}/ in {})",
-                target, info.normalized_path().as_ref().display()
-            )));
-        }
         let root = match self.pkg_info.data().exports_tree() {
             Ok(Some(exports_tree)) => exports_tree,
             Ok(None) => return State::Resolving(info),
@@ -39,7 +31,15 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 _ => unreachable!(),
             },
         };
-        // info.path should end with `node_modules`.
+        let request = info.request();
+        let target = request.target();
+        if request.is_directory() {
+            return State::Error(Error::UnexpectedValue(format!(
+                "Resolving to directories is not possible with the exports field (request was {}/ in {})",
+                target, info.normalized_path().as_ref().display()
+            )));
+        }
+
         let query = request.query();
         let fragment = request.fragment();
         let request_path = get_path_from_request(target);
