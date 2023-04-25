@@ -96,7 +96,8 @@ impl Info {
         if self.request.target().is_empty() || self.request.target() == "." {
             Cow::Borrowed(&self.path.0)
         } else {
-            Cow::Owned(self.path.as_ref().join(self.request.target()))
+            let p = NormalizedPath::new(self.path.as_ref().join(self.request.target()));
+            Cow::Owned(p.0.to_path_buf())
         }
     }
 }

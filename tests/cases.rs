@@ -2696,7 +2696,18 @@ fn main_fields_test() {
     let resolver = Resolver::new(Options {
         ..Default::default()
     });
-
+    should_equal(
+        &resolver,
+        &p(vec!["main-field", "src"]),
+        "../",
+        p(vec!["main-field", "src", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &p(vec!["main-field", "src"]),
+        "..",
+        p(vec!["main-field", "src", "index.js"]),
+    );
     should_equal(
         &resolver,
         &fixture_path,
