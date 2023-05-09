@@ -3046,7 +3046,14 @@ fn tsconfig_paths_without_base_url_test() {
         tsconfig: Some(case_path.join("tsconfig.json")),
         ..Default::default()
     });
-    should_failed(&resolver, &case_path, "should-not-be-imported")
+    should_failed(&resolver, &case_path, "should-not-be-imported");
+    should_equal(&resolver, &case_path, "alias/a", case_path.join("src/a.ts"));
+    should_equal(
+        &resolver,
+        &case_path,
+        "./should-not-be-imported",
+        case_path.join("should-not-be-imported.ts"),
+    );
 }
 
 #[test]

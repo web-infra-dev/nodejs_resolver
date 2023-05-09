@@ -102,11 +102,11 @@ impl Resolver {
         let absolute_base_url = if let Some(base_url) = tsconfig.base_url.as_ref() {
             location_dir.join(base_url)
         } else {
-            return self._resolve(info, context);
+            location_dir.into()
         };
 
         // resolve absolute path that relative from base_url
-        if !info.request().target().starts_with('.') {
+        if tsconfig.base_url.is_some() && !info.request().target().starts_with('.') {
             let target = absolute_base_url.join(info.request().target());
             let info = info.clone().with_path(target).with_target("");
             let result = self._resolve(info, context);
