@@ -2198,8 +2198,189 @@ fn exports_fields_test() {
             "x.js",
         ]),
     );
+    should_unexpected_value_error(
+        &resolver,
+        &p(vec!["exports-field-error"]),
+        "exports-field",
+        "Trying to access out of package scope. Requesting ./a/../b/../../pack1/index.js"
+            .to_string(),
+    );
+
+    let resolver = Resolver::new(Options {
+        extensions: vec![String::from(".js")],
+        browser_field: true,
+        condition_names: vec_to_set(vec!["webpack"]),
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "./node_modules/exports-field/lib/main.js",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "exports-field",
+            "lib",
+            "browser.js",
+        ]),
+    );
+    // exports map should works when request relative path
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "./node_modules/exports-field/dist/main.js",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "exports-field",
+            "lib",
+            "browser.js",
+        ]),
+    );
+    let resolver = Resolver::new(Options {
+        extensions: vec![String::from(".js")],
+        browser_field: true,
+        condition_names: vec_to_set(vec!["node"]),
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "exports-field/dist/main.js",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "exports-field",
+            "lib",
+            "browser.js",
+        ]),
+    );
+    // exports map should works when request abs path
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        &p(vec![
+            "exports-field",
+            "node_modules",
+            "exports-field",
+            "main.js",
+        ])
+        .display()
+        .to_string(),
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "exports-field",
+            "main.js",
+        ]),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path,
+        "exports-field/main.js",
+        "Package path exports-field/main.js is not exported in".to_string(),
+    );
+
+    let resolver = Resolver::new(Options {
+        extensions: vec![String::from(".js")],
+        condition_names: vec_to_set(vec!["require"]),
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "@scope/import-require",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "@scope",
+            "import-require",
+            "dist",
+            "esm",
+            "index.js",
+        ]),
+    );
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "@scope/import-require/a",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "@scope",
+            "import-require",
+            "dist",
+            "cjs",
+            "a",
+            "index.js",
+        ]),
+    );
+
+    let resolver = Resolver::new(Options {
+        condition_names: vec_to_set(vec!["import"]),
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "@scope/import-require",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "@scope",
+            "import-require",
+            "dist",
+            "esm",
+            "index.js",
+        ]),
+    );
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "@scope/import-require/a",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "@scope",
+            "import-require",
+            "dist",
+            "esm",
+            "a",
+            "index.js",
+        ]),
+    );
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "string-side-effects",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "string-side-effects",
+            "index.js",
+        ]),
+    );
+    should_equal(
+        &resolver,
+        &export_cases_path,
+        "string-side-effects/",
+        p(vec![
+            "exports-field",
+            "node_modules",
+            "string-side-effects",
+            "index.js",
+        ]),
+    );
+}
+
+#[test]
+fn exports_filed_test_2() {
+    let resolver = Resolver::new(Options {
+        extensions: vec![String::from(".js")],
+        condition_names: vec_to_set(vec!["webpack"]),
+        ..Default::default()
+    });
     let export_cases_path2 = p(vec!["exports-field2"]);
-    // TODO: maybe we need provide `full_specified` flag.
     should_equal(
         &resolver,
         &export_cases_path2,
@@ -2288,83 +2469,11 @@ fn exports_fields_test() {
             "browser.js#foo",
         ]),
     );
-    let resolver = Resolver::new(Options {
-        extensions: vec![String::from(".js")],
-        browser_field: true,
-        condition_names: vec_to_set(vec!["webpack"]),
-        ..Default::default()
-    });
-    should_equal(
-        &resolver,
-        &export_cases_path,
-        "./node_modules/exports-field/lib/main.js",
-        p(vec![
-            "exports-field",
-            "node_modules",
-            "exports-field",
-            "lib",
-            "browser.js",
-        ]),
-    );
-    // exports map should works when request relative path
-    should_equal(
-        &resolver,
-        &export_cases_path,
-        "./node_modules/exports-field/dist/main.js",
-        p(vec![
-            "exports-field",
-            "node_modules",
-            "exports-field",
-            "lib",
-            "browser.js",
-        ]),
-    );
-    let resolver = Resolver::new(Options {
-        extensions: vec![String::from(".js")],
-        browser_field: true,
-        condition_names: vec_to_set(vec!["node"]),
-        ..Default::default()
-    });
-    should_equal(
-        &resolver,
-        &export_cases_path,
-        "exports-field/dist/main.js",
-        p(vec![
-            "exports-field",
-            "node_modules",
-            "exports-field",
-            "lib",
-            "browser.js",
-        ]),
-    );
-    // exports map should works when request abs path
-    should_equal(
-        &resolver,
-        &export_cases_path,
-        &p(vec![
-            "exports-field",
-            "node_modules",
-            "exports-field",
-            "main.js",
-        ])
-        .display()
-        .to_string(),
-        p(vec![
-            "exports-field",
-            "node_modules",
-            "exports-field",
-            "main.js",
-        ]),
-    );
-    should_unexpected_value_error(
-        &resolver,
-        &export_cases_path,
-        "exports-field/main.js",
-        "Package path exports-field/main.js is not exported in".to_string(),
-    );
-    let resolver = Resolver::new(Options {
-        ..Default::default()
-    });
+}
+
+#[test]
+fn exports_filed_test_3() {
+    let resolver = Resolver::new(Options::default());
     should_equal(
         &resolver,
         &p(vec!["exports-field3"]),
@@ -2395,115 +2504,90 @@ fn exports_fields_test() {
             "m1.js",
         ]),
     );
+}
+
+#[test]
+fn exports_filed_test_4() {
+    let export_cases_path4 = p(vec!["exports-field4"]);
+
     let resolver = Resolver::new(Options {
         extensions: vec![String::from(".js")],
-        condition_names: vec_to_set(vec!["webpack"]),
+        browser_field: true,
+        exports_field: vec![vec![String::from("exportsField"), String::from("exports")]],
         ..Default::default()
     });
-    should_unexpected_value_error(
+    should_equal(
         &resolver,
-        &p(vec!["exports-field-error"]),
+        &export_cases_path4,
         "exports-field",
-        "Trying to access out of package scope. Requesting ./a/../b/../../pack1/index.js"
-            .to_string(),
+        p(vec![
+            "exports-field4",
+            "node_modules",
+            "exports-field",
+            "main.js",
+        ]),
     );
-}
 
-#[test]
-fn exports_filed_test_2() {
-    let export_cases_path = p(vec!["exports-field"]);
-    let resolver = Resolver::new(Options {
-        condition_names: vec_to_set(vec!["import"]),
-        ..Default::default()
-    });
-    should_equal(
-        &resolver,
-        &export_cases_path,
-        "@scope/import-require",
-        p(vec![
-            "exports-field",
-            "node_modules",
-            "@scope",
-            "import-require",
-            "dist",
-            "esm",
-            "index.js",
-        ]),
-    );
-    should_equal(
-        &resolver,
-        &export_cases_path,
-        "@scope/import-require/a",
-        p(vec![
-            "exports-field",
-            "node_modules",
-            "@scope",
-            "import-require",
-            "dist",
-            "esm",
-            "a",
-            "index.js",
-        ]),
-    );
-    should_equal(
-        &resolver,
-        &export_cases_path,
-        "string-side-effects",
-        p(vec![
-            "exports-field",
-            "node_modules",
-            "string-side-effects",
-            "index.js",
-        ]),
-    );
-    should_equal(
-        &resolver,
-        &export_cases_path,
-        "string-side-effects/",
-        p(vec![
-            "exports-field",
-            "node_modules",
-            "string-side-effects",
-            "index.js",
-        ]),
-    );
-}
-
-#[test]
-fn exports_filed_test_3() {
-    let export_cases_path = p(vec!["exports-field"]);
     let resolver = Resolver::new(Options {
         extensions: vec![String::from(".js")],
-        condition_names: vec_to_set(vec!["require"]),
+        browser_field: true,
+        exports_field: vec![
+            vec![String::from("exportsField"), String::from("exports")],
+            vec![String::from("exports")],
+        ],
         ..Default::default()
     });
     should_equal(
         &resolver,
-        &export_cases_path,
-        "@scope/import-require",
+        &export_cases_path4,
+        "exports-field",
         p(vec![
-            "exports-field",
+            "exports-field4",
             "node_modules",
-            "@scope",
-            "import-require",
-            "dist",
-            "esm",
-            "index.js",
+            "exports-field",
+            "main.js",
         ]),
     );
+
+    let resolver = Resolver::new(Options {
+        extensions: vec![String::from(".js")],
+        browser_field: true,
+        exports_field: vec![
+            vec![String::from("exports")],
+            vec![String::from("exportsField"), String::from("exports")],
+        ],
+        ..Default::default()
+    });
     should_equal(
         &resolver,
-        &export_cases_path,
-        "@scope/import-require/a",
+        &export_cases_path4,
+        "exports-field",
         p(vec![
-            "exports-field",
+            "exports-field4",
             "node_modules",
-            "@scope",
-            "import-require",
-            "dist",
-            "cjs",
-            "a",
-            "index.js",
+            "exports-field",
+            "main.js",
+        ]),
+    );
+
+    let resolver = Resolver::new(Options {
+        extensions: vec![String::from(".js")],
+        browser_field: true,
+        exports_field: vec![
+            vec![String::from("ex")],
+            vec![String::from("exportsField"), String::from("exports")],
+        ],
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &export_cases_path4,
+        "exports-field",
+        p(vec![
+            "exports-field4",
+            "node_modules",
+            "exports-field",
+            "index",
         ]),
     );
 }
