@@ -65,7 +65,7 @@ pub struct Options {
     /// type is a `HashSet`, because the priority is
     /// related to the order in which the export field
     /// fields are written.
-    /// Default is `Set(["node"])`.
+    /// Default is `[]`.
     pub condition_names: HashSet<String>,
     /// When this filed exists, it tries to read `baseURL`
     /// and `paths` in the corresponding tsconfig,
@@ -82,6 +82,9 @@ pub struct Options {
     /// extensions or main files are not resolved for it.
     /// Default is `false`.
     pub fully_specified: bool,
+    /// A list of exports fields in descriptions files
+    /// Default is `[["exports"]]`.
+    pub exports_field: Vec<Vec<String>>,
 }
 
 impl Default for Options {
@@ -97,7 +100,7 @@ impl Default for Options {
         let alias = vec![];
         let symlinks = true;
         let browser_field = false;
-        let condition_names: HashSet<String> = HashSet::from([String::from("node")]);
+        let condition_names = HashSet::default();
         let prefer_relative = false;
         let enforce_extension = EnforceExtension::Auto;
         let tsconfig = None;
@@ -106,6 +109,7 @@ impl Default for Options {
         let modules = vec![String::from("node_modules")];
         let fallback = vec![];
         let fully_specified = false;
+        let exports_field = vec![vec![String::from("exports")]];
         Self {
             fallback,
             modules,
@@ -123,6 +127,7 @@ impl Default for Options {
             condition_names,
             tsconfig,
             fully_specified,
+            exports_field,
         }
     }
 }
