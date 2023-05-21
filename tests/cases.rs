@@ -2184,7 +2184,7 @@ fn exports_fields_test() {
         &resolver,
         &export_cases_path,
         "invalid-exports-field",
-        "Export field key can't mixed relative path and conditional object".to_string(),
+        "Export field key should be relative path and start with \".\", but got umd".to_string(),
     );
     // `exports` filed take precedence over `main`
     should_equal(
@@ -2593,8 +2593,160 @@ fn exports_filed_test_4() {
 }
 
 #[test]
+fn exports_filed_test_5() {
+    let export_cases_path5 = p(vec!["exports-field5"]);
+    let resolver = Resolver::new(Options::default());
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/missing",
+        "pkgexports/missing is not exported".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/invalid1",
+        "pkgexports/invalid1 is not exported".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/invalid4",
+        "pkgexports/invalid4 is not exported".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/sub/internal/test.js",
+        "pkgexports/sub/internal/test.js is not exported".to_string(),
+    );
+    // FIXME:
+    // should_unexpected_value_error(
+    //     &resolver,
+    //     &export_cases_path5,
+    //     "pkgexports/sub/internal//test.js",
+    //     "pkgexports/sub/internal//test.js is not exported".to_string(),
+    // );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/null",
+        "pkgexports/null is not exported".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/null",
+        "pkgexports/null is not exported".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports////null",
+        "pkgexports////null is not exported".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/null/subpath",
+        "pkgexports/null/subpath is not exported".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/nofallback1",
+        "nofallback1 is not exported".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/trailer",
+        "pkgexports/trailer is not exported".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/sub/",
+        "Resolving to directories is not possible with the exports field (request was pkgexports/sub/".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/belowdir/pkgexports/asdf.js",
+        "Export should be relative path and start w".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/belowdir",
+        "pkgexports/belowdir is not exported".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/invalid2",
+        "pkgexports/invalid2 is not exported".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/invalid3",
+        "Export should be relati".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/invalid5",
+        "Package path pkgexports/invalid5 is not expor".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/nofallback2",
+        "nofallback2 is not exported".to_string(),
+    );
+    // FIXME:
+    // should_unexpected_value_error(
+    //     &resolver,
+    //     &export_cases_path5,
+    //     "pkgexports/nodemodules",
+    //     "nodemodules is not exported".to_string(),
+    // );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/resolve-self-invalid",
+        "Package path pkgexports/resolve-self-invalid is not".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/sub/./../asdf.js",
+        "Trying to access out of package scope. Requesting ././../asd".to_string(),
+    );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/sub/no-a-file.js",
+        "Package path pkgexports/sub/no-a-file.js is not exported".to_string(),
+    );
+    // FIXME:
+    // should_unexpected_value_error(
+    //     &resolver,
+    //     &export_cases_path5,
+    //     "pkgexports/no-ext",
+    //     "Trying to access out of package scope. Requesting ././../asd".to_string(),
+    // );
+    should_unexpected_value_error(
+        &resolver,
+        &export_cases_path5,
+        "pkgexports/dir2/trailer",
+        "Package path pkgexports/dir2/trailer is not export".to_string(),
+    );
+}
+
+#[test]
 fn imports_fields_test() {
-    // TODO: ['imports_fields`](https://github.com/webpack/enhanced-resolve/blob/main/test/importsField.js#L1228)
     let import_cases_path = p(vec!["imports-field"]);
     let resolver = Resolver::new(Options {
         extensions: vec![String::from(".js")],
