@@ -61,9 +61,8 @@ pub struct Options {
     /// in package.json.
     /// Default is `false`
     pub browser_field: bool,
-    /// Condition names for exports filed. Note that its
-    /// type is a `HashSet`, because the priority is
-    /// related to the order in which the export field
+    /// Condition names for exports filed. Note that its type is a `HashSet`,
+    /// because the priority is related to the order in which the export field
     /// fields are written.
     /// Default is `[]`.
     pub condition_names: HashSet<String>,
@@ -85,6 +84,9 @@ pub struct Options {
     /// A list of exports fields in descriptions files
     /// Default is `[["exports"]]`.
     pub exports_field: Vec<Vec<String>>,
+    /// A vector which maps extension to extension aliases.
+    /// Default is `[]`.
+    pub extension_alias: Vec<(String, Vec<String>)>,
 }
 
 impl Default for Options {
@@ -110,6 +112,7 @@ impl Default for Options {
         let fallback = vec![];
         let fully_specified = false;
         let exports_field = vec![vec![String::from("exports")]];
+        let extension_alias = vec![];
         Self {
             fallback,
             modules,
@@ -128,6 +131,7 @@ impl Default for Options {
             tsconfig,
             fully_specified,
             exports_field,
+            extension_alias,
         }
     }
 }

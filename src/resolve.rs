@@ -83,26 +83,26 @@ impl Resolver {
         }
     }
 
-    pub(crate) fn resolve_as_file(&self, info: Info) -> State {
+    pub(crate) fn resolve_as_file(&self, info: Info, _: &mut Context) -> State {
         if info.request().is_directory() {
             return State::Resolving(info);
         }
-        let path = info.to_resolved_path();
+
+        let path = info.to_resolved_path().to_path_buf();
         tracing::debug!(
             "Attempting to load '{}' as a file",
             color::blue(&path.display())
         );
 
         if matches!(self.options.enforce_extension, EnforceExtension::Enabled) {
-            return self.resolve_file_with_ext(path.to_path_buf(), info);
-        }
-        if self.load_entry(&path).is_file() {
-            let path = path.to_path_buf();
+            self.resolve_file_with_ext(path, info)
+        } else if self.load_entry(&path).is_file() {
+            let path = path;
             State::Success(ResolveResult::Resource(
                 info.with_path(path).with_target(""),
             ))
         } else {
-            self.resolve_file_with_ext(path.to_path_buf(), info)
+            self.resolve_file_with_ext(path, info)
         }
     }
 
@@ -206,7 +206,7 @@ impl Resolver {
         let entry = self.load_entry(&module_path);
         let module_info = Info::new(node_modules_path, info.request().clone());
         if !entry.is_dir() {
-            let state = self.resolve_as_file(module_info);
+            let state = self.resolve_as_file(module_info, context);
             if state.is_finished() {
                 state
             } else {
@@ -232,7 +232,7 @@ impl Resolver {
             }
             .then(|info| self.resolve_as_context(info, context))
             .then(|info| self.resolve_as_fully_specified(info, context))
-            .then(|info| self.resolve_as_file(info))
+            .then(|info| self.resolve_as_file(info, context))
             .then(|info| self.resolve_as_dir(info, context));
 
             match state {

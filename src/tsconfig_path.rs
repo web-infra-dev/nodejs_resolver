@@ -121,11 +121,10 @@ impl Resolver {
         for entry in absolute_path_mappings {
             let star_match = if entry.pattern == info.request().target() {
                 ""
+            } else if let Some(s) = Self::match_star(&entry.pattern, info.request().target()) {
+                s
             } else {
-                match Self::match_star(&entry.pattern, info.request().target()) {
-                    Some(s) => s,
-                    None => continue,
-                }
+                continue;
             };
 
             for physical_path_pattern in &entry.paths {

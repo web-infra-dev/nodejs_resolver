@@ -3540,3 +3540,74 @@ fn resolve_modules_test() {
     });
     should_failed(&resolver, &p(vec![]), "recursive-module");
 }
+
+#[test]
+fn extension_alias() {
+    let resolver = Resolver::new(Options {
+        extensions: vec![".js".to_string()],
+        main_files: vec!["index.js".to_string()],
+        extension_alias: vec![
+            (
+                ".js".to_string(),
+                vec![".ts".to_string(), ".js".to_string()],
+            ),
+            (".mjs".to_string(), vec![".mts".to_string()]),
+        ],
+        ..Default::default()
+    });
+    let fixture = p(vec!["extension-alias"]);
+    should_equal(
+        &resolver,
+        &fixture,
+        "./index",
+        p(vec!["extension-alias", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &fixture,
+        "./index.js",
+        p(vec!["extension-alias", "index.ts"]),
+    );
+    should_equal(
+        &resolver,
+        &fixture,
+        "./dir/index.js",
+        p(vec!["extension-alias", "dir", "index.ts"]),
+    );
+    should_equal(
+        &resolver,
+        &fixture,
+        "./dir2/index.js",
+        p(vec!["extension-alias", "dir2", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &fixture,
+        "./dir2/index.mjs",
+        p(vec!["extension-alias", "dir2", "index.mts"]),
+    );
+    should_failed(&resolver, &fixture, "./index.mjs");
+}
+
+#[test]
+fn extension_alias2() {
+    let resolver = Resolver::new(Options {
+        extensions: vec![".js".to_string()],
+        main_files: vec!["index.js".to_string()],
+        extension_alias: vec![(".js".to_string(), vec![])],
+        ..Default::default()
+    });
+    let fixture = p(vec!["extension-alias"]);
+    should_equal(
+        &resolver,
+        &fixture,
+        "./dir2",
+        p(vec!["extension-alias", "dir2", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &fixture,
+        "./dir2/index",
+        p(vec!["extension-alias", "dir2", "index.js"]),
+    );
+}
