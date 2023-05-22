@@ -3,7 +3,7 @@ use crate::{Error, RResult};
 use std::collections::HashSet;
 
 type MappingValue = serde_json::Value;
-pub type ConditionalMapping = serde_json::Map<String, MappingValue>;
+type ConditionalMapping = serde_json::Map<String, MappingValue>;
 
 pub struct ImportsField;
 
@@ -91,7 +91,7 @@ pub trait Field {
     fn find_match<'a>(
         json_value: &'a serde_json::Value,
         request: &'a str,
-    ) -> RResult<Option<(&'a MappingValue, String, bool, bool)>>;
+    ) -> RResult<Option<(&'a MappingValue, &'a str, bool, bool)>>;
 
     fn target_mapping(
         remaining_request: &str,
@@ -166,13 +166,11 @@ pub trait Field {
         condition_names: &'a HashSet<String>,
     ) -> RResult<Vec<String>> {
         let request = Self::assert_request(target)?;
-        let (mapping, remaining_request, is_subpath_mapping, is_pattern) =
-            match Self::find_match(root, &request)? {
-                Some(result) => result,
-                None => return Ok(vec![]),
-            };
+        let Some((mapping, remaining_request, is_subpath_mapping, is_pattern)) = Self::find_match(root, &request)? else {
+            return Ok(vec![])
+        };
         Self::mapping(
-            &remaining_request,
+            remaining_request,
             is_pattern,
             is_subpath_mapping,
             mapping,
@@ -223,7 +221,7 @@ impl Field for ExportsField {
     fn find_match<'a>(
         json_value: &'a serde_json::Value,
         request: &'a str,
-    ) -> RResult<Option<(&'a MappingValue, String, bool, bool)>> {
+    ) -> RResult<Option<(&'a MappingValue, &'a str, bool, bool)>> {
         match json_value {
             serde_json::Value::Object(map) => {
                 for (i, key) in map.keys().enumerate() {
@@ -240,7 +238,7 @@ impl Field for ExportsField {
                             if request != "." {
                                 return Ok(None);
                             } else {
-                                return Ok(Some((json_value, ".".to_string(), false, false)));
+                                return Ok(Some((json_value, ".", false, false)));
                             }
                         } else {
                             return Err(Error::UnexpectedValue(format!(
@@ -256,20 +254,13 @@ impl Field for ExportsField {
                         )));
                     }
                 }
-                return Ok(find_normalized_match_in_object(map, request).or_else(|| {
-                    find_best_match(map.keys(), request).map(|(best_match, best_match_subpath)| {
-                        let target = &map[&best_match];
-                        let is_subpath_mapping = best_match.ends_with('/');
-                        let is_pattern = best_match.contains('*');
-                        (target, best_match_subpath, is_subpath_mapping, is_pattern)
-                    })
-                }));
+                return Ok(find_normalized_match_in_object(map, request));
             }
             serde_json::Value::Array(_) | serde_json::Value::String(_) => {
                 if request != "." {
                     Ok(None)
                 } else {
-                    Ok(Some((json_value, ".".to_string(), false, false)))
+                    Ok(Some((json_value, ".", false, false)))
                 }
             }
             _ => Ok(None),
@@ -320,7 +311,7 @@ impl Field for ImportsField {
     fn find_match<'a>(
         json_value: &'a serde_json::Value,
         request: &'a str,
-    ) -> RResult<Option<(&'a MappingValue, String, bool, bool)>> {
+    ) -> RResult<Option<(&'a MappingValue, &'a str, bool, bool)>> {
         let field = match json_value {
             MappingValue::Object(field) => field,
             _ => return Ok(None),
@@ -341,14 +332,7 @@ impl Field for ImportsField {
                 )));
             }
         }
-        Ok(find_normalized_match_in_object(field, request).or_else(|| {
-            find_best_match(field.keys(), request).map(|(best_match, best_match_subpath)| {
-                let target = &field[&best_match];
-                let is_subpath_mapping = best_match.ends_with('/');
-                let is_pattern = best_match.contains('*');
-                (target, best_match_subpath, is_subpath_mapping, is_pattern)
-            })
-        }))
+        Ok(find_normalized_match_in_object(field, request))
     }
 }
 
@@ -392,11 +376,20 @@ fn pattern_key_compare(a: &str, b: &str) -> std::cmp::Ordering {
     }
 }
 
-fn find_best_match(keys: serde_json::map::Keys, request: &str) -> Option<(String, String)> {
+fn find_normalized_match_in_object<'a>(
+    field: &'a ConditionalMapping,
+    request: &'a str,
+) -> Option<(&'a MappingValue, &'a str, bool, bool)> {
+    assert!(!request.is_empty());
+    if !request.contains('*') && !request.ends_with('/') {
+        if let Some(target) = field.get(request) {
+            return Some((target, "", false, false));
+        }
+    }
     let mut best_match = "";
     let mut best_match_subpath = None;
 
-    for key in keys {
+    for key in field.keys() {
         if let Some(pattern_index) = key.find('*') {
             let sliced = &key[0..pattern_index];
             if request.starts_with(sliced) {
@@ -420,20 +413,12 @@ fn find_best_match(keys: serde_json::map::Keys, request: &str) -> Option<(String
         }
     }
 
-    best_match_subpath.map(|subpath| (best_match.to_string(), subpath.to_string()))
-}
-
-fn find_normalized_match_in_object<'a>(
-    field: &'a serde_json::Map<String, serde_json::Value>,
-    request: &'a str,
-) -> Option<(&'a MappingValue, String, bool, bool)> {
-    assert!(!request.is_empty());
-    if !request.contains('*') && !request.ends_with('/') {
-        if let Some(target) = field.get(request) {
-            return Some((target, "".to_string(), false, false));
-        }
-    }
-    None
+    best_match_subpath.map(|subpath| {
+        let target = &field[best_match];
+        let is_subpath_mapping = best_match.ends_with('/');
+        let is_pattern = best_match.contains('*');
+        (target, subpath, is_subpath_mapping, is_pattern)
+    })
 }
 
 #[cfg(test)]
