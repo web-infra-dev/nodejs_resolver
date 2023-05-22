@@ -75,6 +75,8 @@ use plugin::{
 pub use resource::Resource;
 use state::State;
 
+use crate::plugin::ExtensionAliasPlugin;
+
 #[derive(Debug)]
 pub struct Resolver {
     pub options: Options,
@@ -205,13 +207,24 @@ impl Resolver {
                 }
             })
             .then(|info| {
+                self.options.extension_alias.iter().fold(
+                    State::Resolving(info),
+                    |state, (extension, alias_list)| {
+                        state.then(|info| {
+                            ExtensionAliasPlugin::new(extension, alias_list)
+                                .apply(self, info, context)
+                        })
+                    },
+                )
+            })
+            .then(|info| {
                 if matches!(
                     info.request().kind(),
                     PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
                 ) {
                     self.resolve_as_context(info, context)
                         .then(|info| self.resolve_as_fully_specified(info, context))
-                        .then(|info| self.resolve_as_file(info))
+                        .then(|info| self.resolve_as_file(info, context))
                         .then(|info| self.resolve_as_dir(info, context))
                 } else {
                     self.resolve_as_modules(info, context)

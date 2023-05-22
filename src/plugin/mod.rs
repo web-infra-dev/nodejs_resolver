@@ -1,6 +1,7 @@
 mod alias;
 mod browser_field;
 mod exports_field;
+mod extension_alias;
 mod imports_field;
 mod main_field;
 mod main_file;
@@ -13,6 +14,7 @@ use crate::{context::Context, Info, Resolver, State};
 pub use alias::AliasPlugin;
 pub use browser_field::BrowserFieldPlugin;
 pub use exports_field::ExportsFieldPlugin;
+pub use extension_alias::ExtensionAliasPlugin;
 pub use imports_field::ImportsFieldPlugin;
 pub use main_field::MainFieldPlugin;
 pub use main_file::MainFilePlugin;

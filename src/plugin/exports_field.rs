@@ -25,16 +25,9 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
         let target = request.target();
 
         for field in &resolver.options.exports_field {
-            let exports_map = self.pkg_info.data().exports_tree(field);
-            let root = match exports_map.value() {
-                Ok(Some(exports_tree)) => exports_tree,
-                Ok(None) => continue,
-                Err(error) => match error {
-                    Error::UnexpectedValue(value) => {
-                        return State::Error(Error::UnexpectedValue(value.to_string()))
-                    }
-                    _ => unreachable!(),
-                },
+            let root = match self.pkg_info.data().get_filed(field) {
+                Some(exports_tree) => exports_tree,
+                None => continue,
             };
 
             if request.is_directory() {

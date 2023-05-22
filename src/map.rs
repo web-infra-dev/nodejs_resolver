@@ -1,33 +1,20 @@
 /// port from https://github.com/webpack/enhanced-resolve/blob/main/lib/util/entrypoints.js
 use crate::{Error, RResult};
-use indexmap::IndexMap;
 use std::collections::HashSet;
-type DirectMapping = String;
-type ConditionalMapping = IndexMap<String, MappingValue>;
 
-#[derive(Clone, Debug)]
-pub enum AvailableMapping {
-    Direct(DirectMapping),
-    Conditional(ConditionalMapping),
-}
-type ArrayMapping = Vec<AvailableMapping>;
+type MappingValue = serde_json::Value;
+pub type ConditionalMapping = serde_json::Map<String, MappingValue>;
 
-#[derive(Clone, Debug)]
-pub enum MappingValue {
-    Direct(DirectMapping),
-    Conditional(ConditionalMapping),
-    Array(ArrayMapping),
-}
+pub struct ImportsField;
 
-pub type ImportsField = ConditionalMapping;
-pub type ExportsField = MappingValue;
+pub struct ExportsField;
 
 const DEFAULT_MARK: &str = "default";
 
 fn conditional_mapping<'a>(
     map: &'a ConditionalMapping,
     condition_names: &'a HashSet<String>,
-) -> RResult<Option<&'a MappingValue>> {
+) -> RResult<Option<&'a serde_json::Value>> {
     let mut lookup: Vec<(&ConditionalMapping, Vec<String>, usize)> =
         vec![(map, map.keys().map(String::from).collect(), 0)];
     'outer: while !lookup.is_empty() {
@@ -41,7 +28,7 @@ fn conditional_mapping<'a>(
                     ));
                 } else if let Some(value) = mapping.get(DEFAULT_MARK) {
                     match value {
-                        MappingValue::Conditional(inner) => {
+                        MappingValue::Object(inner) => {
                             let len = lookup.len();
                             lookup[len - 1].2 = i + 1;
                             lookup.push((inner, inner.keys().map(String::from).collect(), 0));
@@ -55,7 +42,7 @@ fn conditional_mapping<'a>(
             if condition_names.contains(condition) {
                 if let Some(value) = mapping.get(condition) {
                     match value {
-                        MappingValue::Conditional(inner) => {
+                        MappingValue::Object(inner) => {
                             let len = lookup.len();
                             lookup[len - 1].2 = i + 1;
                             lookup.push((inner, inner.keys().map(String::from).collect(), 0));
@@ -72,20 +59,12 @@ fn conditional_mapping<'a>(
     Ok(None)
 }
 
-#[derive(Default, Clone, Debug)]
-pub struct PathTreeNode {
-    pub children: Option<IndexMap<String, PathTreeNode>>,
-    pub folder: Option<MappingValue>,
-    pub wildcards: Option<IndexMap<String, MappingValue>>,
-    pub files: IndexMap<String, MappingValue>,
-}
-
 /// TODO: should seal all functions except
-///  `build_field_path_tree` and `field_process`.
+///  `build_field` and `field_process`.
 pub trait Field {
     fn check_target(relative_path: &str) -> Result<(), String> {
         let relative_path_chars = relative_path.chars().collect::<Vec<char>>();
-        let slash_index_list = PathTreeNode::get_next_list(&relative_path_chars, '/');
+        let slash_index_list = get_next_list(&relative_path_chars, '/');
         let mut last_non_slash_index = 0;
         let mut cd = 0;
         while let Some(&Some(slash_index)) = slash_index_list.get(last_non_slash_index) {
@@ -107,153 +86,95 @@ pub trait Field {
         Ok(())
     }
 
-    fn assert_target(exp: &str, expect_folder: bool) -> RResult<bool>;
-    fn assert_request(request: &str) -> RResult<Vec<char>>;
-    fn build_field_path_tree(json_value: &serde_json::Value) -> RResult<PathTreeNode>;
-    fn from_json(json_value: &serde_json::Value) -> RResult<MappingValue>
-    where
-        Self: Sized,
-    {
-        let result = match json_value {
-            // TODO: null
-            serde_json::Value::String(str) => MappingValue::Direct(str.to_string()),
-            serde_json::Value::Array(arr) => {
-                let mut temp: ArrayMapping = vec![];
-                for item in arr {
-                    match Self::from_json(item)? {
-                        MappingValue::Direct(direct) => temp.push(AvailableMapping::Direct(direct)),
-                        MappingValue::Conditional(conditional) => {
-                            temp.push(AvailableMapping::Conditional(conditional));
-                        }
-                        MappingValue::Array(_) => {
-                            return RResult::Err(Error::UnexpectedValue(
-                                "Array mapping is not allowed nested in exports field".into(),
-                            ))
-                        }
-                    }
-                }
-                MappingValue::Array(temp)
-            }
-            serde_json::Value::Object(obj) => {
-                let mut map = IndexMap::new();
-                for (key, value) in obj {
-                    map.insert(key.to_string(), Self::from_json(value)?);
-                }
-                MappingValue::Conditional(map)
-            }
-            _ => unreachable!(),
-        };
-        Ok(result)
-    }
+    fn assert_target(exp: &str, expect_folder: bool) -> RResult<()>;
+    fn assert_request(request: &str) -> RResult<String>;
+    fn find_match<'a>(
+        json_value: &'a serde_json::Value,
+        request: &'a str,
+    ) -> RResult<Option<(&'a MappingValue, String, bool, bool)>>;
 
     fn target_mapping(
-        remaining_request: &Option<String>,
-        subpath_mapping: bool,
+        remaining_request: &str,
+        is_pattern: bool,
+        is_subpath_mapping: bool,
         target: &str,
     ) -> RResult<String> {
-        let is_folder = Self::assert_target(target, true)?;
-        if let Some(request) = remaining_request {
-            match (subpath_mapping, is_folder) {
-                (true, true) => Ok(format!("{target}{request}")),
-                (true, false) => Err(Error::UnexpectedValue(format!(
-                    "Expected {target} is folder mapping"
-                ))),
-                (false, true) => Err(Error::UnexpectedValue(format!(
-                    "Expected {target} is file mapping"
-                ))),
-                (false, false) => {
-                    let request = remaining_request.as_ref().unwrap();
-                    let to = &request.replace('$', "$$");
-                    Ok(target.replace('*', to))
-                }
-            }
-        } else if !is_folder {
-            Ok(target.to_string())
+        if remaining_request.is_empty() {
+            Self::assert_target(target, false)?;
+            return Ok(target.to_string());
+        } else if is_subpath_mapping {
+            Self::assert_target(target, true)?;
+            return Ok(format!("{target}{remaining_request}"));
+        }
+
+        Self::assert_target(target, false)?;
+        if is_pattern {
+            let to = &remaining_request.replace('$', "$$");
+            Ok(target.replace('*', to))
         } else {
-            Err(Error::UnexpectedValue(format!("{target} had some wrong")))
+            Ok(target.to_string())
         }
     }
 
     fn mapping(
-        remaining_request: &Option<String>,
-        subpath_mapping: bool,
+        remaining_request: &str,
+        is_pattern: bool,
+        is_subpath_mapping: bool,
         mapping: &MappingValue,
         condition_names: &HashSet<String>,
     ) -> RResult<Vec<String>> {
         Ok(match mapping {
-            MappingValue::Direct(target) => {
+            MappingValue::String(target) => {
                 vec![Self::target_mapping(
                     remaining_request,
-                    subpath_mapping,
+                    is_pattern,
+                    is_subpath_mapping,
                     target,
                 )?]
             }
-            MappingValue::Array(target) => {
-                let mut acc = vec![];
-                for exp in target {
-                    match exp {
-                        AvailableMapping::Direct(target) => acc.push(Self::target_mapping(
-                            remaining_request,
-                            subpath_mapping,
-                            target,
-                        )?),
-                        AvailableMapping::Conditional(map) => {
-                            if let Some(mapping) = conditional_mapping(map, condition_names)? {
-                                let inner_exports = Self::mapping(
-                                    remaining_request,
-                                    subpath_mapping,
-                                    mapping,
-                                    condition_names,
-                                )?;
-                                for inner_export in inner_exports {
-                                    acc.push(inner_export);
-                                }
-                            }
-                        }
-                    };
-                }
-                acc
-            }
-            MappingValue::Conditional(map) => match conditional_mapping(map, condition_names)? {
+            MappingValue::Array(target) => target
+                .iter()
+                .filter_map(|item| {
+                    Self::mapping(
+                        remaining_request,
+                        is_pattern,
+                        is_subpath_mapping,
+                        item,
+                        condition_names,
+                    )
+                    .ok()
+                })
+                .flatten()
+                .collect(),
+            MappingValue::Object(map) => match conditional_mapping(map, condition_names)? {
                 Some(mapping_value) => Self::mapping(
                     remaining_request,
-                    subpath_mapping,
+                    is_pattern,
+                    is_subpath_mapping,
                     mapping_value,
                     condition_names,
                 )?,
-                None => return Ok(vec![]),
+                None => vec![],
             },
+            _ => vec![],
         })
     }
 
     fn field_process<'a>(
-        root: &'a PathTreeNode,
+        root: &'a serde_json::Value,
         target: &'a str,
         condition_names: &'a HashSet<String>,
     ) -> RResult<Vec<String>> {
         let request = Self::assert_request(target)?;
-        let (mapping, remain_request_index) = match PathTreeNode::find_match(root, &request) {
-            Some(result) => result,
-            None => return Ok(vec![]),
-        };
-
-        let remaining_request: Option<String> =
-            if remain_request_index == (request.len() as i32) + 1 {
-                None
-            } else if remain_request_index < 0 {
-                let remaining = request
-                    .iter()
-                    .skip((remain_request_index.abs() - 1) as usize)
-                    .collect();
-                Some(remaining)
-            } else {
-                let remaining = request.iter().skip(remain_request_index as usize).collect();
-                Some(remaining)
+        let (mapping, remaining_request, is_subpath_mapping, is_pattern) =
+            match Self::find_match(root, &request)? {
+                Some(result) => result,
+                None => return Ok(vec![]),
             };
-
         Self::mapping(
             &remaining_request,
-            remain_request_index < 0,
+            is_pattern,
+            is_subpath_mapping,
             mapping,
             condition_names,
         )
@@ -261,92 +182,103 @@ pub trait Field {
 }
 
 impl Field for ExportsField {
-    fn assert_request(request: &str) -> RResult<Vec<char>> {
+    fn assert_request(request: &str) -> RResult<String> {
         if !request.starts_with('.') {
             Err(Error::UnexpectedValue(format!(
                 "Request should be relative path and start with '.', but got {request}"
             )))
         } else if request.len() == 1 {
-            Ok(vec![])
+            Ok(request.to_string())
         } else if !request.starts_with("./") {
             Err(Error::UnexpectedValue(format!(
                 "Request should be relative path and start with '.', but got {request}"
             )))
-        } else if request.ends_with('/') {
-            Err(Error::UnexpectedValue(
-                "Only requesting file allowed".to_string(),
-            ))
         } else {
-            // To avoid unicode char
-            Ok(request.chars().skip(2).collect())
+            Ok(request.to_string())
         }
     }
 
-    fn assert_target(exp: &str, expect_folder: bool) -> RResult<bool> {
+    fn assert_target(exp: &str, expect_folder: bool) -> RResult<()> {
         if exp.len() < 2 || exp.starts_with('/') || (exp.starts_with('.') && !exp.starts_with("./"))
         {
             Err(Error::UnexpectedValue(format!(
                 "Export should be relative path and start with \"./\", but got {exp}"
             )))
         } else if exp.ends_with('/') != expect_folder {
-            Ok(!expect_folder)
+            if expect_folder {
+                Err(Error::UnexpectedValue(format!(
+                    "Expected {exp} is folder mapping"
+                )))
+            } else {
+                Err(Error::UnexpectedValue(format!(
+                    "Expected {exp} is file mapping"
+                )))
+            }
         } else {
-            Ok(true)
+            Ok(())
         }
     }
 
     /// reference: https://nodejs.org/api/packages.html#exports
-    fn build_field_path_tree(exports_field_value: &serde_json::Value) -> RResult<PathTreeNode> {
-        let field = Self::from_json(exports_field_value)?;
-        let mut root = PathTreeNode::default();
-        match field {
-            Self::Conditional(map) => {
-                // TODO: should optimize this to once iter.
-                let (all_keys_are_conditional, all_keys_are_direct) =
-                    map.iter().fold((true, true), |pre, (key, _)| {
-                        let is_starts_with_dot = key.starts_with('.');
-                        let is_starts_with_slash = key.starts_with('/');
-                        let is_direct = is_starts_with_dot || is_starts_with_slash;
-                        let is_conditional = !is_direct;
-                        (pre.0 & is_conditional, pre.1 & is_direct)
-                    });
-                if !all_keys_are_conditional && !all_keys_are_direct {
-                    return Err(Error::UnexpectedValue(
-                        "Export field key can't mixed relative path and conditional object"
-                            .to_string(),
-                    ));
-                } else if all_keys_are_conditional {
-                    root.files
-                        .insert(String::new(), MappingValue::Conditional(map));
-                } else {
-                    for (key, value) in map {
-                        if key.len() == 1 {
-                            // key eq "."
-                            root.files.insert(String::new(), value);
-                        } else if !key.starts_with("./") {
-                            return Err(Error::UnexpectedValue(format!(
-                                "Export field key should be relative path and start with \"./\", but got {key}",
-                            )));
+    fn find_match<'a>(
+        json_value: &'a serde_json::Value,
+        request: &'a str,
+    ) -> RResult<Option<(&'a MappingValue, String, bool, bool)>> {
+        match json_value {
+            serde_json::Value::Object(map) => {
+                for (i, key) in map.keys().enumerate() {
+                    if !key.starts_with('.') {
+                        if i == 0 {
+                            for key in map.keys() {
+                                if key.starts_with('.') || key.starts_with('/') {
+                                    return Err(Error::UnexpectedValue(format!(
+                                        "Export field key should be relative path and start with \"./\", but got {key}"
+                                    )));
+                                }
+                            }
+                            // {"." => Object};
+                            if request != "." {
+                                return Ok(None);
+                            } else {
+                                return Ok(Some((json_value, ".".to_string(), false, false)));
+                            }
                         } else {
-                            PathTreeNode::walk(&mut root, key[2..].chars().collect(), value);
+                            return Err(Error::UnexpectedValue(format!(
+                                "Export field key should be relative path and start with \".\", but got {key}"
+                            )));
                         }
+                    } else if key.len() == 1 {
+                        // key == "."
+                        continue;
+                    } else if key.as_bytes().get(1) != Some(&b'/') {
+                        return Err(Error::UnexpectedValue(format!(
+                            "Export field key should be relative path and start with \"./\", but got {key}"
+                        )));
                     }
                 }
+                return Ok(find_normalized_match_in_object(map, request).or_else(|| {
+                    find_best_match(map.keys(), request).map(|(best_match, best_match_subpath)| {
+                        let target = &map[&best_match];
+                        let is_subpath_mapping = best_match.ends_with('/');
+                        let is_pattern = best_match.contains('*');
+                        (target, best_match_subpath, is_subpath_mapping, is_pattern)
+                    })
+                }));
             }
-            Self::Array(array) => {
-                root.files.insert(String::new(), MappingValue::Array(array));
+            serde_json::Value::Array(_) | serde_json::Value::String(_) => {
+                if request != "." {
+                    Ok(None)
+                } else {
+                    Ok(Some((json_value, ".".to_string(), false, false)))
+                }
             }
-            Self::Direct(direct) => {
-                root.files
-                    .insert(String::new(), MappingValue::Direct(direct));
-            }
+            _ => Ok(None),
         }
-        Ok(root)
     }
 }
 
 impl Field for ImportsField {
-    fn assert_request(request: &str) -> RResult<Vec<char>> {
+    fn assert_request(request: &str) -> RResult<String> {
         if !request.starts_with('#') {
             Err(Error::UnexpectedValue(format!(
                 "Request should start with #, but got {request}"
@@ -364,27 +296,36 @@ impl Field for ImportsField {
                 "Only requesting file allowed".to_string(),
             ))
         } else {
-            Ok(request.chars().skip(1).collect())
+            Ok(request.to_string())
         }
     }
 
-    fn assert_target(exp: &str, expect_folder: bool) -> RResult<bool> {
+    fn assert_target(exp: &str, expect_folder: bool) -> RResult<()> {
         let is_folder = exp.ends_with('/');
         if is_folder != expect_folder {
-            Ok(!expect_folder)
+            if expect_folder {
+                Err(Error::UnexpectedValue(format!(
+                    "Expected {exp} is folder mapping"
+                )))
+            } else {
+                Err(Error::UnexpectedValue(format!(
+                    "Expected {exp} is file mapping"
+                )))
+            }
         } else {
-            Ok(true)
+            Ok(())
         }
     }
 
-    /// reference: https://nodejs.org/api/packages.html#imports
-    fn build_field_path_tree(imports_field_value: &serde_json::Value) -> RResult<PathTreeNode> {
-        let field = match Self::from_json(imports_field_value)? {
-            MappingValue::Conditional(field) => field,
-            _ => unreachable!(),
+    fn find_match<'a>(
+        json_value: &'a serde_json::Value,
+        request: &'a str,
+    ) -> RResult<Option<(&'a MappingValue, String, bool, bool)>> {
+        let field = match json_value {
+            MappingValue::Object(field) => field,
+            _ => return Ok(None),
         };
-        let mut root = PathTreeNode::default();
-        for (key, value) in field {
+        for key in field.keys() {
             if !key.starts_with('#') {
                 return Err(Error::UnexpectedValue(format!(
                     "Imports field key should start with #, but got {key}"
@@ -399,183 +340,116 @@ impl Field for ImportsField {
                     "Import field key should not start with #/, but got {key}"
                 )));
             }
-            PathTreeNode::walk(&mut root, key[1..].chars().collect(), value);
         }
-        Ok(root)
-    }
-}
-
-impl PathTreeNode {
-    fn get_next_list(path: &[char], target: char) -> Vec<Option<usize>> {
-        // TODO: rewrite it use fp.
-        let len = path.len();
-        let mut last_index = None;
-        let mut index_list = vec![None; len];
-        for i in (0..len).rev() {
-            if path[i] == target {
-                last_index = Some(i);
-            }
-            index_list[i] = last_index;
-        }
-        index_list
-    }
-
-    fn apply_folder_mapping<'a>(
-        last_folder_match: Option<(&'a MappingValue, i32)>,
-        node: &'a PathTreeNode,
-        last_non_slash_index: usize,
-    ) -> Option<(&'a MappingValue, i32)> {
-        if let Some(map) = node.folder.as_ref() {
-            Some((map, -(last_non_slash_index as i32) - 1))
-        } else {
-            last_folder_match
-        }
-    }
-
-    fn apply_wildcard_mappings<'a>(
-        mut last_folder_match: Option<(&'a MappingValue, i32)>,
-        node: &'a PathTreeNode,
-        remaining_request: &str,
-        last_non_slash_index: usize,
-    ) -> Option<(&'a MappingValue, i32)> {
-        if let Some(map) = &node.wildcards {
-            for (key, target) in map {
-                if remaining_request.starts_with(key) {
-                    let index = (last_non_slash_index + key.len()) as i32;
-                    if last_folder_match.is_none() || last_folder_match.unwrap().1 < index {
-                        last_folder_match = Some((target, index));
-                    }
-                }
-            }
-        }
-        last_folder_match
-    }
-
-    fn find_match<'a>(
-        root: &'a PathTreeNode,
-        request: &'a Vec<char>,
-    ) -> Option<(&'a MappingValue, i32)> {
-        if request.is_empty() {
-            root.files.get("").map(|value| (value, 1))
-        } else if root.children.is_none() && root.folder.is_none() && root.wildcards.is_none() {
-            let key = &request.iter().collect::<String>();
-            root.files
-                .get(key)
-                .map(|value| (value, (request.len() + 1) as i32))
-        } else {
-            let slash_index_list = Self::get_next_list(request, '/');
-            let mut last_non_slash_index = 0;
-            let mut node = root;
-            let mut last_folder_match = None;
-            while let Some(&Some(slash_index)) = slash_index_list.get(last_non_slash_index) {
-                last_folder_match =
-                    Self::apply_folder_mapping(last_folder_match, node, last_non_slash_index);
-                if node.wildcards.is_none() && node.children.is_none() {
-                    return last_folder_match;
-                }
-
-                let folder = &request
-                    .iter()
-                    .skip(last_non_slash_index)
-                    .take(slash_index - last_non_slash_index)
-                    .collect::<String>();
-                last_folder_match = Self::apply_wildcard_mappings(
-                    last_folder_match,
-                    node,
-                    folder,
-                    last_non_slash_index,
-                );
-                if node.children.is_none() {
-                    return last_folder_match;
-                }
-
-                if let Some(new_node) = node.children.as_ref().unwrap().get(folder) {
-                    node = new_node;
-                    last_non_slash_index = slash_index + 1;
-                } else {
-                    return last_folder_match;
-                }
-            }
-            let remaining_request = (if last_non_slash_index > 0 {
-                &request[last_non_slash_index..]
-            } else {
-                request
+        Ok(find_normalized_match_in_object(field, request).or_else(|| {
+            find_best_match(field.keys(), request).map(|(best_match, best_match_subpath)| {
+                let target = &field[&best_match];
+                let is_subpath_mapping = best_match.ends_with('/');
+                let is_pattern = best_match.contains('*');
+                (target, best_match_subpath, is_subpath_mapping, is_pattern)
             })
-            .iter()
-            .collect::<String>();
-            if let Some(value) = node.files.get(&remaining_request) {
-                Some((value, (remaining_request.len() + 1) as i32))
-            } else {
-                Self::apply_wildcard_mappings(
-                    Self::apply_folder_mapping(last_folder_match, node, last_non_slash_index),
-                    node,
-                    &remaining_request,
-                    last_non_slash_index,
-                )
-            }
-        }
-    }
-
-    /// Tire
-    fn walk(root: &mut PathTreeNode, path: Vec<char>, target: MappingValue) {
-        if path.is_empty() {
-            root.folder = Some(target);
-            return;
-        }
-        let slash_index_list = Self::get_next_list(&path, '/');
-        let mut last_non_slash_index = 0;
-        let mut node = root;
-        while let Some(&Some(slash_index)) = slash_index_list.get(last_non_slash_index) {
-            let slice: &String = &path[last_non_slash_index..slash_index].iter().collect();
-            let folder: String = slice.to_string();
-            if node.children.is_none() {
-                let mut map = IndexMap::new();
-                map.insert(folder, PathTreeNode::default());
-                node.children = Some(map);
-            } else if let Some(children) = node.children.as_mut() {
-                children.entry(folder).or_insert_with(PathTreeNode::default);
-            }
-
-            node = node.children.as_mut().unwrap().get_mut(slice).unwrap();
-            last_non_slash_index = slash_index + 1;
-        }
-
-        if last_non_slash_index >= path.len() {
-            node.folder = Some(target);
-        } else {
-            let file: String = if last_non_slash_index > 0 {
-                path[last_non_slash_index..].iter().collect()
-            } else {
-                path.iter().collect()
-            };
-            if file.ends_with('*') {
-                let file = file[..file.len() - 1].to_string();
-                if let Some(wildcards) = node.wildcards.as_mut() {
-                    wildcards.insert(file, target);
-                } else {
-                    let mut map = IndexMap::new();
-                    map.insert(file, target);
-                    node.wildcards = Some(map);
-                }
-            } else {
-                node.files.insert(file, target);
-            }
-        }
+        }))
     }
 }
 
-#[test]
-fn exports_field_map_test() {
+fn get_next_list(path: &[char], target: char) -> Vec<Option<usize>> {
+    // TODO: rewrite it use fp.
+    let len = path.len();
+    let mut last_index = None;
+    let mut index_list = vec![None; len];
+    for i in (0..len).rev() {
+        if path[i] == target {
+            last_index = Some(i);
+        }
+        index_list[i] = last_index;
+    }
+    index_list
+}
+
+fn pattern_key_compare(a: &str, b: &str) -> std::cmp::Ordering {
+    let a_pattern_index = a.find('*');
+    let b_pattern_index = b.find('*');
+    let base_len_a = if let Some(i) = a_pattern_index {
+        i + 1
+    } else {
+        a.len()
+    };
+    let base_len_b = if let Some(i) = b_pattern_index {
+        i + 1
+    } else {
+        b.len()
+    };
+    if base_len_a > base_len_b {
+        std::cmp::Ordering::Less
+    } else if base_len_b > base_len_a || a_pattern_index.is_none() {
+        std::cmp::Ordering::Greater
+    } else if b_pattern_index.is_none() || a.len() > b.len() {
+        std::cmp::Ordering::Less
+    } else if b.len() > a.len() {
+        std::cmp::Ordering::Greater
+    } else {
+        std::cmp::Ordering::Equal
+    }
+}
+
+fn find_best_match(keys: serde_json::map::Keys, request: &str) -> Option<(String, String)> {
+    let mut best_match = "";
+    let mut best_match_subpath = None;
+
+    for key in keys {
+        if let Some(pattern_index) = key.find('*') {
+            let sliced = &key[0..pattern_index];
+            if request.starts_with(sliced) {
+                let pattern_trailer = &key[pattern_index + 1..];
+                if request.len() >= key.len()
+                    && request.ends_with(pattern_trailer)
+                    && pattern_key_compare(best_match, key).is_gt()
+                    && key.rfind('*') == Some(pattern_index)
+                {
+                    best_match = key;
+                    best_match_subpath =
+                        Some(&request[pattern_index..request.len() - pattern_trailer.len()]);
+                }
+            }
+        } else if key.ends_with('/')
+            && request.starts_with(key)
+            && pattern_key_compare(best_match, key).is_gt()
+        {
+            best_match = key;
+            best_match_subpath = Some(&request[key.len()..]);
+        }
+    }
+
+    best_match_subpath.map(|subpath| (best_match.to_string(), subpath.to_string()))
+}
+
+fn find_normalized_match_in_object<'a>(
+    field: &'a serde_json::Map<String, serde_json::Value>,
+    request: &'a str,
+) -> Option<(&'a MappingValue, String, bool, bool)> {
+    assert!(!request.is_empty());
+    if !request.contains('*') && !request.ends_with('/') {
+        if let Some(target) = field.get(request) {
+            return Some((target, "".to_string(), false, false));
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod exports_field_map_test {
+    use std::vec;
+
+    use super::*;
     use crate::test_helper;
+    use serde_json::json;
 
     fn process_exports_fields(
         value: serde_json::Value,
         request: &str,
         condition_names: Vec<&str>,
     ) -> RResult<Vec<String>> {
-        ExportsField::build_field_path_tree(&value).and_then(|root| {
-            ExportsField::field_process(&root, request, &test_helper::vec_to_set(condition_names))
-        })
+        ExportsField::field_process(&value, request, &test_helper::vec_to_set(condition_names))
     }
 
     fn should_equal(
@@ -611,1492 +485,1682 @@ fn exports_field_map_test() {
         }
     }
 
-    use serde_json::json;
-
-    should_equal(
-        json!({
-            "./utils/": {
-                "webpack": "./wpk/",
-                "browser": ["lodash/", "./utils/"],
-                "node": ["./utils/"]
-            }
-        }),
-        "./utils/index.mjs",
-        vec!["browser", "webpack"],
-        vec!["./wpk/index.mjs"],
-    );
-
-    should_equal(json!("./main.js"), ".", vec![], vec!["./main.js"]);
-    should_equal(json!("./main.js"), "./main.js", vec![], vec![]);
-    should_equal(json!("./main.js"), "./lib.js", vec![], vec![]);
-    should_equal(
-        json!(["./a.js", "./b.js"]),
-        ".",
-        vec![],
-        vec!["./a.js", "./b.js"],
-    );
-    should_equal(json!(["./a.js", "./b.js"]), "./a.js", vec![], vec![]);
-    should_equal(json!(["./a.js", "./b.js"]), "./lib.js", vec![], vec![]);
-    should_equal(
-        json!({
-          "./a/": "./A/",
-          "./a/b/c": "./c.js",
-        }),
-        "./a/b/d.js",
-        vec![],
-        vec!["./A/b/d.js"],
-    );
-    should_equal(
-        json!({
-          "./a/": "./A/",
-          "./a/b": "./b.js",
-        }),
-        "./a/c.js",
-        vec![],
-        vec!["./A/c.js"],
-    );
-    should_equal(
-        json!({
-          "./a/": "./A/",
-          "./a/b/c/d": "./c.js",
-        }),
-        "./a/b/d/c.js",
-        vec![],
-        vec!["./A/b/d/c.js"],
-    );
-    should_equal(
-        json!({
-          "./a/*": "./A/*",
-          "./a/b/c": "./c.js",
-        }),
-        "./a/b/d.js",
-        vec![],
-        vec!["./A/b/d.js"],
-    );
-    should_equal(
-        json!({
-          "./a/*": "./A/*",
-          "./a/b": "./b.js",
-        }),
-        "./a/c.js",
-        vec![],
-        vec!["./A/c.js"],
-    );
-    should_equal(
-        json!({
-           "./a/*": "./A/*",
-           "./a/b/c/d": "./b.js",
-        }),
-        "./a/b/d/c.js",
-        vec![],
-        vec!["./A/b/d/c.js"],
-    );
-    should_equal(
-        json!({
-          "./ab*": "./ab/*",
-          "./abc*": "./abc/*",
-          "./a*": "./a/*",
-        }),
-        "./abcd",
-        vec!["browser"],
-        vec!["./abc/d"],
-    );
-    should_equal(
-        json!({
-          "./ab*": "./ab/*",
-          "./abc*": "./abc/*",
-          "./a*": "./a/*",
-        }),
-        "./abcd",
-        vec![],
-        vec!["./abc/d"],
-    );
-    should_equal(
-        json!({
-          "./ab*": "./ab/*",
-          "./abc*": "./abc/*",
-          "./a*": "./a/*",
-        }),
-        "./abcd/e",
-        vec!["browser"],
-        vec!["./abc/d/e"],
-    );
-    should_equal(
-        json!({
-          "./x/ab*": "./ab/*",
-          "./x/abc*": "./abc/*",
-          "./x/a*": "./a/*",
-        }),
-        "./x/abcd",
-        vec!["browser"],
-        vec!["./abc/d"],
-    );
-    should_equal(
-        json!({
-          "./x/ab*": "./ab/*",
-          "./x/abc*": "./abc/*",
-          "./x/a*": "./a/*",
-        }),
-        "./x/abcd/e",
-        vec!["browser"],
-        vec!["./abc/d/e"],
-    );
-    should_equal(
-        json!({
-            "browser": {
-                "default": "./index.js"
-            }
-        }),
-        "./lib.js",
-        vec!["browser"],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "browser": {
-                "default": "./index.js"
-            }
-        }),
-        ".",
-        vec!["browser"],
-        vec!["./index.js"],
-    );
-    should_equal(
-        json!({
-            "./foo/": {
-                "import": ["./dist/", "./src/"],
-                "webpack": "./wp/"
-            },
-            ".": "./main.js"
-        }),
-        "./foo/test/file.js",
-        vec!["import", "webpack"],
-        vec!["./dist/test/file.js", "./src/test/file.js"],
-    );
-    should_equal(
-        json!({
-            "./foo/*": {
-                "import": ["./dist/*", "./src/*"],
-                "webpack": "./wp/*"
-            },
-            ".": "./main.js"
-        }),
-        "./foo/test/file.js",
-        vec!["import", "webpack"],
-        vec!["./dist/test/file.js", "./src/test/file.js"],
-    );
-    should_equal(
-        json!({
-            "./timezones/": "./data/timezones/"
-        }),
-        "./timezones/pdt.mjs",
-        vec![],
-        vec!["./data/timezones/pdt.mjs"],
-    );
-    should_equal(
-        json!({
-            "./": "./data/timezones/"
-        }),
-        "./timezones/pdt.mjs",
-        vec![],
-        vec!["./data/timezones/timezones/pdt.mjs"],
-    );
-    should_equal(
-        json!({
-            "./*": "./data/timezones/*.mjs"
-        }),
-        "./timezones/pdt",
-        vec![],
-        vec!["./data/timezones/timezones/pdt.mjs"],
-    );
-    should_equal(
-        json!({
-            "./lib/": {
-                "browser": ["./browser/"]
-            },
-            "./dist/index.js": {
-                "node": "./index.js"
-            }
-        }),
-        "./dist/index.js",
-        vec!["browser"],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./lib/*": {
-                "browser": ["./browser/*"]
-            },
-            "./dist/index.js": {
-                "node": "./index.js"
-            }
-        }),
-        "./dist/index.js",
-        vec!["browser"],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./lib/": {
-                "browser": ["./browser/"]
-            },
-            "./dist/index.js": {
-                "node": "./index.js",
-                "default": "./browser/index.js"
-            }
-        }),
-        "./dist/index.js",
-        vec!["browser"],
-        vec!["./browser/index.js"],
-    );
-    should_equal(
-        json!({
-            "./lib/*": {
-                "browser": ["./browser/*"]
-            },
-            "./dist/index.js": {
-                "node": "./index.js",
-                "default": "./browser/index.js"
-            }
-        }),
-        "./dist/index.js",
-        vec!["browser"],
-        vec!["./browser/index.js"],
-    );
-    should_equal(
-        json!({
-            "./dist/a": "./dist/index.js"
-        }),
-        "./dist/aaa",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./dist/a/a/": "./dist/index.js"
-        }),
-        "./dist/a",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./dist/a/a/*": "./dist/index.js"
-        }),
-        "./dist/a",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            ".": "./index.js"
-        }),
-        "./timezones/pdt.mjs",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./index.js": "./main.js"
-        }),
-        "./index.js",
-        vec![],
-        vec!["./main.js"],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./zzz*"
-        }),
-        "./#foo",
-        vec![],
-        vec!["./ok.js"],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./zzz*"
-        }),
-        "./bar#foo",
-        vec![],
-        vec!["./ok.js"],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./zzz*"
-        }),
-        "./#zapp/ok.js#abc",
-        vec![],
-        vec!["./ok.js#abc"],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./zzz*"
-        }),
-        "./#zapp/ok.js#abc",
-        vec![],
-        vec!["./ok.js#abc"],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./zzz*"
-        }),
-        "./#zapp/ok.js?abc",
-        vec![],
-        vec!["./ok.js?abc"],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./zzz*"
-        }),
-        "./#zapp/🎉.js",
-        vec![],
-        vec!["./🎉.js"],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./zzz*"
-        }),
-        "./#zapp/%F0%9F%8E%89.js",
-        vec![],
-        vec!["./%F0%9F%8E%89.js"],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./zzz*"
-        }),
-        "./🎉",
-        vec![],
-        vec!["./ok.js"],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./zzz*"
-        }),
-        "./%F0%9F%8E%89",
-        vec![],
-        vec!["./other.js"],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./zzz*"
-        }),
-        "./module",
-        vec![],
-        vec!["./ok.js"],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./zzz*"
-        }),
-        "./module#foo",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./zzz*"
-        }),
-        "./module?foo",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./#foo": "./ok.js",
-            "./module": "./ok.js",
-            "./🎉": "./ok.js",
-            "./%F0%9F%8E%89": "./other.js",
-            "./bar#foo": "./ok.js",
-            "./#zapp/": "./",
-            "./#zipp*": "./z*z*z*"
-        }),
-        "./#zippi",
-        vec![],
-        vec!["./zizizi"],
-    );
-    should_equal(
-        json!({
-            "./a?b?c/": "./"
-        }),
-        "./a?b?c/d?e?f",
-        vec![],
-        vec!["./d?e?f"],
-    );
-    should_equal(
-        json!({
-            ".": "./dist/index.js"
-        }),
-        ".",
-        vec![],
-        vec!["./dist/index.js"],
-    );
-    should_equal(
-        json!({
-            "./": "./",
-            "./*": "./*",
-            "./dist/index.js": "./dist/index.js",
-        }),
-        ".",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./dist/": "./dist/",
-            "./dist/*": "./dist/*",
-            "./dist*": "./dist*",
-            "./dist/index.js": "./dist/a.js"
-        }),
-        "./dist/index.js",
-        vec![],
-        vec!["./dist/a.js"],
-    );
-    should_equal(
-        json!({
-            "./": {
-                "browser": ["./browser/"]
-            },
-            "./*": {
-                "browser": ["./browser/*"]
-            },
-            "./dist/index.js": {
-                "browser": "./index.js"
-            },
-        }),
-        "./dist/index.js",
-        vec!["browser"],
-        vec!["./index.js"],
-    );
-    should_equal(
-        json!({
-            "./a?b?c/": "./"
-        }),
-        "./a?b?c/d?e?f",
-        vec![],
-        vec!["./d?e?f"],
-    );
-    should_equal(
-        json!({
-            "./": {
-                "browser": ["./browser/"]
-            },
-            "./*": {
-                "browser": ["./browser/*"]
-            },
-            "./dist/index.js": {
-                "node": "./node.js"
-            },
-        }),
-        "./dist/index.js",
-        vec!["browser"],
-        vec![],
-    );
-    should_equal(
-        json!({
-            ".": {
-                "browser": "./index.js",
-                "node": "./src/node/index.js",
-                "default": "./src/index.js"
-            }
-        }),
-        ".",
-        vec!["browser"],
-        vec!["./index.js"],
-    );
-    should_equal(
-        json!({
-            ".": {
-                "browser": "./index.js",
-                "node": "./src/node/index.js",
-                "default": "./src/index.js"
-            }
-        }),
-        ".",
-        vec![],
-        vec!["./src/index.js"],
-    );
-    should_equal(
-        json!({
-            ".": "./index"
-        }),
-        ".",
-        vec![],
-        vec!["./index"],
-    );
-    should_equal(
-        json!({
-            "./index": "./index.js"
-        }),
-        "./index",
-        vec![],
-        vec!["./index.js"],
-    );
-    should_equal(
-        json!({
-            ".": [
-                { "browser": "./browser.js" },
-                { "require": "./require.js" },
-                { "import": "./import.mjs" }
-            ]
-        }),
-        ".",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            ".": [
-                { "browser": "./browser.js" },
-                { "require": "./require.js" },
-                { "import": "./import.mjs" }
-            ]
-        }),
-        ".",
-        vec!["import"],
-        vec!["./import.mjs"],
-    );
-    should_equal(
-        json!({
-            ".": [
-                { "browser": "./browser.js" },
-                { "require": "./require.js" },
-                { "import": "./import.mjs" }
-            ]
-        }),
-        ".",
-        vec!["import", "require"],
-        vec!["./require.js", "./import.mjs"],
-    );
-    should_equal(
-        json!({
-            ".": [
-                { "browser": "./browser.js" },
-                { "require": "./require.js" },
-                { "import": ["./import.mjs", "./import.js"] }
-            ]
-        }),
-        ".",
-        vec!["import", "require"],
-        vec!["./require.js", "./import.mjs", "./import.js"],
-    );
-    should_equal(
-        json!({
-            "./timezones": "./data/timezones",
-        }),
-        "./timezones/pdt.mjs",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./timezones/pdt/": "./data/timezones/pdt/",
-        }),
-        "./timezones/pdt/index.mjs",
-        vec![],
-        vec!["./data/timezones/pdt/index.mjs"],
-    );
-    should_equal(
-        json!({
-            "./timezones/pdt/*": "./data/timezones/pdt/*",
-        }),
-        "./timezones/pdt/index.mjs",
-        vec![],
-        vec!["./data/timezones/pdt/index.mjs"],
-    );
-    should_equal(
-        json!({
-            "./": "./timezones/",
-        }),
-        "./pdt.mjs",
-        vec![],
-        vec!["./timezones/pdt.mjs"],
-    );
-    should_equal(
-        json!({
-            "./*": "./timezones/*",
-        }),
-        "./pdt.mjs",
-        vec![],
-        vec!["./timezones/pdt.mjs"],
-    );
-    should_equal(
-        json!({
-            "./": "./",
-        }),
-        "./timezones/pdt.mjs",
-        vec![],
-        vec!["./timezones/pdt.mjs"],
-    );
-    should_equal(
-        json!({
-            "./*": "./*",
-        }),
-        "./timezones/pdt.mjs",
-        vec![],
-        vec!["./timezones/pdt.mjs"],
-    );
-    should_equal(
-        json!({
-            ".": "./",
-        }),
-        "./timezones/pdt.mjs",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            ".": "./*",
-        }),
-        "./timezones/pdt.mjs",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./": "./",
-            "./dist/": "./lib/"
-        }),
-        "./dist/index.mjs",
-        vec![],
-        vec!["./lib/index.mjs"],
-    );
-    should_equal(
-        json!({
-            "./*": "./*",
-            "./dist/*": "./lib/*"
-        }),
-        "./dist/index.mjs",
-        vec![],
-        vec!["./lib/index.mjs"],
-    );
-    should_equal(
-        json!({
-            "./dist/utils/": "./dist/utils/",
-            "./dist/": "./lib/"
-        }),
-        "./dist/utils/index.js",
-        vec![],
-        vec!["./dist/utils/index.js"],
-    );
-    should_equal(
-        json!({
-            "./dist/utils/*": "./dist/utils/*",
-            "./dist/*": "./lib/*"
-        }),
-        "./dist/utils/index.js",
-        vec![],
-        vec!["./dist/utils/index.js"],
-    );
-    should_equal(
-        json!({
-            "./dist/utils/index.js": "./dist/utils/index.js",
-            "./dist/utils/": "./dist/utils/index.mjs",
-            "./dist/": "./lib/"
-        }),
-        "./dist/utils/index.js",
-        vec![],
-        vec!["./dist/utils/index.js"],
-    );
-    should_equal(
-        json!({
-            "./dist/utils/index.js": "./dist/utils/index.js",
-            "./dist/utils/*": "./dist/utils/index.mjs",
-            "./dist/*": "./lib/*"
-        }),
-        "./dist/utils/index.js",
-        vec![],
-        vec!["./dist/utils/index.js"],
-    );
-    should_equal(
-        json!({
-            "./": {
-                "browser": "./browser/"
-            },
-            "./dist/": "./lib/"
-        }),
-        "./dist/index.mjs",
-        vec!["browser"],
-        vec!["./lib/index.mjs"],
-    );
-    should_equal(
-        json!({
-            "./*": {
-                "browser": "./browser/*"
-            },
-            "./dist/*": "./lib/*"
-        }),
-        "./dist/index.mjs",
-        vec!["browser"],
-        vec!["./lib/index.mjs"],
-    );
-    should_equal(
-        json!({
-            "./utils/": {
-                "browser": ["lodash/", "./utils/"],
-                "node": ["./utils-node/"]
-            }
-        }),
-        "./utils/index.js",
-        vec!["browser"],
-        vec!["lodash/index.js", "./utils/index.js"],
-    );
-    should_equal(
-        json!({
-            "./utils/*": {
-                "browser": ["lodash/*", "./utils/*"],
-                "node": ["./utils-node/*"]
-            }
-        }),
-        "./utils/index.js",
-        vec!["browser"],
-        vec!["lodash/index.js", "./utils/index.js"],
-    );
-    should_equal(
-        json!({
-            "./utils/": {
-                "webpack": "./wpk/",
-                "browser": ["lodash/", "./utils/"],
-                "node": ["./node/"]
-            }
-        }),
-        "./utils/index.mjs",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./utils/*": {
-                "webpack": "./wpk/*",
-                "browser": ["lodash/*", "./utils/*"],
-                "node": ["./node/*"]
-            }
-        }),
-        "./utils/index.mjs",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./utils/": {
-                "webpack": "./wpk/",
-                "browser": ["lodash/", "./utils/"],
-                "node": ["./utils/"]
-            }
-        }),
-        "./utils/index.mjs",
-        vec!["browser", "webpack"],
-        vec!["./wpk/index.mjs"],
-    );
-    should_equal(
-        json!({
-            "./utils/*": {
-                "webpack": "./wpk/*",
-                "browser": ["lodash/*", "./utils/*"],
-                "node": ["./utils/*"]
-            }
-        }),
-        "./utils/index.mjs",
-        vec!["browser", "webpack"],
-        vec!["./wpk/index.mjs"],
-    );
-    should_equal(
-        json!({
-          "./utils/index": "./a/index.js"
-        }),
-        "./utils/index.mjs",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-          "./utils/index.mjs": "./a/index.js"
-        }),
-        "./utils/index",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-          "./utils/index": {
-              "browser": "./a/index.js",
-              "default": "./b/index.js",
-          }
-        }),
-        "./utils/index.mjs",
-        vec!["browser"],
-        vec![],
-    );
-    should_equal(
-        json!({
-          "./utils/index.mjs": {
-              "browser": "./a/index.js",
-              "default": "./b/index.js",
-          }
-        }),
-        "./utils/index",
-        vec!["browser"],
-        vec![],
-    );
-    should_equal(
-        json!({
-          "./../../utils/": "./dist/"
-        }),
-        "./../../utils/index",
-        vec![],
-        vec!["./dist/index"],
-    );
-    should_equal(
-        json!({
-          "./../../utils/*": "./dist/*"
-        }),
-        "./../../utils/index",
-        vec![],
-        vec!["./dist/index"],
-    );
-    should_equal(
-        json!({
-          "./utils/": "./../src/"
-        }),
-        "./utils/index",
-        vec![],
-        vec!["./../src/index"],
-    );
-    should_equal(
-        json!({
-          "./utils/*": "./../src/*"
-        }),
-        "./utils/index",
-        vec![],
-        vec!["./../src/index"],
-    );
-    should_equal(
-        json!({
-          "./utils/index": "./src/../index.js"
-        }),
-        "./utils/index",
-        vec![],
-        vec!["./src/../index.js"],
-    );
-    should_equal(
-        json!({
-          "./utils/../utils/index": "./src/../index.js"
-        }),
-        "./utils/index",
-        vec![],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./utils/": {
-                "browser": "./utils/../"
-            }
-        }),
-        "./utils/index",
-        vec!["browser"],
-        vec!["./utils/../index"],
-    );
-    should_equal(
-        json!({
-            "./": "./src/../../",
-            "./dist/": "./dist/"
-        }),
-        "./dist/index",
-        vec!["browser"],
-        vec!["./dist/index"],
-    );
-    should_equal(
-        json!({
-            "./*": "./src/../../*",
-            "./dist/*": "./dist/*"
-        }),
-        "./dist/index",
-        vec!["browser"],
-        vec!["./dist/index"],
-    );
-    should_equal(
-        json!({
-            "./utils/": "./dist/"
-        }),
-        "./utils/timezone/../../index",
-        vec![],
-        vec!["./dist/timezone/../../index"],
-    );
-    should_equal(
-        json!({
-            "./utils/*": "./dist/*"
-        }),
-        "./utils/timezone/../../index",
-        vec![],
-        vec!["./dist/timezone/../../index"],
-    );
-    should_equal(
-        json!({
-            "./utils/": "./dist/"
-        }),
-        "./utils/timezone/../index",
-        vec![],
-        vec!["./dist/timezone/../index"],
-    );
-    should_equal(
-        json!({
-            "./utils/*": "./dist/*"
-        }),
-        "./utils/timezone/../index",
-        vec![],
-        vec!["./dist/timezone/../index"],
-    );
-    should_equal(
-        json!({
-            "./utils/": "./dist/target/"
-        }),
-        "./utils/../../index",
-        vec![],
-        vec!["./dist/target/../../index"],
-    );
-    should_equal(
-        json!({
-            "./utils/*": "./dist/target/*"
-        }),
-        "./utils/../../index",
-        vec![],
-        vec!["./dist/target/../../index"],
-    );
-    should_equal(
-        json!({
-            "./utils/": {
-                "browser": "./node_modules/"
-            }
-        }),
-        "./utils/lodash/dist/index.js",
-        vec!["browser"],
-        vec!["./node_modules/lodash/dist/index.js"],
-    );
-    should_equal(
-        json!({
-            "./utils/*": {
-                "browser": "./node_modules/*"
-            }
-        }),
-        "./utils/lodash/dist/index.js",
-        vec!["browser"],
-        vec!["./node_modules/lodash/dist/index.js"],
-    );
-    should_equal(
-        json!({
-            "./utils/": "./utils/../node_modules/"
-        }),
-        "./utils/lodash/dist/index.js",
-        vec!["browser"],
-        vec!["./utils/../node_modules/lodash/dist/index.js"],
-    );
-    should_equal(
-        json!({
-            "./utils/*": "./utils/../node_modules/*"
-        }),
-        "./utils/lodash/dist/index.js",
-        vec!["browser"],
-        vec!["./utils/../node_modules/lodash/dist/index.js"],
-    );
-    should_equal(
-        json!({
-            "./utils/": {
-                "browser": {
-                    "webpack": "./",
-                    "default": {
-                        "node": "./node/"
-                    }
+    #[test]
+    fn exports_field_map_test_1() {
+        should_error(
+            json!({
+              "/utils/": "./a/"
+            }),
+            "./utils/index.mjs",
+            vec![],
+            "Export field key should be relative path and start with \"./\", but got /utils/",
+        );
+        // --- remove above
+        should_equal(
+            json!({
+                "./utils/": {
+                    "webpack": "./wpk/",
+                    "browser": ["lodash/", "./utils/"],
+                    "node": ["./utils/"]
                 }
-            }
-        }),
-        "./utils/index.js",
-        vec!["browser"],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./utils/*": {
+            }),
+            "./utils/index.mjs",
+            vec!["browser", "webpack"],
+            vec!["./wpk/index.mjs"],
+        );
+        should_equal(json!("./main.js"), ".", vec![], vec!["./main.js"]);
+        should_equal(json!("./main.js"), "./main.js", vec![], vec![]);
+        should_equal(json!("./main.js"), "./lib.js", vec![], vec![]);
+        should_equal(
+            json!(["./a.js", "./b.js"]),
+            ".",
+            vec![],
+            vec!["./a.js", "./b.js"],
+        );
+        should_equal(json!(["./a.js", "./b.js"]), "./a.js", vec![], vec![]);
+        should_equal(json!(["./a.js", "./b.js"]), "./lib.js", vec![], vec![]);
+        should_equal(
+            json!({
+              "./a/": "./A/",
+              "./a/b/c": "./c.js",
+            }),
+            "./a/b/d.js",
+            vec![],
+            vec!["./A/b/d.js"],
+        );
+        should_equal(
+            json!({
+              "./a/": "./A/",
+              "./a/b": "./b.js",
+            }),
+            "./a/c.js",
+            vec![],
+            vec!["./A/c.js"],
+        );
+        should_equal(
+            json!({
+              "./a/": "./A/",
+              "./a/b/c/d": "./c.js",
+            }),
+            "./a/b/d/c.js",
+            vec![],
+            vec!["./A/b/d/c.js"],
+        );
+        should_equal(
+            json!({
+              "./a/*": "./A/*",
+              "./a/b/c": "./c.js",
+            }),
+            "./a/b/d.js",
+            vec![],
+            vec!["./A/b/d.js"],
+        );
+        should_equal(
+            json!({
+              "./a/*": "./A/*",
+              "./a/b": "./b.js",
+            }),
+            "./a/c.js",
+            vec![],
+            vec!["./A/c.js"],
+        );
+        should_equal(
+            json!({
+               "./a/*": "./A/*",
+               "./a/b/c/d": "./b.js",
+            }),
+            "./a/b/d/c.js",
+            vec![],
+            vec!["./A/b/d/c.js"],
+        );
+        should_equal(
+            json!({
+              "./ab*": "./ab/*",
+              "./abc*": "./abc/*",
+              "./a*": "./a/*",
+            }),
+            "./abcd",
+            vec!["browser"],
+            vec!["./abc/d"],
+        );
+        should_equal(
+            json!({
+              "./ab*": "./ab/*",
+              "./abc*": "./abc/*",
+              "./a*": "./a/*",
+            }),
+            "./abcd",
+            vec![],
+            vec!["./abc/d"],
+        );
+        should_equal(
+            json!({
+              "./ab*": "./ab/*",
+              "./abc*": "./abc/*",
+              "./a*": "./a/*",
+            }),
+            "./abcd/e",
+            vec!["browser"],
+            vec!["./abc/d/e"],
+        );
+        should_equal(
+            json!({
+              "./x/ab*": "./ab/*",
+              "./x/abc*": "./abc/*",
+              "./x/a*": "./a/*",
+            }),
+            "./x/abcd",
+            vec!["browser"],
+            vec!["./abc/d"],
+        );
+        should_equal(
+            json!({
+              "./x/ab*": "./ab/*",
+              "./x/abc*": "./abc/*",
+              "./x/a*": "./a/*",
+            }),
+            "./x/abcd/e",
+            vec!["browser"],
+            vec!["./abc/d/e"],
+        );
+        should_equal(
+            json!({
                 "browser": {
-                    "webpack": "./*",
-                    "default": {
-                        "node": "./node/*"
-                    }
+                    "default": "./index.js"
                 }
-            }
-        }),
-        "./utils/index.js",
-        vec!["browser"],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./utils/": {
+            }),
+            "./lib.js",
+            vec!["browser"],
+            vec![],
+        );
+        should_equal(
+            json!({
                 "browser": {
-                    "webpack": ["./", "./node/"],
-                    "default": {
-                        "node": "./node/"
-                    }
+                    "default": "./index.js"
                 }
-            }
-        }),
-        "./utils/index.js",
-        vec!["browser", "webpack"],
-        vec!["./index.js", "./node/index.js"],
-    );
-    should_equal(
-        json!({
-            "./utils/*": {
-                "browser": {
-                    "webpack": ["./*", "./node/*"],
-                    "default": {
-                        "node": "./node/*"
-                    }
-                }
-            }
-        }),
-        "./utils/index.js",
-        vec!["browser", "webpack"],
-        vec!["./index.js", "./node/index.js"],
-    );
-    should_equal(
-        json!({
-            "./utils/": {
-                "browser": {
-                    "webpack": ["./", "./node/"],
-                    "default": {
-                        "node": "./node/"
-                    }
-                }
-            }
-        }),
-        "./utils/index.js",
-        vec!["webpack"],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./utils/*": {
-                "browser": {
-                    "webpack": ["./*", "./node/*"],
-                    "default": {
-                        "node": "./node/*"
-                    }
-                }
-            }
-        }),
-        "./utils/index.js",
-        vec!["webpack"],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./utils/": {
-                "browser": {
-                    "webpack": ["./", "./node/"],
-                    "default": {
-                        "node": "./node/"
-                    }
-                }
-            }
-        }),
-        "./utils/index.js",
-        vec!["node", "browser"],
-        vec!["./node/index.js"],
-    );
-    should_equal(
-        json!({
-            "./utils/*": {
-                "browser": {
-                    "webpack": ["./*", "./node/*"],
-                    "default": {
-                        "node": "./node/*"
-                    }
-                }
-            }
-        }),
-        "./utils/index.js",
-        vec!["node", "browser"],
-        vec!["./node/index.js"],
-    );
-    should_equal(
-        json!({
-            "./utils/": {
-                "browser": {
-                    "webpack": ["./", "./node/"],
-                    "default": {
-                        "node": {
-                            "webpack": ["./wpck/"]
-                        }
-                    }
-                }
-            }
-        }),
-        "./utils/index.js",
-        vec!["browser", "node"],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./utils/*": {
-                "browser": {
-                    "webpack": ["./*", "./node/*"],
-                    "default": {
-                        "node": {
-                            "webpack": ["./wpck/*"]
-                        }
-                    }
-                }
-            }
-        }),
-        "./utils/index.js",
-        vec!["browser", "node"],
-        vec![],
-    );
-    should_equal(
-        json!({
-            "./utils/": {
-                "browser": {
-                    "webpack": ["./", "./node/"],
-                    "default": {
-                        "node": {
-                            "webpack": ["./wpck/"]
-                        }
-                    }
-                }
-            }
-        }),
-        "./utils/index.js",
-        vec!["browser", "node", "webpack"],
-        vec!["./index.js", "./node/index.js"],
-    );
-    should_equal(
-        json!({
-            "./utils/*": {
-                "browser": {
-                    "webpack": ["./*", "./node/*"],
-                    "default": {
-                        "node": {
-                            "webpack": ["./wpck/*"]
-                        }
-                    }
-                }
-            }
-        }),
-        "./utils/index.js",
-        vec!["browser", "node", "webpack"],
-        vec!["./index.js", "./node/index.js"],
-    );
-    should_equal(
-        json!({
-            "./a.js": {
-                "abc": {
-                    "def": "./x.js"
+            }),
+            ".",
+            vec!["browser"],
+            vec!["./index.js"],
+        );
+        should_equal(
+            json!({
+                "./foo/": {
+                    "import": ["./dist/", "./src/"],
+                    "webpack": "./wp/"
                 },
-                "ghi": "./y.js"
-            }
-        }),
-        "./a.js",
-        vec!["abc", "ghi"],
-        vec!["./y.js"],
-    );
-    should_equal(
-        json!({
-            "./a.js": {
-                "abc": {
-                    "def": "./x.js",
-                    "default": []
+                ".": "./main.js"
+            }),
+            "./foo/test/file.js",
+            vec!["import", "webpack"],
+            vec!["./dist/test/file.js", "./src/test/file.js"],
+        );
+        should_equal(
+            json!({
+                "./foo/*": {
+                    "import": ["./dist/*", "./src/*"],
+                    "webpack": "./wp/*"
                 },
-                "ghi": "./y.js"
-            }
-        }),
-        "./a.js",
-        vec!["abc", "ghi"],
-        vec![],
-    );
+                ".": "./main.js"
+            }),
+            "./foo/test/file.js",
+            vec!["import", "webpack"],
+            vec!["./dist/test/file.js", "./src/test/file.js"],
+        );
+        should_equal(
+            json!({
+                "./timezones/": "./data/timezones/"
+            }),
+            "./timezones/pdt.mjs",
+            vec![],
+            vec!["./data/timezones/pdt.mjs"],
+        );
+        should_equal(
+            json!({
+                "./": "./data/timezones/"
+            }),
+            "./timezones/pdt.mjs",
+            vec![],
+            vec!["./data/timezones/timezones/pdt.mjs"],
+        );
+        should_equal(
+            json!({
+                "./*": "./data/timezones/*.mjs"
+            }),
+            "./timezones/pdt",
+            vec![],
+            vec!["./data/timezones/timezones/pdt.mjs"],
+        );
+        should_equal(
+            json!({
+                "./lib/": {
+                    "browser": ["./browser/"]
+                },
+                "./dist/index.js": {
+                    "node": "./index.js"
+                }
+            }),
+            "./dist/index.js",
+            vec!["browser"],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./lib/*": {
+                    "browser": ["./browser/*"]
+                },
+                "./dist/index.js": {
+                    "node": "./index.js"
+                }
+            }),
+            "./dist/index.js",
+            vec!["browser"],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./lib/": {
+                    "browser": ["./browser/"]
+                },
+                "./dist/index.js": {
+                    "node": "./index.js",
+                    "default": "./browser/index.js"
+                }
+            }),
+            "./dist/index.js",
+            vec!["browser"],
+            vec!["./browser/index.js"],
+        );
+        should_equal(
+            json!({
+                "./lib/*": {
+                    "browser": ["./browser/*"]
+                },
+                "./dist/index.js": {
+                    "node": "./index.js",
+                    "default": "./browser/index.js"
+                }
+            }),
+            "./dist/index.js",
+            vec!["browser"],
+            vec!["./browser/index.js"],
+        );
+        should_equal(
+            json!({
+                "./dist/a": "./dist/index.js"
+            }),
+            "./dist/aaa",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./dist/a/a/": "./dist/index.js"
+            }),
+            "./dist/a",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./dist/a/a/*": "./dist/index.js"
+            }),
+            "./dist/a",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                ".": "./index.js"
+            }),
+            "./timezones/pdt.mjs",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./index.js": "./main.js"
+            }),
+            "./index.js",
+            vec![],
+            vec!["./main.js"],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./zzz*"
+            }),
+            "./#foo",
+            vec![],
+            vec!["./ok.js"],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./zzz*"
+            }),
+            "./bar#foo",
+            vec![],
+            vec!["./ok.js"],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./zzz*"
+            }),
+            "./#zapp/ok.js#abc",
+            vec![],
+            vec!["./ok.js#abc"],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./zzz*"
+            }),
+            "./#zapp/ok.js#abc",
+            vec![],
+            vec!["./ok.js#abc"],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./zzz*"
+            }),
+            "./#zapp/ok.js?abc",
+            vec![],
+            vec!["./ok.js?abc"],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./zzz*"
+            }),
+            "./#zapp/🎉.js",
+            vec![],
+            vec!["./🎉.js"],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./zzz*"
+            }),
+            "./#zapp/%F0%9F%8E%89.js",
+            vec![],
+            vec!["./%F0%9F%8E%89.js"],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./zzz*"
+            }),
+            "./🎉",
+            vec![],
+            vec!["./ok.js"],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./zzz*"
+            }),
+            "./%F0%9F%8E%89",
+            vec![],
+            vec!["./other.js"],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./zzz*"
+            }),
+            "./module",
+            vec![],
+            vec!["./ok.js"],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./zzz*"
+            }),
+            "./module#foo",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./zzz*"
+            }),
+            "./module?foo",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./#foo": "./ok.js",
+                "./module": "./ok.js",
+                "./🎉": "./ok.js",
+                "./%F0%9F%8E%89": "./other.js",
+                "./bar#foo": "./ok.js",
+                "./#zapp/": "./",
+                "./#zipp*": "./z*z*z*"
+            }),
+            "./#zippi",
+            vec![],
+            vec!["./zizizi"],
+        );
+        should_equal(
+            json!({
+                "./a?b?c/": "./"
+            }),
+            "./a?b?c/d?e?f",
+            vec![],
+            vec!["./d?e?f"],
+        );
+        should_equal(
+            json!({
+                ".": "./dist/index.js"
+            }),
+            ".",
+            vec![],
+            vec!["./dist/index.js"],
+        );
+        should_equal(
+            json!({
+                "./": "./",
+                "./*": "./*",
+                "./dist/index.js": "./dist/index.js",
+            }),
+            ".",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./dist/": "./dist/",
+                "./dist/*": "./dist/*",
+                "./dist*": "./dist*",
+                "./dist/index.js": "./dist/a.js"
+            }),
+            "./dist/index.js",
+            vec![],
+            vec!["./dist/a.js"],
+        );
+        should_equal(
+            json!({
+                "./": {
+                    "browser": ["./browser/"]
+                },
+                "./*": {
+                    "browser": ["./browser/*"]
+                },
+                "./dist/index.js": {
+                    "browser": "./index.js"
+                },
+            }),
+            "./dist/index.js",
+            vec!["browser"],
+            vec!["./index.js"],
+        );
+        should_equal(
+            json!({
+                "./a?b?c/": "./"
+            }),
+            "./a?b?c/d?e?f",
+            vec![],
+            vec!["./d?e?f"],
+        );
+        should_equal(
+            json!({
+                "./": {
+                    "browser": ["./browser/"]
+                },
+                "./*": {
+                    "browser": ["./browser/*"]
+                },
+                "./dist/index.js": {
+                    "node": "./node.js"
+                },
+            }),
+            "./dist/index.js",
+            vec!["browser"],
+            vec![],
+        );
+        should_equal(
+            json!({
+                ".": {
+                    "browser": "./index.js",
+                    "node": "./src/node/index.js",
+                    "default": "./src/index.js"
+                }
+            }),
+            ".",
+            vec!["browser"],
+            vec!["./index.js"],
+        );
+        should_equal(
+            json!({
+                ".": {
+                    "browser": "./index.js",
+                    "node": "./src/node/index.js",
+                    "default": "./src/index.js"
+                }
+            }),
+            ".",
+            vec![],
+            vec!["./src/index.js"],
+        );
+        should_equal(
+            json!({
+                ".": "./index"
+            }),
+            ".",
+            vec![],
+            vec!["./index"],
+        );
+        should_equal(
+            json!({
+                "./index": "./index.js"
+            }),
+            "./index",
+            vec![],
+            vec!["./index.js"],
+        );
+        should_equal(
+            json!({
+                ".": [
+                    { "browser": "./browser.js" },
+                    { "require": "./require.js" },
+                    { "import": "./import.mjs" }
+                ]
+            }),
+            ".",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                ".": [
+                    { "browser": "./browser.js" },
+                    { "require": "./require.js" },
+                    { "import": "./import.mjs" }
+                ]
+            }),
+            ".",
+            vec!["import"],
+            vec!["./import.mjs"],
+        );
+        should_equal(
+            json!({
+                ".": [
+                    { "browser": "./browser.js" },
+                    { "require": "./require.js" },
+                    { "import": "./import.mjs" }
+                ]
+            }),
+            ".",
+            vec!["import", "require"],
+            vec!["./require.js", "./import.mjs"],
+        );
+        should_equal(
+            json!({
+                ".": [
+                    { "browser": "./browser.js" },
+                    { "require": "./require.js" },
+                    { "import": ["./import.mjs", "./import.js"] }
+                ]
+            }),
+            ".",
+            vec!["import", "require"],
+            vec!["./require.js", "./import.mjs", "./import.js"],
+        );
+        should_equal(
+            json!({
+                "./timezones": "./data/timezones",
+            }),
+            "./timezones/pdt.mjs",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./timezones/pdt/": "./data/timezones/pdt/",
+            }),
+            "./timezones/pdt/index.mjs",
+            vec![],
+            vec!["./data/timezones/pdt/index.mjs"],
+        );
+        should_equal(
+            json!({
+                "./timezones/pdt/*": "./data/timezones/pdt/*",
+            }),
+            "./timezones/pdt/index.mjs",
+            vec![],
+            vec!["./data/timezones/pdt/index.mjs"],
+        );
+        should_equal(
+            json!({
+                "./": "./timezones/",
+            }),
+            "./pdt.mjs",
+            vec![],
+            vec!["./timezones/pdt.mjs"],
+        );
+        should_equal(
+            json!({
+                "./*": "./timezones/*",
+            }),
+            "./pdt.mjs",
+            vec![],
+            vec!["./timezones/pdt.mjs"],
+        );
+        should_equal(
+            json!({
+                "./": "./",
+            }),
+            "./timezones/pdt.mjs",
+            vec![],
+            vec!["./timezones/pdt.mjs"],
+        );
+        should_equal(
+            json!({
+                "./*": "./*",
+            }),
+            "./timezones/pdt.mjs",
+            vec![],
+            vec!["./timezones/pdt.mjs"],
+        );
+        should_equal(
+            json!({
+                ".": "./",
+            }),
+            "./timezones/pdt.mjs",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                ".": "./*",
+            }),
+            "./timezones/pdt.mjs",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./": "./",
+                "./dist/": "./lib/"
+            }),
+            "./dist/index.mjs",
+            vec![],
+            vec!["./lib/index.mjs"],
+        );
+        should_equal(
+            json!({
+                "./*": "./*",
+                "./dist/*": "./lib/*"
+            }),
+            "./dist/index.mjs",
+            vec![],
+            vec!["./lib/index.mjs"],
+        );
+        should_equal(
+            json!({
+                "./dist/utils/": "./dist/utils/",
+                "./dist/": "./lib/"
+            }),
+            "./dist/utils/index.js",
+            vec![],
+            vec!["./dist/utils/index.js"],
+        );
+        should_equal(
+            json!({
+                "./dist/utils/*": "./dist/utils/*",
+                "./dist/*": "./lib/*"
+            }),
+            "./dist/utils/index.js",
+            vec![],
+            vec!["./dist/utils/index.js"],
+        );
+        should_equal(
+            json!({
+                "./dist/utils/index.js": "./dist/utils/index.js",
+                "./dist/utils/": "./dist/utils/index.mjs",
+                "./dist/": "./lib/"
+            }),
+            "./dist/utils/index.js",
+            vec![],
+            vec!["./dist/utils/index.js"],
+        );
+        should_equal(
+            json!({
+                "./dist/utils/index.js": "./dist/utils/index.js",
+                "./dist/utils/*": "./dist/utils/index.mjs",
+                "./dist/*": "./lib/*"
+            }),
+            "./dist/utils/index.js",
+            vec![],
+            vec!["./dist/utils/index.js"],
+        );
+        should_equal(
+            json!({
+                "./": {
+                    "browser": "./browser/"
+                },
+                "./dist/": "./lib/"
+            }),
+            "./dist/index.mjs",
+            vec!["browser"],
+            vec!["./lib/index.mjs"],
+        );
+        should_equal(
+            json!({
+                "./*": {
+                    "browser": "./browser/*"
+                },
+                "./dist/*": "./lib/*"
+            }),
+            "./dist/index.mjs",
+            vec!["browser"],
+            vec!["./lib/index.mjs"],
+        );
+        should_equal(
+            json!({
+                "./utils/": {
+                    "browser": ["lodash/", "./utils/"],
+                    "node": ["./utils-node/"]
+                }
+            }),
+            "./utils/index.js",
+            vec!["browser"],
+            vec!["lodash/index.js", "./utils/index.js"],
+        );
+        should_equal(
+            json!({
+                "./utils/*": {
+                    "browser": ["lodash/*", "./utils/*"],
+                    "node": ["./utils-node/*"]
+                }
+            }),
+            "./utils/index.js",
+            vec!["browser"],
+            vec!["lodash/index.js", "./utils/index.js"],
+        );
+        should_equal(
+            json!({
+                "./utils/": {
+                    "webpack": "./wpk/",
+                    "browser": ["lodash/", "./utils/"],
+                    "node": ["./node/"]
+                }
+            }),
+            "./utils/index.mjs",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./utils/*": {
+                    "webpack": "./wpk/*",
+                    "browser": ["lodash/*", "./utils/*"],
+                    "node": ["./node/*"]
+                }
+            }),
+            "./utils/index.mjs",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./utils/": {
+                    "webpack": "./wpk/",
+                    "browser": ["lodash/", "./utils/"],
+                    "node": ["./utils/"]
+                }
+            }),
+            "./utils/index.mjs",
+            vec!["browser", "webpack"],
+            vec!["./wpk/index.mjs"],
+        );
+        should_equal(
+            json!({
+                "./utils/*": {
+                    "webpack": "./wpk/*",
+                    "browser": ["lodash/*", "./utils/*"],
+                    "node": ["./utils/*"]
+                }
+            }),
+            "./utils/index.mjs",
+            vec!["browser", "webpack"],
+            vec!["./wpk/index.mjs"],
+        );
+        should_equal(
+            json!({
+              "./utils/index": "./a/index.js"
+            }),
+            "./utils/index.mjs",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+              "./utils/index.mjs": "./a/index.js"
+            }),
+            "./utils/index",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+              "./utils/index": {
+                  "browser": "./a/index.js",
+                  "default": "./b/index.js",
+              }
+            }),
+            "./utils/index.mjs",
+            vec!["browser"],
+            vec![],
+        );
+        should_equal(
+            json!({
+              "./utils/index.mjs": {
+                  "browser": "./a/index.js",
+                  "default": "./b/index.js",
+              }
+            }),
+            "./utils/index",
+            vec!["browser"],
+            vec![],
+        );
+        should_equal(
+            json!({
+              "./../../utils/": "./dist/"
+            }),
+            "./../../utils/index",
+            vec![],
+            vec!["./dist/index"],
+        );
+        should_equal(
+            json!({
+              "./../../utils/*": "./dist/*"
+            }),
+            "./../../utils/index",
+            vec![],
+            vec!["./dist/index"],
+        );
+        should_equal(
+            json!({
+              "./utils/": "./../src/"
+            }),
+            "./utils/index",
+            vec![],
+            vec!["./../src/index"],
+        );
+        should_equal(
+            json!({
+              "./utils/*": "./../src/*"
+            }),
+            "./utils/index",
+            vec![],
+            vec!["./../src/index"],
+        );
+        should_equal(
+            json!({
+              "./utils/index": "./src/../index.js"
+            }),
+            "./utils/index",
+            vec![],
+            vec!["./src/../index.js"],
+        );
+        should_equal(
+            json!({
+              "./utils/../utils/index": "./src/../index.js"
+            }),
+            "./utils/index",
+            vec![],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./utils/": {
+                    "browser": "./utils/../"
+                }
+            }),
+            "./utils/index",
+            vec!["browser"],
+            vec!["./utils/../index"],
+        );
+        should_equal(
+            json!({
+                "./": "./src/../../",
+                "./dist/": "./dist/"
+            }),
+            "./dist/index",
+            vec!["browser"],
+            vec!["./dist/index"],
+        );
+        should_equal(
+            json!({
+                "./*": "./src/../../*",
+                "./dist/*": "./dist/*"
+            }),
+            "./dist/index",
+            vec!["browser"],
+            vec!["./dist/index"],
+        );
+        should_equal(
+            json!({
+                "./utils/": "./dist/"
+            }),
+            "./utils/timezone/../../index",
+            vec![],
+            vec!["./dist/timezone/../../index"],
+        );
+        should_equal(
+            json!({
+                "./utils/*": "./dist/*"
+            }),
+            "./utils/timezone/../../index",
+            vec![],
+            vec!["./dist/timezone/../../index"],
+        );
+        should_equal(
+            json!({
+                "./utils/": "./dist/"
+            }),
+            "./utils/timezone/../index",
+            vec![],
+            vec!["./dist/timezone/../index"],
+        );
+        should_equal(
+            json!({
+                "./utils/*": "./dist/*"
+            }),
+            "./utils/timezone/../index",
+            vec![],
+            vec!["./dist/timezone/../index"],
+        );
+        should_equal(
+            json!({
+                "./utils/": "./dist/target/"
+            }),
+            "./utils/../../index",
+            vec![],
+            vec!["./dist/target/../../index"],
+        );
+        should_equal(
+            json!({
+                "./utils/*": "./dist/target/*"
+            }),
+            "./utils/../../index",
+            vec![],
+            vec!["./dist/target/../../index"],
+        );
+        should_equal(
+            json!({
+                "./utils/": {
+                    "browser": "./node_modules/"
+                }
+            }),
+            "./utils/lodash/dist/index.js",
+            vec!["browser"],
+            vec!["./node_modules/lodash/dist/index.js"],
+        );
+        should_equal(
+            json!({
+                "./utils/*": {
+                    "browser": "./node_modules/*"
+                }
+            }),
+            "./utils/lodash/dist/index.js",
+            vec!["browser"],
+            vec!["./node_modules/lodash/dist/index.js"],
+        );
+        should_equal(
+            json!({
+                "./utils/": "./utils/../node_modules/"
+            }),
+            "./utils/lodash/dist/index.js",
+            vec!["browser"],
+            vec!["./utils/../node_modules/lodash/dist/index.js"],
+        );
+        should_equal(
+            json!({
+                "./utils/*": "./utils/../node_modules/*"
+            }),
+            "./utils/lodash/dist/index.js",
+            vec!["browser"],
+            vec!["./utils/../node_modules/lodash/dist/index.js"],
+        );
+        should_equal(
+            json!({
+                "./utils/": {
+                    "browser": {
+                        "webpack": "./",
+                        "default": {
+                            "node": "./node/"
+                        }
+                    }
+                }
+            }),
+            "./utils/index.js",
+            vec!["browser"],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./utils/*": {
+                    "browser": {
+                        "webpack": "./*",
+                        "default": {
+                            "node": "./node/*"
+                        }
+                    }
+                }
+            }),
+            "./utils/index.js",
+            vec!["browser"],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./utils/": {
+                    "browser": {
+                        "webpack": ["./", "./node/"],
+                        "default": {
+                            "node": "./node/"
+                        }
+                    }
+                }
+            }),
+            "./utils/index.js",
+            vec!["browser", "webpack"],
+            vec!["./index.js", "./node/index.js"],
+        );
+        should_equal(
+            json!({
+                "./utils/*": {
+                    "browser": {
+                        "webpack": ["./*", "./node/*"],
+                        "default": {
+                            "node": "./node/*"
+                        }
+                    }
+                }
+            }),
+            "./utils/index.js",
+            vec!["browser", "webpack"],
+            vec!["./index.js", "./node/index.js"],
+        );
+        should_equal(
+            json!({
+                "./utils/": {
+                    "browser": {
+                        "webpack": ["./", "./node/"],
+                        "default": {
+                            "node": "./node/"
+                        }
+                    }
+                }
+            }),
+            "./utils/index.js",
+            vec!["webpack"],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./utils/*": {
+                    "browser": {
+                        "webpack": ["./*", "./node/*"],
+                        "default": {
+                            "node": "./node/*"
+                        }
+                    }
+                }
+            }),
+            "./utils/index.js",
+            vec!["webpack"],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./utils/": {
+                    "browser": {
+                        "webpack": ["./", "./node/"],
+                        "default": {
+                            "node": "./node/"
+                        }
+                    }
+                }
+            }),
+            "./utils/index.js",
+            vec!["node", "browser"],
+            vec!["./node/index.js"],
+        );
+        should_equal(
+            json!({
+                "./utils/*": {
+                    "browser": {
+                        "webpack": ["./*", "./node/*"],
+                        "default": {
+                            "node": "./node/*"
+                        }
+                    }
+                }
+            }),
+            "./utils/index.js",
+            vec!["node", "browser"],
+            vec!["./node/index.js"],
+        );
+        should_equal(
+            json!({
+                "./utils/": {
+                    "browser": {
+                        "webpack": ["./", "./node/"],
+                        "default": {
+                            "node": {
+                                "webpack": ["./wpck/"]
+                            }
+                        }
+                    }
+                }
+            }),
+            "./utils/index.js",
+            vec!["browser", "node"],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./utils/*": {
+                    "browser": {
+                        "webpack": ["./*", "./node/*"],
+                        "default": {
+                            "node": {
+                                "webpack": ["./wpck/*"]
+                            }
+                        }
+                    }
+                }
+            }),
+            "./utils/index.js",
+            vec!["browser", "node"],
+            vec![],
+        );
+        should_equal(
+            json!({
+                "./utils/": {
+                    "browser": {
+                        "webpack": ["./", "./node/"],
+                        "default": {
+                            "node": {
+                                "webpack": ["./wpck/"]
+                            }
+                        }
+                    }
+                }
+            }),
+            "./utils/index.js",
+            vec!["browser", "node", "webpack"],
+            vec!["./index.js", "./node/index.js"],
+        );
+        should_equal(
+            json!({
+                "./utils/*": {
+                    "browser": {
+                        "webpack": ["./*", "./node/*"],
+                        "default": {
+                            "node": {
+                                "webpack": ["./wpck/*"]
+                            }
+                        }
+                    }
+                }
+            }),
+            "./utils/index.js",
+            vec!["browser", "node", "webpack"],
+            vec!["./index.js", "./node/index.js"],
+        );
+        should_equal(
+            json!({
+                "./a.js": {
+                    "abc": {
+                        "def": "./x.js"
+                    },
+                    "ghi": "./y.js"
+                }
+            }),
+            "./a.js",
+            vec!["abc", "ghi"],
+            vec!["./y.js"],
+        );
+        should_equal(
+            json!({
+                "./a.js": {
+                    "abc": {
+                        "def": "./x.js",
+                        "default": []
+                    },
+                    "ghi": "./y.js"
+                }
+            }),
+            "./a.js",
+            vec!["abc", "ghi"],
+            vec![],
+        );
 
-    should_error(
-        json!({
-            "./utils/": {
-                "browser": "../this/"
-            }
-        }),
-        "./utils/index",
-        vec!["browser"],
-        "Export should be relative path and start with \"./\", but got ../this/",
-    );
-    should_error(
-        json!({
-            "./utils/*": {
-                "browser": "../this/*"
-            }
-        }),
-        "./utils/index",
-        vec!["browser"],
-        "Export should be relative path and start with \"./\", but got ../this/*",
-    );
-    should_error(
-        json!({
-          ".": {
-              "default": "./src/index.js",
-              "browser": "./index.js",
-              "node": "./src/node/index.js"
-          }
-        }),
-        ".",
-        vec!["browser"],
-        "Default condition should be last one",
-    );
-    should_error(
-        json!({
-            "./*": "."
-        }),
-        "./timezones/pdt.mjs",
-        vec![],
-        "Export should be relative path and start with \"./\", but got .",
-    );
-    should_error(
-        json!({
-            "./": "."
-        }),
-        "./timezones/pdt.mjs",
-        vec![],
-        "Export should be relative path and start with \"./\", but got .",
-    );
-    should_error(
-        json!({
-            "./timezones/": "./data/timezones"
-        }),
-        "./timezones/pdt.mjs",
-        vec![],
-        "Expected ./data/timezones is folder mapping",
-    );
-    should_error(
-        json!({
-          "./node": "./node.js",
-          "browser": {
-            "default": "./index.js"
-          },
-        }),
-        ".",
-        vec!["browser"],
-        "Export field key can't mixed relative path and conditional object",
-    );
-    should_error(
-        json!({
-          "browser": {
-            "default": "./index.js"
-          },
-          "./node": "./node.js"
-        }),
-        ".",
-        vec!["browser"],
-        "Export field key can't mixed relative path and conditional object",
-    );
-    should_error(
-        json!({
-          "/utils/": "./a/"
-        }),
-        "./utils/index.mjs",
-        vec![],
-        "Export field key should be relative path and start with \"./\", but got /utils/",
-    );
-    should_error(
-        json!({
-          "./utils/": "/a/"
-        }),
-        "./utils/index.mjs",
-        vec![],
-        "Export should be relative path and start with \"./\", but got /a/",
-    );
-    should_error(
-        json!({
-          "./utils/": "./a/"
-        }),
-        "/utils/index.mjs",
-        vec![],
-        "Request should be relative path and start with '.', but got /utils/index.mjs",
-    );
-    should_error(
-        json!({
-          "./utils/": {
-              "browser": "./a/",
-              "default": "./b/"
-          }
-        }),
-        "/utils/index.mjs",
-        vec!["browser"],
-        "Request should be relative path and start with '.', but got /utils/index.mjs",
-    );
-    should_error(
-        json!({
-          "./utils/": {
-              "browser": "./a/",
-              "default": "./b/"
-          }
-        }),
-        "/utils/index.mjs/",
-        vec!["browser"],
-        "Request should be relative path and start with '.', but got /utils/index.mjs/",
-    );
-    should_error(
-        json!({
-          "./utils/": {
-              "browser": "./a/",
-              "default": "./b/"
-          }
-        }),
-        "../utils/index.mjs",
-        vec!["browser"],
-        "Request should be relative path and start with '.', but got ../utils/index.mjs",
-    );
-    should_error(
-        json!({
-            "../../utils/": "./dist/"
-        }),
-        "../../utils/index",
-        vec![],
-        "Export field key should be relative path and start with \"./\", but got ../../utils/",
-    );
-    should_error(
-        json!({
-            "../../utils/*": "./dist/*"
-        }),
-        "../../utils/index",
-        vec![],
-        "Export field key should be relative path and start with \"./\", but got ../../utils/*",
-    );
-    should_error(
-        json!({
-            "./utils/": "../src/"
-        }),
-        "./utils/index",
-        vec![],
-        "Export should be relative path and start with \"./\", but got ../src/",
-    );
-    should_error(
-        json!({
-            "./utils/*": "../src/*"
-        }),
-        "./utils/index",
-        vec![],
-        "Export should be relative path and start with \"./\", but got ../src/*",
-    );
-    should_error(
-        json!({
-            "/utils/": {
-                "browser": "./a/",
-                "default": "./b/"
-            }
-        }),
-        "./utils/index.mjs",
-        vec!["browser"],
-        "Export field key should be relative path and start with \"./\", but got /utils/",
-    );
-    should_error(
-        json!({
-            "./utils/": {
-                "browser": "/a/",
-                "default": "/b/"
-            }
-        }),
-        "./utils/index.mjs",
-        vec!["browser"],
-        "Export should be relative path and start with \"./\", but got /a/",
-    );
-    should_error(
-        json!({
-            "./utils/*": {
-                "browser": "/a/",
-                "default": "/b/"
-            }
-        }),
-        "./utils/index.mjs",
-        vec!["browser"],
-        "Export should be relative path and start with \"./\", but got /a/",
-    );
+        should_error(
+            json!({
+                "./utils/": {
+                    "browser": "../this/"
+                }
+            }),
+            "./utils/index",
+            vec!["browser"],
+            "Export should be relative path and start with \"./\", but got ../this/",
+        );
+        should_error(
+            json!({
+                "./utils/*": {
+                    "browser": "../this/*"
+                }
+            }),
+            "./utils/index",
+            vec!["browser"],
+            "Export should be relative path and start with \"./\", but got ../this/*",
+        );
+        should_error(
+            json!({
+              ".": {
+                  "default": "./src/index.js",
+                  "browser": "./index.js",
+                  "node": "./src/node/index.js"
+              }
+            }),
+            ".",
+            vec!["browser"],
+            "Default condition should be last one",
+        );
+        should_error(
+            json!({
+                "./*": "."
+            }),
+            "./timezones/pdt.mjs",
+            vec![],
+            "Export should be relative path and start with \"./\", but got .",
+        );
+        should_error(
+            json!({
+                "./": "."
+            }),
+            "./timezones/pdt.mjs",
+            vec![],
+            "Export should be relative path and start with \"./\", but got .",
+        );
+        should_error(
+            json!({
+                "./timezones/": "./data/timezones"
+            }),
+            "./timezones/pdt.mjs",
+            vec![],
+            "Expected ./data/timezones is folder mapping",
+        );
+        should_error(
+            json!({
+              "./node": "./node.js",
+              "browser": {
+                "default": "./index.js"
+              },
+            }),
+            ".",
+            vec!["browser"],
+            "Export field key should be relative path and start with \".\", but got browser",
+        );
+        should_error(
+            json!({
+              "browser": {
+                "default": "./index.js"
+              },
+              "./node": "./node.js"
+            }),
+            ".",
+            vec!["browser"],
+            "Export field key should be relative path and start with \"./\", but got ./node",
+        );
+        should_error(
+            json!({
+              "/utils/": "./a/"
+            }),
+            "./utils/index.mjs",
+            vec![],
+            "Export field key should be relative path and start with \"./\", but got /utils/",
+        );
+        should_error(
+            json!({
+              "./utils/": "/a/"
+            }),
+            "./utils/index.mjs",
+            vec![],
+            "Export should be relative path and start with \"./\", but got /a/",
+        );
+        should_error(
+            json!({
+              "./utils/": "./a/"
+            }),
+            "/utils/index.mjs",
+            vec![],
+            "Request should be relative path and start with '.', but got /utils/index.mjs",
+        );
+        should_error(
+            json!({
+              "./utils/": {
+                  "browser": "./a/",
+                  "default": "./b/"
+              }
+            }),
+            "/utils/index.mjs",
+            vec!["browser"],
+            "Request should be relative path and start with '.', but got /utils/index.mjs",
+        );
+        should_error(
+            json!({
+              "./utils/": {
+                  "browser": "./a/",
+                  "default": "./b/"
+              }
+            }),
+            "/utils/index.mjs/",
+            vec!["browser"],
+            "Request should be relative path and start with '.', but got /utils/index.mjs/",
+        );
+        should_error(
+            json!({
+              "./utils/": {
+                  "browser": "./a/",
+                  "default": "./b/"
+              }
+            }),
+            "../utils/index.mjs",
+            vec!["browser"],
+            "Request should be relative path and start with '.', but got ../utils/index.mjs",
+        );
+        should_error(
+            json!({
+                "../../utils/": "./dist/"
+            }),
+            "../../utils/index",
+            vec![],
+            "Request should be relative path and start with '.', but got ../../utils/index",
+        );
+        should_error(
+            json!({
+                "../../utils/*": "./dist/*"
+            }),
+            "./utils/index",
+            vec![],
+            "Export field key should be relative path and start with \"./\", but got ../../utils/*",
+        );
+        should_error(
+            json!({
+                "./utils/*": "./dist/*"
+            }),
+            "../../utils/index",
+            vec![],
+            "Request should be relative path and start with '.', but got ../../utils/index",
+        );
+        should_error(
+            json!({
+                "./utils/": "../src/"
+            }),
+            "./utils/index",
+            vec![],
+            "Export should be relative path and start with \"./\", but got ../src/",
+        );
+        should_error(
+            json!({
+                "./utils/*": "../src/*"
+            }),
+            "./utils/index",
+            vec![],
+            "Export should be relative path and start with \"./\", but got ../src/*",
+        );
+        should_error(
+            json!({
+                "/utils/": {
+                    "browser": "./a/",
+                    "default": "./b/"
+                }
+            }),
+            "./utils/index.mjs",
+            vec!["browser"],
+            "Export field key should be relative path and start with \"./\", but got /utils/",
+        );
+        should_error(
+            json!({
+                "./utils/": {
+                    "browser": "/a/",
+                    "default": "/b/"
+                }
+            }),
+            "./utils/index.mjs",
+            vec!["browser"],
+            "Export should be relative path and start with \"./\", but got /a/",
+        );
+        should_error(
+            json!({
+                "./utils/*": {
+                    "browser": "/a/",
+                    "default": "/b/"
+                }
+            }),
+            "./utils/index.mjs",
+            vec!["browser"],
+            "Export should be relative path and start with \"./\", but got /a/",
+        );
+    }
+
+    #[test]
+    fn exports_field_map_test_2() {
+        // copy from node
+        // https://github.com/nodejs/node/blob/main/test/fixtures/node_modules/pkgexports/package.json
+        let value = || {
+            json!({
+              "./hole": "./lib/hole.js",
+              "./space": "./sp%20ce.js",
+              "./valid-cjs": "./asdf.js",
+              "./sub/*": "./*",
+              "./sub/internal/*": null,
+              "./belowdir/*": "../belowdir/*",
+              "./belowfile": "../belowfile",
+              "./null": null,
+              "./null/": null,
+              "./invalid1": {},
+              "./invalid2": 1234,
+              "./invalid3": "",
+              "./invalid4": {},
+              "./invalid5": "invalid5.js",
+              "./fallbackdir/*": [[], null, {}, "builtin:x/*", "./*"],
+              "./fallbackfile": [[], null, {}, "builtin:x", "./asdf.js"],
+              "./nofallback1": [],
+              "./nofallback2": [null, {}, "builtin:x"],
+              "./nodemodules": "./node_modules/internalpkg/x.js",
+              "./doubleslash": ".//asdf.js",
+              "./no-addons": {
+                "node-addons": "./addons-entry.js",
+                "default": "./no-addons-entry.js"
+              },
+              "./condition": [{
+                "custom-condition": {
+                  "import": "./custom-condition.mjs",
+                  "require": "./custom-condition.js"
+                },
+                "import": "///overridden",
+                "require": {
+                  "require": {
+                    "nomatch": "./nothing.js"
+                  },
+                  "default": "./sp ce.js"
+                },
+                "default": "./asdf.js",
+                "node": "./lib/hole.js",
+                "import": {
+                  "nomatch": "./nothing.js"
+                }
+              }],
+              "./no-ext": "./asdf",
+              "./resolve-self": {
+                "require": "./resolve-self.js",
+                "import": "./resolve-self.mjs"
+              },
+              "./resolve-self-invalid": {
+                "require": "./resolve-self-invalid.js",
+                "import": "./resolve-self-invalid.mjs"
+              },
+              "./*/trailer": "./subpath/*.js",
+              "./*/*railer": "never",
+              "./*trailer": "never",
+              "./*/dir2/trailer": "./subpath/*/index.js",
+              "./a/*": "./subpath/*.js",
+              "./a/b/": "./nomatch/",
+              "./a/b*": "./subpath*.js",
+              "./subpath/*": "./subpath/*",
+              "./subpath/sub-*": "./subpath/dir1/*.js",
+              "./subpath/sub-*.js": "./subpath/dir1/*.js",
+              "./features/*": "./subpath/*/*.js",
+              "./trailing-pattern-slash*": "./trailing-pattern-slash*index.js"
+            })
+        };
+
+        should_equal(
+            value(),
+            "./subpath/sub-dir1.js",
+            vec![],
+            vec!["./subpath/dir1/dir1.js"],
+        );
+        should_equal(value(), "./valid-cjs", vec![], vec!["./asdf.js"]);
+        should_equal(value(), "./space", vec![], vec!["./sp%20ce.js"]);
+        should_equal(
+            value(),
+            "./fallbackdir/asdf.js",
+            vec![],
+            vec!["builtin:x/asdf.js", "./asdf.js"],
+        );
+        should_equal(
+            value(),
+            "./fallbackfile",
+            vec![],
+            vec!["builtin:x", "./asdf.js"],
+        );
+        should_equal(value(), "./condition", vec!["require"], vec!["./sp ce.js"]);
+        should_equal(
+            value(),
+            "./resolve-self",
+            vec!["require"],
+            vec!["./resolve-self.js"],
+        );
+        should_equal(
+            value(),
+            "./resolve-self",
+            vec!["import"],
+            vec!["./resolve-self.mjs"],
+        );
+        should_equal(
+            value(),
+            "./subpath/sub-dir1",
+            vec![],
+            vec!["./subpath/dir1/dir1.js"],
+        );
+        should_equal(
+            value(),
+            "./subpath/sub-dir1.js",
+            vec![],
+            vec!["./subpath/dir1/dir1.js"],
+        );
+        should_equal(
+            value(),
+            "./features/dir1",
+            vec![],
+            vec!["./subpath/dir1/dir1.js"],
+        );
+        should_equal(
+            value(),
+            "./dir1/dir1/trailer",
+            vec![],
+            vec!["./subpath/dir1/dir1.js"],
+        );
+        should_equal(
+            value(),
+            "./dir2/dir2/trailer",
+            vec![],
+            vec!["./subpath/dir2/index.js"],
+        );
+        should_equal(
+            value(),
+            "./a/dir1/dir1",
+            vec![],
+            vec!["./subpath/dir1/dir1.js"],
+        );
+        should_equal(
+            value(),
+            "./a/b/dir1/dir1",
+            vec![],
+            vec!["./subpath/dir1/dir1.js"],
+        );
+        // FIXME:
+        // should_equal(
+        //     value(),
+        //     "./a//dir1/dir1",
+        //     vec![],
+        //     vec!["./subpath/dir1/dir1.js"],
+        // );
+        //  FIXME:
+        // should_equal(value(), "./doubleslash", vec![], vec!["./asdf.js"]);
+        should_equal(value(), "./sub/internal/test.js", vec![], vec![]);
+        // FIXME:
+        // should_equal(
+        //     value(),
+        //     "./sub//internal/test.js",
+        //     vec![],
+        //     vec!["./internal/test.js"],
+        // );
+        should_equal(
+            //1
+            value(),
+            "./trailing-pattern-slash/",
+            vec![],
+            vec!["./trailing-pattern-slash/index.js"],
+        );
+    }
 }
 
 #[test]
 fn imports_field_map_test() {
     use crate::test_helper;
+    use serde_json::json;
+
     fn process_imports_fields(
         value: serde_json::Value,
         request: &str,
         condition_names: Vec<&str>,
     ) -> RResult<Vec<String>> {
-        ImportsField::build_field_path_tree(&value).and_then(|root| {
-            ImportsField::field_process(&root, request, &test_helper::vec_to_set(condition_names))
-        })
+        ImportsField::field_process(&value, request, &test_helper::vec_to_set(condition_names))
     }
 
     fn should_equal(
@@ -2131,8 +2195,6 @@ fn imports_field_map_test() {
             _ => unreachable!(),
         }
     }
-
-    use serde_json::json;
 
     should_equal(
         json!({

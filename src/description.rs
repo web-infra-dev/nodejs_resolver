@@ -1,7 +1,5 @@
 use crate::info::NormalizedPath;
-use crate::map::{ExportsField, Field, ImportsField, PathTreeNode};
 use crate::{AliasMap, Error, RResult};
-use dashmap::DashMap;
 use once_cell::sync::OnceCell;
 use std::path::Path;
 use std::sync::Arc;
@@ -10,8 +8,6 @@ use std::sync::Arc;
 pub struct PkgJSON {
     name: Option<Box<str>>,
     alias_fields: OnceCell<Vec<(String, AliasMap)>>,
-    exports_field_map: DashMap<String, RResult<Option<PathTreeNode>>>,
-    imports_field_tree: OnceCell<RResult<Option<PathTreeNode>>>,
     raw: serde_json::Value,
 }
 
@@ -28,8 +24,6 @@ impl PkgJSON {
         Ok(Self {
             name,
             alias_fields: OnceCell::new(),
-            exports_field_map: DashMap::new(),
-            imports_field_tree: OnceCell::new(),
             raw: json,
         })
     }
@@ -58,7 +52,7 @@ impl PkgJSON {
         })
     }
 
-    fn get_filed(&self, field: &Vec<String>) -> Option<&serde_json::Value> {
+    pub(crate) fn get_filed(&self, field: &Vec<String>) -> Option<&serde_json::Value> {
         let mut current_value = self.raw();
         for current_field in field {
             if !current_value.is_object() {
@@ -70,30 +64,6 @@ impl PkgJSON {
             };
         }
         Some(current_value)
-    }
-
-    pub fn exports_tree(
-        &self,
-        field: &Vec<String>,
-    ) -> dashmap::mapref::one::Ref<String, RResult<Option<PathTreeNode>>> {
-        let field_key = field.join(">");
-        let entry = self.exports_field_map.entry(field_key);
-        let entry = if let Some(field_value) = self.get_filed(field) {
-            entry.or_insert_with(|| ExportsField::build_field_path_tree(field_value).map(Some))
-        } else {
-            entry.or_insert_with(|| Ok(None))
-        };
-        entry.downgrade()
-    }
-
-    pub fn imports_tree(&self) -> &RResult<Option<PathTreeNode>> {
-        let tree = self.imports_field_tree.get_or_init(|| {
-            self.raw
-                .get("imports")
-                .map(ImportsField::build_field_path_tree)
-                .map_or(Ok(None), |v| v.map(Some))
-        });
-        tree
     }
 
     pub fn name(&self) -> Option<&str> {

@@ -42,15 +42,9 @@ impl<'a> Plugin for ImportsFieldPlugin<'a> {
             return State::Resolving(info);
         }
 
-        let root = match self.pkg_info.data().imports_tree() {
-            Ok(Some(tree)) => tree,
-            Ok(None) => return State::Resolving(info),
-            Err(error) => match error {
-                Error::UnexpectedValue(value) => {
-                    return State::Error(Error::UnexpectedValue(value.to_string()))
-                }
-                _ => unreachable!(),
-            },
+        let root = match self.pkg_info.data().raw().get("imports") {
+            Some(tree) => tree,
+            None => return State::Resolving(info),
         };
 
         let list = match ImportsField::field_process(
