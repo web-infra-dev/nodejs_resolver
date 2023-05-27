@@ -4,8 +4,8 @@ use crate::{
     kind::PathKind,
     log::color,
     plugin::{
-        BrowserFieldPlugin, ExportsFieldPlugin, ImportsFieldPlugin, MainFieldPlugin,
-        MainFilePlugin, Plugin,
+        BrowserFieldPlugin, ExportsFieldPlugin, ExtensionAliasPlugin, ImportsFieldPlugin,
+        MainFieldPlugin, MainFilePlugin, Plugin,
     },
     Context, EnforceExtension, Info, ResolveResult, Resolver, State,
 };
@@ -83,27 +83,37 @@ impl Resolver {
         }
     }
 
-    pub(crate) fn resolve_as_file(&self, info: Info, _: &mut Context) -> State {
+    pub(crate) fn resolve_as_file(&self, info: Info, context: &mut Context) -> State {
         if info.request().is_directory() {
             return State::Resolving(info);
         }
 
-        let path = info.to_resolved_path().to_path_buf();
-        tracing::debug!(
-            "Attempting to load '{}' as a file",
-            color::blue(&path.display())
-        );
+        self.options
+            .extension_alias
+            .iter()
+            .fold(State::Resolving(info), |state, (extension, alias_list)| {
+                state.then(|info| {
+                    ExtensionAliasPlugin::new(extension, alias_list).apply(self, info, context)
+                })
+            })
+            .then(|info| {
+                let path = info.to_resolved_path().to_path_buf();
+                tracing::debug!(
+                    "Attempting to load '{}' as a file",
+                    color::blue(&path.display())
+                );
 
-        if matches!(self.options.enforce_extension, EnforceExtension::Enabled) {
-            self.resolve_file_with_ext(path, info)
-        } else if self.load_entry(&path).is_file() {
-            let path = path;
-            State::Success(ResolveResult::Resource(
-                info.with_path(path).with_target(""),
-            ))
-        } else {
-            self.resolve_file_with_ext(path, info)
-        }
+                if matches!(self.options.enforce_extension, EnforceExtension::Enabled) {
+                    self.resolve_file_with_ext(path, info)
+                } else if self.load_entry(&path).is_file() {
+                    let path = path;
+                    State::Success(ResolveResult::Resource(
+                        info.with_path(path).with_target(""),
+                    ))
+                } else {
+                    self.resolve_file_with_ext(path, info)
+                }
+            })
     }
 
     pub(crate) fn resolve_as_dir(&self, info: Info, context: &mut Context) -> State {

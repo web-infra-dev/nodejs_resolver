@@ -3739,6 +3739,26 @@ fn extension_alias() {
         p(vec!["extension-alias", "dir2", "index.mts"]),
     );
     should_failed(&resolver, &fixture, "./index.mjs");
+
+    let fixture = p(vec!["full", "a"]);
+    should_equal(
+        &resolver,
+        &fixture,
+        "package1/index.js",
+        p(vec!["full", "a", "node_modules", "package1", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &fixture,
+        "package1/index",
+        p(vec!["full", "a", "node_modules", "package1", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &fixture,
+        "package1",
+        p(vec!["full", "a", "node_modules", "package1", "index.js"]),
+    );
 }
 
 #[test]

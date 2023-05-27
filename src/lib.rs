@@ -75,8 +75,6 @@ use plugin::{
 pub use resource::Resource;
 use state::State;
 
-use crate::plugin::ExtensionAliasPlugin;
-
 #[derive(Debug)]
 pub struct Resolver {
     pub options: Options,
@@ -205,17 +203,6 @@ impl Resolver {
                 } else {
                     State::Resolving(info)
                 }
-            })
-            .then(|info| {
-                self.options.extension_alias.iter().fold(
-                    State::Resolving(info),
-                    |state, (extension, alias_list)| {
-                        state.then(|info| {
-                            ExtensionAliasPlugin::new(extension, alias_list)
-                                .apply(self, info, context)
-                        })
-                    },
-                )
             })
             .then(|info| {
                 if matches!(
