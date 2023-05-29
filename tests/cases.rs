@@ -3711,6 +3711,30 @@ fn extension_alias() {
     should_equal(
         &resolver,
         &fixture,
+        "a.js",
+        p(vec!["extension-alias", "node_modules", "a.js", "index.js"]),
+    );
+    should_failed(&resolver, &fixture, "a");
+    should_failed(
+        &resolver,
+        &p(vec!["extension-alias", "node_modules"]),
+        "./a.js",
+    );
+    should_equal(
+        &resolver,
+        &p(vec!["extension-alias", "node_modules"]),
+        "./a.js/index.js",
+        p(vec!["extension-alias", "node_modules", "a.js", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &p(vec!["extension-alias", "node_modules"]),
+        "./a.js/index",
+        p(vec!["extension-alias", "node_modules", "a.js", "index.js"]),
+    );
+    should_equal(
+        &resolver,
+        &fixture,
         "./index",
         p(vec!["extension-alias", "index.js"]),
     );
@@ -3758,6 +3782,24 @@ fn extension_alias() {
         &fixture,
         "package1",
         p(vec!["full", "a", "node_modules", "package1", "index.js"]),
+    );
+    let resolver = Resolver::new(Options {
+        extensions: vec![".js".to_string()],
+        main_files: vec!["index.js".to_string()],
+        extension_alias: vec![
+            (
+                ".js".to_string(),
+                vec![".ts".to_string(), ".js".to_string()],
+            ),
+            (".mjs".to_string(), vec![".mts".to_string()]),
+        ],
+        fully_specified: true,
+        ..Default::default()
+    });
+    should_failed(
+        &resolver,
+        &p(vec!["extension-alias", "node_modules"]),
+        "./a.js/index",
     );
 }
 

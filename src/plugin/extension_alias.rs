@@ -1,5 +1,5 @@
 use super::Plugin;
-use crate::{Context, Info, Resolver, State};
+use crate::{kind::PathKind, Context, Info, Resolver, State};
 
 pub struct ExtensionAliasPlugin<'a> {
     extension: &'a str,
@@ -17,8 +17,12 @@ impl<'a> ExtensionAliasPlugin<'a> {
 
 impl<'a> Plugin for ExtensionAliasPlugin<'a> {
     fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
-        let target = info.request().target();
-        if !target.ends_with(self.extension) {
+        let request = info.request();
+        let target = request.target();
+        if matches!(request.kind(), PathKind::Normal)
+            || target.is_empty()
+            || !target.ends_with(self.extension)
+        {
             State::Resolving(info)
         } else if !self.alias_list.is_empty() {
             for alias in self.alias_list {
