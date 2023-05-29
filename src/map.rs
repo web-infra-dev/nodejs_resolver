@@ -2090,6 +2090,7 @@ mod exports_field_map_test {
             vec![],
             vec!["./subpath/dir1/dir1.js"],
         );
+        should_equal(value(), "./dir2/trailer", vec![], vec!["./subpath/dir2.js"]);
         should_equal(
             value(),
             "./dir2/dir2/trailer",
@@ -2117,6 +2118,12 @@ mod exports_field_map_test {
         // );
         //  FIXME:
         // should_equal(value(), "./doubleslash", vec![], vec!["./asdf.js"]);
+        should_equal(
+            value(),
+            "./sub/no-a-file.js",
+            vec![],
+            vec!["./no-a-file.js"],
+        );
         should_equal(value(), "./sub/internal/test.js", vec![], vec![]);
         // FIXME:
         // should_equal(

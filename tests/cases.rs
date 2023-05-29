@@ -2030,7 +2030,7 @@ fn scoped_packages_test() {
 }
 
 #[test]
-fn exports_fields_test() {
+fn exports_field_test() {
     // TODO: [`exports_fields`](https://github.com/webpack/enhanced-resolve/blob/main/test/exportsField.js#L2280) flag
     let export_cases_path = p(vec!["exports-field"]);
     let resolver = Resolver::new(Options {
@@ -2697,13 +2697,13 @@ fn exports_filed_test_5() {
         &resolver,
         &export_cases_path5,
         "pkgexports/invalid5",
-        "Package path pkgexports/invalid5 is not expor".to_string(),
+        "Invalid \"invalid5.js\" defined in".to_string(),
     );
     should_unexpected_value_error(
         &resolver,
         &export_cases_path5,
         "pkgexports/nofallback2",
-        "nofallback2 is not exported".to_string(),
+        "Invalid \"builtin:x\" defined in".to_string(),
     );
     // FIXME:
     // should_unexpected_value_error(
@@ -2724,12 +2724,6 @@ fn exports_filed_test_5() {
         "pkgexports/sub/./../asdf.js",
         "Trying to access out of package scope. Requesting ././../asd".to_string(),
     );
-    should_unexpected_value_error(
-        &resolver,
-        &export_cases_path5,
-        "pkgexports/sub/no-a-file.js",
-        "Package path pkgexports/sub/no-a-file.js is not exported".to_string(),
-    );
     // FIXME:
     // should_unexpected_value_error(
     //     &resolver,
@@ -2737,12 +2731,6 @@ fn exports_filed_test_5() {
     //     "pkgexports/no-ext",
     //     "Trying to access out of package scope. Requesting ././../asd".to_string(),
     // );
-    should_unexpected_value_error(
-        &resolver,
-        &export_cases_path5,
-        "pkgexports/dir2/trailer",
-        "Package path pkgexports/dir2/trailer is not export".to_string(),
-    );
 }
 
 #[test]

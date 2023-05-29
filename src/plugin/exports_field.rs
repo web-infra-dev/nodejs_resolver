@@ -79,6 +79,13 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 Err(err) => return State::Error(err),
             };
 
+            if list.is_empty() {
+                return State::Error(Error::UnexpectedValue(format!(
+                    "Package path {target} is not exported in {}/package.json",
+                    self.pkg_info.dir().as_ref().display()
+                )));
+            }
+
             for item in list {
                 tracing::debug!(
                     "ExportsField in '{}' works, trigger by '{}', mapped to '{}'({})",
@@ -90,6 +97,12 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                     color::blue(&item),
                     depth(&context.depth)
                 );
+                if !item.starts_with("./") {
+                    return State::Error(Error::UnexpectedValue(format!(
+                        "Invalid \"{item}\" defined in {}/package.json, target must start with  \"./\"",
+                        self.pkg_info.dir().as_ref().display()
+                    )));
+                }
                 let request = Resolver::parse(&item);
                 let info = Info::from(self.pkg_info.dir().clone()).with_request(request);
                 if let Err(msg) = ExportsField::check_target(info.request().target()) {
@@ -102,11 +115,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 }
             }
 
-            // TODO: `info.abs_dir_path.as_os_str().to_str().unwrap(),` has abs_path
-            return State::Error(Error::UnexpectedValue(format!(
-                "Package path {target} is not exported in {}/package.json",
-                self.pkg_info.dir().as_ref().display()
-            )));
+            return State::Failed(info);
         }
 
         State::Resolving(info)
