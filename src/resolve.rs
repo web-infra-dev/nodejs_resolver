@@ -58,22 +58,24 @@ impl Resolver {
             return State::Resolving(info);
         }
         let path = info.to_resolved_path();
+        let request = info.request();
+        let target = request.target();
         if self.load_entry(&path).is_file() {
             let path = path.to_path_buf();
             State::Success(ResolveResult::Resource(
                 info.with_path(path).with_target(""),
             ))
         } else if matches!(
-            info.request().kind(),
+            request.kind(),
             PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
-        ) || split_slash_from_request(info.request().target()).is_some()
+        ) || split_slash_from_request(target).is_some()
         {
             State::Failed(info)
         } else {
             let dir = path.to_path_buf();
             let info = info.with_path(dir).with_target(".");
             context.fully_specified.set(false);
-            let state = MainFilePlugin.apply(self, info.clone(), context);
+            let state = self._resolve(info.clone(), context);
             context.fully_specified.set(true);
             if state.is_finished() {
                 state
@@ -102,7 +104,6 @@ impl Resolver {
                     "Attempting to load '{}' as a file",
                     color::blue(&path.display())
                 );
-
                 if matches!(self.options.enforce_extension, EnforceExtension::Enabled) {
                     self.resolve_file_with_ext(path, info)
                 } else if self.load_entry(&path).is_file() {
