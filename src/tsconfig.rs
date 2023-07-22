@@ -1,9 +1,11 @@
 // copy from https://github.com/drivasperez/tsconfig
 
+use std::{path::Path, sync::Arc};
+
+use rustc_hash::FxHashMap;
+
 use crate::context::Context;
 use crate::{Error, Info, RResult, ResolveResult, Resolver, State};
-use rustc_hash::FxHashMap;
-use std::{path::Path, sync::Arc};
 
 #[derive(Debug, Clone, Default)]
 pub struct TsConfig {
@@ -37,9 +39,7 @@ impl Resolver {
         let json = self.parse_file_to_value(location, context)?;
         let compiler_options = json.get("compilerOptions").map(|options| {
             // TODO: should optimized
-            let base_url = options
-                .get("baseUrl")
-                .map(|v| v.as_str().unwrap().to_string());
+            let base_url = options.get("baseUrl").map(|v| v.as_str().unwrap().to_string());
             let paths = options.get("paths").map(|v| {
                 let mut map = FxHashMap::default();
                 // TODO: should optimized
@@ -58,10 +58,7 @@ impl Resolver {
             CompilerOptions { base_url, paths }
         });
         let extends: Option<String> = json.get("extends").map(|v| v.to_string());
-        Ok(TsConfig {
-            extends,
-            compiler_options,
-        })
+        Ok(TsConfig { extends, compiler_options })
     }
 
     fn parse_file_to_value(
@@ -101,7 +98,7 @@ impl Resolver {
                         return Err(Error::UnexpectedValue(format!(
                             "{s} had been ignored in {}",
                             location.display()
-                        )))
+                        )));
                     }
                 }?;
                 merge(&mut json, extends_tsconfig_json);

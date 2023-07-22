@@ -1,10 +1,10 @@
-use crate::context::Depth;
 use tracing_subscriber::prelude::*;
 
+use crate::context::Depth;
+
 pub fn enable_by_env() {
-    let is_enabled = std::env::var("RESOLVER_TRACE").map_or(false, |var| {
-        matches!(var.as_str(), "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR")
-    });
+    let is_enabled = std::env::var("RESOLVER_TRACE")
+        .map_or(false, |var| matches!(var.as_str(), "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR"));
     if !is_enabled {
         return;
     }

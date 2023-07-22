@@ -8,10 +8,7 @@ pub struct ExtensionAliasPlugin<'a> {
 
 impl<'a> ExtensionAliasPlugin<'a> {
     pub fn new(extension: &'a str, alias_list: &'a Vec<String>) -> Self {
-        Self {
-            extension,
-            alias_list,
-        }
+        Self { extension, alias_list }
     }
 }
 
@@ -26,11 +23,8 @@ impl<'a> Plugin for ExtensionAliasPlugin<'a> {
             State::Resolving(info)
         } else if !self.alias_list.is_empty() {
             for alias in self.alias_list {
-                let target = &format!(
-                    "{}{}",
-                    &target[0..target.len() - self.extension.len()],
-                    alias
-                );
+                let target =
+                    &format!("{}{}", &target[0..target.len() - self.extension.len()], alias);
                 let next = info.clone().with_target(target);
                 let path = next.to_resolved_path().to_path_buf();
                 let next = next.with_path(path).with_target("");

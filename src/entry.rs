@@ -1,11 +1,7 @@
+use std::path::{Path, PathBuf};
+use std::{borrow::Cow, fs::FileType, sync::Arc, time::SystemTime};
+
 use once_cell::sync::OnceCell;
-use std::{
-    borrow::Cow,
-    fs::FileType,
-    path::{Path, PathBuf},
-    sync::Arc,
-    time::SystemTime,
-};
 
 use crate::{description::DescriptionData, Error, RResult, Resolver};
 
@@ -20,10 +16,7 @@ pub struct EntryStat {
 
 impl EntryStat {
     fn new(file_type: Option<FileType>, modified: Option<SystemTime>) -> Self {
-        Self {
-            file_type,
-            modified,
-        }
+        Self { file_type, modified }
     }
 
     /// Returns `None` for non-existing file
@@ -82,11 +75,7 @@ impl Entry {
                 } else {
                     Cow::Owned(path.join(pkg_name))
                 };
-                match resolver
-                    .cache
-                    .fs
-                    .read_description_file(&pkg_path, EntryStat::default())
-                {
+                match resolver.cache.fs.read_description_file(&pkg_path, EntryStat::default()) {
                     Ok(info) => {
                         return Ok(Some(info));
                     }
@@ -108,15 +97,11 @@ impl Entry {
     }
 
     pub fn is_file(&self) -> bool {
-        self.cached_stat()
-            .file_type()
-            .map_or(false, |ft| ft.is_file())
+        self.cached_stat().file_type().map_or(false, |ft| ft.is_file())
     }
 
     pub fn is_dir(&self) -> bool {
-        self.cached_stat()
-            .file_type()
-            .map_or(false, |ft| ft.is_dir())
+        self.cached_stat().file_type().map_or(false, |ft| ft.is_dir())
     }
 
     pub fn exists(&self) -> bool {
@@ -157,10 +142,7 @@ impl Resolver {
             cached.clone()
         } else {
             let entry = Arc::new(self.load_entry_uncached(path));
-            self.cache
-                .entries
-                .entry(path.into())
-                .or_insert(entry.clone());
+            self.cache.entries.entry(path.into()).or_insert(entry.clone());
             entry
         }
     }

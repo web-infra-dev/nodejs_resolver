@@ -91,11 +91,7 @@ pub struct Options {
 
 impl Default for Options {
     fn default() -> Self {
-        let extensions = vec![
-            String::from(".js"),
-            String::from(".json"),
-            String::from(".node"),
-        ];
+        let extensions = vec![String::from(".js"), String::from(".json"), String::from(".node")];
         let main_files = vec![String::from("index")];
         let main_fields = vec![String::from("main")];
         let description_file = String::from("package.json");

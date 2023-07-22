@@ -1,6 +1,7 @@
-use crate::Resolver;
 use daachorse::{CharwiseDoubleArrayAhoCorasick, CharwiseDoubleArrayAhoCorasickBuilder, MatchKind};
 use once_cell::sync::Lazy;
+
+use crate::Resolver;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PathKind {
@@ -74,37 +75,13 @@ impl Resolver {
 fn test_resolver() {
     assert!(matches!(Resolver::get_target_kind(""), PathKind::Relative));
     assert!(matches!(Resolver::get_target_kind("."), PathKind::Relative));
-    assert!(matches!(
-        Resolver::get_target_kind(".."),
-        PathKind::Relative
-    ));
-    assert!(matches!(
-        Resolver::get_target_kind("../a.js"),
-        PathKind::Relative
-    ));
-    assert!(matches!(
-        Resolver::get_target_kind("./a.js"),
-        PathKind::Relative
-    ));
-    assert!(matches!(
-        Resolver::get_target_kind("D:"),
-        PathKind::AbsoluteWin
-    ));
-    assert!(matches!(
-        Resolver::get_target_kind("C:path"),
-        PathKind::Normal
-    ));
-    assert!(matches!(
-        Resolver::get_target_kind("C:\\a"),
-        PathKind::AbsoluteWin
-    ));
-    assert!(matches!(
-        Resolver::get_target_kind("c:/a"),
-        PathKind::AbsoluteWin
-    ));
-    assert!(matches!(
-        Resolver::get_target_kind("cc:/a"),
-        PathKind::Normal
-    ));
+    assert!(matches!(Resolver::get_target_kind(".."), PathKind::Relative));
+    assert!(matches!(Resolver::get_target_kind("../a.js"), PathKind::Relative));
+    assert!(matches!(Resolver::get_target_kind("./a.js"), PathKind::Relative));
+    assert!(matches!(Resolver::get_target_kind("D:"), PathKind::AbsoluteWin));
+    assert!(matches!(Resolver::get_target_kind("C:path"), PathKind::Normal));
+    assert!(matches!(Resolver::get_target_kind("C:\\a"), PathKind::AbsoluteWin));
+    assert!(matches!(Resolver::get_target_kind("c:/a"), PathKind::AbsoluteWin));
+    assert!(matches!(Resolver::get_target_kind("cc:/a"), PathKind::Normal));
     assert!(matches!(Resolver::get_target_kind("fs"), PathKind::Normal));
 }

@@ -52,20 +52,14 @@ impl SymlinkPlugin {
 
         let info = if let Some(symlink) = symlink {
             let mut path = symlink;
-            let tail = entry_path
-                .components()
-                .rev()
-                .take(index)
-                .collect::<Vec<_>>();
+            let tail = entry_path.components().rev().take(index).collect::<Vec<_>>();
             for c in tail.into_iter().rev() {
                 path.push(c);
             }
             head.init_real(path.clone().into_boxed_path());
             info.with_path(path)
         } else {
-            stack
-                .into_iter()
-                .for_each(|entry| entry.init_real(entry.path().into()));
+            stack.into_iter().for_each(|entry| entry.init_real(entry.path().into()));
             info
         };
 

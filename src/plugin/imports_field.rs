@@ -1,12 +1,7 @@
 use super::Plugin;
-use crate::{
-    context::Context,
-    description::DescriptionData,
-    log::color,
-    log::depth,
-    map::{Field, ImportsField},
-    Error, Info, PathKind, Resolver, State,
-};
+use crate::map::{Field, ImportsField};
+use crate::{context::Context, description::DescriptionData, log::color, log::depth};
+use crate::{Error, Info, PathKind, Resolver, State};
 
 pub struct ImportsFieldPlugin<'a> {
     pkg_info: &'a DescriptionData,

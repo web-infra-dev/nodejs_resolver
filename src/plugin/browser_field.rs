@@ -1,9 +1,9 @@
-use crate::{
-    context::Context, description::DescriptionData, log::color, log::depth, AliasMap, Info,
-    PathKind, Plugin, ResolveResult, Resolver, State,
-};
-use path_absolutize::Absolutize;
 use std::path::{Path, PathBuf};
+
+use path_absolutize::Absolutize;
+
+use crate::{context::Context, description::DescriptionData, log::color, log::depth, AliasMap};
+use crate::{Info, PathKind, Plugin, ResolveResult, Resolver, State};
 
 pub struct BrowserFieldPlugin<'a> {
     pkg_info: &'a DescriptionData,
@@ -12,10 +12,7 @@ pub struct BrowserFieldPlugin<'a> {
 
 impl<'a> BrowserFieldPlugin<'a> {
     pub fn new(pkg_info: &'a DescriptionData, may_request_package_self: bool) -> Self {
-        Self {
-            pkg_info,
-            may_request_package_self,
-        }
+        Self { pkg_info, may_request_package_self }
     }
 
     fn request_target_is_module_and_equal_alias_key(alias_key: &String, info: &Info) -> bool {
@@ -29,10 +26,7 @@ impl<'a> BrowserFieldPlugin<'a> {
     ) -> bool {
         let alias_path = alias_path.absolutize_from(Path::new("")).unwrap();
         let request_path = info.to_resolved_path();
-        let mut request_path = request_path
-            .absolutize_from(Path::new(""))
-            .unwrap()
-            .to_path_buf();
+        let mut request_path = request_path.absolutize_from(Path::new("")).unwrap().to_path_buf();
         let v = unsafe { &mut *(&mut request_path as *mut PathBuf as *mut Vec<u8>) };
 
         alias_path.eq(&request_path)
@@ -69,10 +63,7 @@ impl<'a> Plugin for BrowserFieldPlugin<'a> {
             }
             tracing::debug!(
                 "BrowserFiled in '{}' works, trigger by '{}'({})",
-                color::blue(&format!(
-                    "{}/package.json",
-                    self.pkg_info.dir().as_ref().display()
-                )),
+                color::blue(&format!("{}/package.json", self.pkg_info.dir().as_ref().display())),
                 color::blue(alias_key),
                 depth(&context.depth)
             );

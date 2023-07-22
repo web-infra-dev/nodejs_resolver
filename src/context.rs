@@ -22,6 +22,7 @@ impl Bool {
     pub fn set(&mut self, value: bool) {
         self.0 = value
     }
+
     pub fn get(&self) -> bool {
         self.0
     }

@@ -1,13 +1,7 @@
-use crate::{
-    description::DescriptionData,
-    log::color,
-    log::depth,
-    map::{ExportsField, Field},
-    resolve::get_path_from_request,
-    Context, Error, Info, Resolver, State,
-};
-
 use super::Plugin;
+use crate::map::{ExportsField, Field};
+use crate::{description::DescriptionData, log::color, log::depth, resolve::get_path_from_request};
+use crate::{Context, Error, Info, Resolver, State};
 
 pub struct ExportsFieldPlugin<'a> {
     pkg_info: &'a DescriptionData,
@@ -33,7 +27,8 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
             if request.is_directory() {
                 return State::Error(Error::UnexpectedValue(format!(
                     "Resolving to directories is not possible with the exports field (request was {}/ in {})",
-                    target, info.normalized_path().as_ref().display()
+                    target,
+                    info.normalized_path().as_ref().display()
                 )));
             }
 
@@ -46,11 +41,7 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
                 None => {
                     let path = info.normalized_path().as_ref().join(target);
                     if resolver.load_entry(&path).exists()
-                        || self
-                            .pkg_info
-                            .data()
-                            .name()
-                            .map_or(false, |name| target == name)
+                        || self.pkg_info.data().name().map_or(false, |name| target == name)
                     {
                         ".".to_string()
                     } else {
@@ -60,11 +51,8 @@ impl<'a> Plugin for ExportsFieldPlugin<'a> {
             };
 
             let remaining_target = if !query.is_empty() || !fragment.is_empty() {
-                let normalized_target = if normalized_target == "." {
-                    String::from("./")
-                } else {
-                    normalized_target
-                };
+                let normalized_target =
+                    if normalized_target == "." { String::from("./") } else { normalized_target };
                 format!("{normalized_target}{query}{fragment}")
             } else {
                 normalized_target

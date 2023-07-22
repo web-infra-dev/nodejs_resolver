@@ -1,5 +1,6 @@
-use crate::{description::DescriptionData, info::Info, Resolver};
 use std::{path::PathBuf, sync::Arc};
+
+use crate::{description::DescriptionData, info::Info, Resolver};
 
 #[derive(Debug, Clone)]
 pub struct Resource {
@@ -14,11 +15,7 @@ impl Resource {
         let path = info.normalized_path().as_ref().to_path_buf();
         let query = info.request().query();
         let fragment = info.request().fragment();
-        let description = resolver
-            .load_entry(&path)
-            .pkg_info(resolver)
-            .unwrap()
-            .clone();
+        let description = resolver.load_entry(&path).pkg_info(resolver).unwrap().clone();
         Resource {
             path,
             query: (!query.is_empty()).then(|| query.into()),

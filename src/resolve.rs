@@ -1,18 +1,12 @@
-use crate::{
-    description::DescriptionData,
-    info::NormalizedPath,
-    kind::PathKind,
-    log::color,
-    plugin::{
-        BrowserFieldPlugin, ExportsFieldPlugin, ExtensionAliasPlugin, ImportsFieldPlugin,
-        MainFieldPlugin, MainFilePlugin, Plugin,
-    },
-    Context, EnforceExtension, Info, ResolveResult, Resolver, State,
-};
-use std::{
-    borrow::Cow,
-    path::{Path, PathBuf},
-};
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
+
+use crate::description::DescriptionData;
+use crate::plugin::Plugin;
+use crate::plugin::{BrowserFieldPlugin, ExportsFieldPlugin, ExtensionAliasPlugin};
+use crate::plugin::{ImportsFieldPlugin, MainFieldPlugin, MainFilePlugin};
+use crate::{info::NormalizedPath, kind::PathKind, log::color, Context, EnforceExtension, Info};
+use crate::{ResolveResult, Resolver, State};
 
 impl Resolver {
     fn resolve_file_with_ext(&self, mut path: PathBuf, info: Info) -> State {
@@ -41,10 +35,7 @@ impl Resolver {
             return State::Resolving(info);
         }
         let path = info.to_resolved_path();
-        tracing::debug!(
-            "Attempting to load '{}' as a context",
-            color::blue(&path.display())
-        );
+        tracing::debug!("Attempting to load '{}' as a context", color::blue(&path.display()));
         if self.load_entry(&path).is_dir() {
             State::Success(ResolveResult::Resource(Info::new(path, Default::default())))
         } else {
@@ -62,9 +53,7 @@ impl Resolver {
         let target = request.target();
         if self.load_entry(&path).is_file() {
             let path = path.to_path_buf();
-            State::Success(ResolveResult::Resource(
-                info.with_path(path).with_target(""),
-            ))
+            State::Success(ResolveResult::Resource(info.with_path(path).with_target("")))
         } else if matches!(
             request.kind(),
             PathKind::AbsolutePosix | PathKind::AbsoluteWin | PathKind::Relative
@@ -77,11 +66,7 @@ impl Resolver {
             context.fully_specified.set(false);
             let state = self._resolve(info.clone(), context);
             context.fully_specified.set(true);
-            if state.is_finished() {
-                state
-            } else {
-                State::Failed(info)
-            }
+            if state.is_finished() { state } else { State::Failed(info) }
         }
     }
 
@@ -100,17 +85,12 @@ impl Resolver {
             })
             .then(|info| {
                 let path = info.to_resolved_path().to_path_buf();
-                tracing::debug!(
-                    "Attempting to load '{}' as a file",
-                    color::blue(&path.display())
-                );
+                tracing::debug!("Attempting to load '{}' as a file", color::blue(&path.display()));
                 if matches!(self.options.enforce_extension, EnforceExtension::Enabled) {
                     self.resolve_file_with_ext(path, info)
                 } else if self.load_entry(&path).is_file() {
                     let path = path;
-                    State::Success(ResolveResult::Resource(
-                        info.with_path(path).with_target(""),
-                    ))
+                    State::Success(ResolveResult::Resource(info.with_path(path).with_target("")))
                 } else {
                     self.resolve_file_with_ext(path, info)
                 }
@@ -176,20 +156,18 @@ impl Resolver {
         };
         let state = if entry.is_dir() {
             // is there had `node_modules` folder?
-            self.resolve_node_modules(info, node_modules_path, context)
-                .then(|info| {
-                    let is_resolve_self = pkg_info.map_or(false, |pkg_info| {
-                        let request_module_name =
-                            get_module_name_from_request(info.request().target());
-                        is_resolve_self(pkg_info, request_module_name)
-                    });
-                    if is_resolve_self {
-                        let pkg_info = pkg_info.unwrap();
-                        ExportsFieldPlugin::new(pkg_info).apply(self, info, context)
-                    } else {
-                        State::Resolving(info)
-                    }
-                })
+            self.resolve_node_modules(info, node_modules_path, context).then(|info| {
+                let is_resolve_self = pkg_info.map_or(false, |pkg_info| {
+                    let request_module_name = get_module_name_from_request(info.request().target());
+                    is_resolve_self(pkg_info, request_module_name)
+                });
+                if is_resolve_self {
+                    let pkg_info = pkg_info.unwrap();
+                    ExportsFieldPlugin::new(pkg_info).apply(self, info, context)
+                } else {
+                    State::Resolving(info)
+                }
+            })
         } else if pkg_info.map_or(false, |pkg_info| pkg_info.dir().eq(original_dir)) {
             // is `info.path` on the same level as package.json
             let request_module_name = get_module_name_from_request(info.request().target());
@@ -218,11 +196,7 @@ impl Resolver {
         let module_info = Info::new(node_modules_path, info.request().clone());
         if !entry.is_dir() {
             let state = self.resolve_as_file(module_info, context);
-            if state.is_finished() {
-                state
-            } else {
-                State::Resolving(info)
-            }
+            if state.is_finished() { state } else { State::Resolving(info) }
         } else {
             let pkg_info = match entry.pkg_info(self) {
                 Ok(pkg_info) => pkg_info,
@@ -255,26 +229,16 @@ impl Resolver {
 }
 
 fn is_resolve_self(pkg_info: &DescriptionData, request_module_name: &str) -> bool {
-    pkg_info
-        .data()
-        .name()
-        .map(|pkg_name| request_module_name == pkg_name)
-        .map_or(false, |ans| ans)
+    pkg_info.data().name().map(|pkg_name| request_module_name == pkg_name).map_or(false, |ans| ans)
 }
 
 /// split the index from `[module-name]/[path]`
 pub(crate) fn split_slash_from_request(target: &str) -> Option<usize> {
     let has_namespace_scope = target.starts_with('@');
     let chars = target.chars().enumerate();
-    let slash_index_list: Vec<usize> = chars
-        .filter_map(|(index, char)| if '/' == char { Some(index) } else { None })
-        .collect();
-    if has_namespace_scope {
-        slash_index_list.get(1)
-    } else {
-        slash_index_list.first()
-    }
-    .copied()
+    let slash_index_list: Vec<usize> =
+        chars.filter_map(|(index, char)| if '/' == char { Some(index) } else { None }).collect();
+    if has_namespace_scope { slash_index_list.get(1) } else { slash_index_list.first() }.copied()
 }
 
 fn get_module_name_from_request(target: &str) -> &str {

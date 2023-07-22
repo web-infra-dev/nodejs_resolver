@@ -1,10 +1,12 @@
-use crate::parse::Request;
-use path_absolutize::Absolutize;
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 #[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
 use std::{borrow::Cow, path::Path, sync::Arc};
+
+use path_absolutize::Absolutize;
+
+use crate::parse::Request;
 
 #[cfg(windows)]
 fn has_trailing_slash(p: &Path) -> bool {
@@ -46,28 +48,19 @@ pub struct Info {
 
 impl From<NormalizedPath> for Info {
     fn from(value: NormalizedPath) -> Self {
-        Info {
-            path: value,
-            request: Default::default(),
-        }
+        Info { path: value, request: Default::default() }
     }
 }
 
 impl Info {
     #[must_use]
     pub fn new<P: AsRef<Path>>(path: P, request: Request) -> Self {
-        Self {
-            path: NormalizedPath::new(path),
-            request,
-        }
+        Self { path: NormalizedPath::new(path), request }
     }
 
     #[must_use]
     pub fn with_path<P: AsRef<Path>>(self, path: P) -> Self {
-        Self {
-            path: NormalizedPath::new(path),
-            ..self
-        }
+        Self { path: NormalizedPath::new(path), ..self }
     }
 
     #[must_use]

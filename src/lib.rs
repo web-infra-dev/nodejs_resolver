@@ -68,10 +68,8 @@ use kind::PathKind;
 use log::{color, depth};
 use options::EnforceExtension::{Auto, Disabled, Enabled};
 pub use options::{AliasMap, EnforceExtension, Options};
-use plugin::{
-    AliasPlugin, BrowserFieldPlugin, ImportsFieldPlugin, ParsePlugin, Plugin, PreferRelativePlugin,
-    SymlinkPlugin,
-};
+use plugin::{AliasPlugin, SymlinkPlugin};
+use plugin::{BrowserFieldPlugin, ImportsFieldPlugin, ParsePlugin, Plugin, PreferRelativePlugin};
 pub use resource::Resource;
 use state::State;
 
@@ -111,10 +109,7 @@ impl Resolver {
             _ => options.enforce_extension,
         };
 
-        let options = Options {
-            enforce_extension,
-            ..options
-        };
+        let options = Options { enforce_extension, ..options };
         Self { options, cache }
     }
 
@@ -132,10 +127,8 @@ impl Resolver {
         // let start = std::time::Instant::now();
         let parsed = Self::parse(request);
         let info = Info::new(path, parsed);
-        let mut context = Context::new(
-            self.options.fully_specified,
-            self.options.resolve_to_context,
-        );
+        let mut context =
+            Context::new(self.options.fully_specified, self.options.resolve_to_context);
         let result = if let Some(tsconfig_location) = self.options.tsconfig.as_ref() {
             self._resolve_with_tsconfig(info, tsconfig_location, &mut context)
         } else {
@@ -195,11 +188,9 @@ impl Resolver {
                     Err(error) => return State::Error(error),
                 };
                 if let Some(pkg_info) = pkg_info {
-                    ImportsFieldPlugin::new(pkg_info)
-                        .apply(self, info, context)
-                        .then(|info| {
-                            BrowserFieldPlugin::new(pkg_info, false).apply(self, info, context)
-                        })
+                    ImportsFieldPlugin::new(pkg_info).apply(self, info, context).then(|info| {
+                        BrowserFieldPlugin::new(pkg_info, false).apply(self, info, context)
+                    })
                 } else {
                     State::Resolving(info)
                 }
@@ -227,13 +218,11 @@ impl Resolver {
 pub mod test_helper {
     #[must_use]
     pub fn p(paths: Vec<&str>) -> std::path::PathBuf {
-        paths.iter().fold(
-            std::env::current_dir()
-                .unwrap()
-                .join("tests")
-                .join("fixtures"),
-            |acc, path| acc.join(path),
-        )
+        paths
+            .iter()
+            .fold(std::env::current_dir().unwrap().join("tests").join("fixtures"), |acc, path| {
+                acc.join(path)
+            })
     }
 
     #[must_use]

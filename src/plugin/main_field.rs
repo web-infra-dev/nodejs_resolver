@@ -20,12 +20,8 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
         let main_field_info = info.clone().with_path(resolved).with_target(".");
 
         for user_main_field in &resolver.options.main_fields {
-            if let Some(main_field) = self
-                .pkg_info
-                .data()
-                .raw()
-                .get(user_main_field)
-                .and_then(|value| value.as_str())
+            if let Some(main_field) =
+                self.pkg_info.data().raw().get(user_main_field).and_then(|value| value.as_str())
             {
                 if main_field == "." || main_field == "./" {
                     // if it pointed to itself.
@@ -41,9 +37,7 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
                 let main_field_info = if main_field.starts_with("./") {
                     main_field_info.clone().with_target(main_field)
                 } else {
-                    main_field_info
-                        .clone()
-                        .with_target(&format!("./{main_field}"))
+                    main_field_info.clone().with_target(&format!("./{main_field}"))
                 };
 
                 let fully_specified = context.fully_specified.get();

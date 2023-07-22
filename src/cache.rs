@@ -1,7 +1,9 @@
+use std::{hash::BuildHasherDefault, path::Path, sync::Arc};
+
+use rustc_hash::FxHasher;
+
 use crate::entry::Entry;
 use crate::fs::CachedFS;
-use rustc_hash::FxHasher;
-use std::{hash::BuildHasherDefault, path::Path, sync::Arc};
 
 #[derive(Debug, Default)]
 pub struct Cache {

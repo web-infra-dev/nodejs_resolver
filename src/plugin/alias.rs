@@ -21,11 +21,7 @@ impl<'a> Plugin for AliasPlugin<'a> {
             let from_to = from.len();
             let (hit, key) = if only_module {
                 let sub = &from[0..from_to - 1];
-                if inner_target.eq(sub) {
-                    (true, sub)
-                } else {
-                    (false, sub)
-                }
+                if inner_target.eq(sub) { (true, sub) } else { (false, sub) }
             } else {
                 let hit = inner_target
                     .strip_prefix(from)

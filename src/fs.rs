@@ -1,22 +1,14 @@
-use crate::{
-    description::{DescriptionData, PkgJSON},
-    entry::EntryStat,
-    tsconfig::TsConfig,
-    RResult,
-};
-use rustc_hash::FxHasher;
-use std::{
-    fmt::Debug,
-    fs,
-    hash::BuildHasherDefault,
-    path::{Path, PathBuf},
-    sync::Arc,
-    time::SystemTime,
-};
+use std::fmt::Debug;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+use std::{hash::BuildHasherDefault, sync::Arc, time::SystemTime};
 
 use dashmap::DashMap;
+use rustc_hash::FxHasher;
 
-use std::time::Duration;
+use crate::description::{DescriptionData, PkgJSON};
+use crate::{entry::EntryStat, tsconfig::TsConfig, RResult};
 
 #[derive(Debug, Default)]
 pub struct CachedFS {
@@ -40,10 +32,7 @@ pub struct CachedEntry<T: Sized> {
 
 impl<T: Sized> CachedEntry<T> {
     fn new(content: T, stat: EntryStat) -> Self {
-        Self {
-            content: content.into(),
-            stat,
-        }
+        Self { content: content.into(), stat }
     }
 
     fn content(&self) -> Arc<T> {
