@@ -172,46 +172,70 @@ extern crate test;
 #[cfg(test)] 
 mod bench_test {
 
-    use nodejs_resolver::{Resolver, Options, ResolveResult, Resource, RResult};
-    use std::path::PathBuf;
+    use nodejs_resolver::{ResolverBuilder, Options, FileSystem};
+    use std::path::{Path, PathBuf};
     use test::Bencher;
+    use futures::stream::StreamExt;
     // use std::time::Instant;
 
-    fn is_ok(result: RResult<ResolveResult<Resource>>) {
-      assert!(result.is_ok())
+    #[derive(Debug)]
+    struct Fs;
+
+    #[async_trait::async_trait]
+    impl FileSystem for Fs {
+        async fn read_to_string(&self, path: &Path) -> std::io::Result<String> {
+            tokio::fs::read_to_string(path).await
+        }
+
+        async fn read_link(&self, path: &Path) -> std::io::Result<PathBuf> {
+            tokio::fs::read_link(path).await
+        }
+
+        async fn metadata(&self, path: &Path) -> std::io::Result<std::fs::Metadata> {
+            tokio::fs::metadata(path).await
+        }
+    }
+    
+    #[tokio::main]
+    async fn run() {
+      let builder = ResolverBuilder::new(Box::new(Fs));
+      let resolver = builder.build(Options {
+        extensions: vec![
+          ".web.tsx",
+          ".web.ts",
+          ".web.jsx",
+          ".web.js",
+          ".ts",
+          ".tsx",
+          ".js",
+          ".jsx",
+          ".json",
+        ].into_iter().map(String::from).collect(),
+        ..Default::default()
+      });
+      let mut tasks = vec![];
+      // let start = Instant::now();
+`;
+  run(function (dir, file) {
+    content += `
+      tasks.push(resolver.resolve(
+        Path::new("${dir}"), 
+        "${file}",
+      ));
+`;
+  });
+  content += `
+      // println!("time cost: {:?} ms", start.elapsed().as_millis());// ms
+      // println!("tasks len: {:?}", tasks.len()); 
+      let n = num_cpus::get() * 2;
+      let _ = futures::stream::iter(tasks).buffer_unordered(n).collect::<Vec<_>>().await;
     }
 
     #[bench]
     fn ant_design_bench(b: &mut Bencher) {
-        b.iter(|| {
-          let resolver = Resolver::new(Options {
-            extensions: vec![
-              ".web.tsx",
-              ".web.ts",
-              ".web.jsx",
-              ".web.js",
-              ".ts",
-              ".tsx",
-              ".js",
-              ".jsx",
-              ".json",
-            ].into_iter().map(String::from).collect(),
-            ..Default::default()
-          });
-
-          // let start = Instant::now();
-`;
-  run(function (dir, file) {
-    content += `
-            is_ok(resolver.resolve(
-                &PathBuf::from("${dir}"), 
-                "${file}",
-            ));
-`;
-  });
-  content += `
-          // println!("time cost: {:?} ms", start.elapsed().as_millis());// ms
-        });
+      b.iter(|| {
+        run();
+      });
     }
 }\n`;
   console.log("length", content.length);

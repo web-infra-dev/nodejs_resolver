@@ -11,11 +11,11 @@ pub struct Resource {
 }
 
 impl Resource {
-    pub(crate) fn new(info: Info, resolver: &Resolver) -> Self {
+    pub(crate) async fn new(info: Info, resolver: &Resolver) -> Self {
         let path = info.normalized_path().as_ref().to_path_buf();
         let query = info.request().query();
         let fragment = info.request().fragment();
-        let description = resolver.load_entry(&path).pkg_info(resolver).unwrap().clone();
+        let description = resolver.pkg_info(&resolver.load_entry(&path)).await.unwrap().clone();
         Resource {
             path,
             query: (!query.is_empty()).then(|| query.into()),

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::{borrow::Cow, fs::FileType, sync::Arc, time::SystemTime};
 
-use once_cell::sync::OnceCell;
+use async_once_cell::OnceCell;
 
 use crate::{description::DescriptionData, Error, RResult, Resolver};
 
@@ -28,17 +28,6 @@ impl EntryStat {
     pub fn modified(&self) -> Option<SystemTime> {
         self.modified
     }
-
-    fn stat(path: &Path) -> Self {
-        if let Ok(meta) = path.metadata() {
-            // This field might not be available on all platforms,
-            // and will return an Err on platforms where it is not available.
-            let modified = meta.modified().ok();
-            Self::new(Some(meta.file_type()), modified)
-        } else {
-            Self::new(None, None)
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -52,7 +41,7 @@ pub struct Entry {
     symlink: OnceCell<Option<Box<Path>>>,
     /// If `self.path` is a symlink, then return canonicalized path,
     /// else return `self.path`
-    real: OnceCell<Box<Path>>,
+    real: std::sync::OnceLock<Box<Path>>,
 }
 
 impl Entry {
@@ -64,75 +53,12 @@ impl Entry {
         self.parent.as_ref()
     }
 
-    pub fn pkg_info(&self, resolver: &Resolver) -> RResult<&Option<Arc<DescriptionData>>> {
-        self.pkg_info.get_or_try_init(|| {
-            let pkg_name = &resolver.options.description_file;
-            let path = self.path();
-            let is_pkg_suffix = path.ends_with(pkg_name);
-            if self.is_dir() || is_pkg_suffix {
-                let pkg_path = if is_pkg_suffix {
-                    Cow::Borrowed(path)
-                } else {
-                    Cow::Owned(path.join(pkg_name))
-                };
-                match resolver.cache.fs.read_description_file(&pkg_path, EntryStat::default()) {
-                    Ok(info) => {
-                        return Ok(Some(info));
-                    }
-                    Err(error @ (Error::UnexpectedJson(_) | Error::UnexpectedValue(_))) => {
-                        // Return bad json
-                        return Err(error);
-                    }
-                    Err(Error::Io(_)) => {
-                        // package.json not found
-                    }
-                    _ => unreachable!(),
-                };
-            }
-            if let Some(parent) = &self.parent() {
-                return parent.pkg_info(resolver).cloned();
-            }
-            Ok(None)
-        })
-    }
-
-    pub fn is_file(&self) -> bool {
-        self.cached_stat().file_type().map_or(false, |ft| ft.is_file())
-    }
-
-    pub fn is_dir(&self) -> bool {
-        self.cached_stat().file_type().map_or(false, |ft| ft.is_dir())
-    }
-
-    pub fn exists(&self) -> bool {
-        self.cached_stat().file_type().is_some()
-    }
-
-    pub fn cached_stat(&self) -> EntryStat {
-        *self.stat.get_or_init(|| EntryStat::stat(&self.path))
-    }
-
     pub fn real(&self) -> Option<&Path> {
         self.real.get().map(|p| &**p)
     }
 
     pub fn init_real(&self, path: Box<Path>) {
         self.real.get_or_init(|| path);
-    }
-
-    /// Returns the canonicalized path of `self.path` if it is a symlink.
-    /// Returns None if `self.path` is not a symlink.
-    pub fn symlink(&self) -> &Option<Box<Path>> {
-        self.symlink.get_or_init(|| {
-            debug_assert!(self.path.is_absolute());
-            if self.path.read_link().is_err() {
-                return None;
-            }
-            match dunce::canonicalize(&self.path) {
-                Ok(symlink_path) => Some(Box::from(symlink_path)),
-                Err(_) => None,
-            }
-        })
     }
 }
 
@@ -160,7 +86,18 @@ impl Resolver {
             pkg_info: OnceCell::default(),
             stat: OnceCell::default(),
             symlink: OnceCell::default(),
-            real: OnceCell::default(),
+            real: Default::default(),
+        }
+    }
+
+    async fn stat(&self, path: &Path) -> EntryStat {
+        if let Ok(meta) = self.fs.metadata(path).await {
+            // This field might not be available on all platforms,
+            // and will return an Err on platforms where it is not available.
+            let modified = meta.modified().ok();
+            EntryStat::new(Some(meta.file_type()), modified)
+        } else {
+            EntryStat::new(None, None)
         }
     }
 
@@ -173,16 +110,92 @@ impl Resolver {
     pub fn get_dependency_from_entry(&self) -> (Vec<PathBuf>, Vec<PathBuf>) {
         todo!("get_dependency_from_entry")
     }
+
+    #[async_recursion::async_recursion]
+    pub async fn pkg_info<'a>(
+        &'a self,
+        entry: &'a Entry,
+    ) -> RResult<&'a Option<Arc<DescriptionData>>> {
+        let future = entry.pkg_info.get_or_try_init(async {
+            let pkg_name = &self.options.description_file;
+            let path = entry.path();
+            let is_pkg_suffix = path.ends_with(pkg_name);
+            if self.is_dir(entry).await || is_pkg_suffix {
+                let pkg_path = if is_pkg_suffix {
+                    Cow::Borrowed(path)
+                } else {
+                    Cow::Owned(path.join(pkg_name))
+                };
+                match self
+                    .cache
+                    .fs
+                    .read_description_file(self, &pkg_path, EntryStat::default())
+                    .await
+                {
+                    Ok(info) => {
+                        return Ok(Some(info));
+                    }
+                    Err(error @ (Error::UnexpectedJson(_) | Error::UnexpectedValue(_))) => {
+                        // Return bad json
+                        return Err(error);
+                    }
+                    Err(Error::Io(_)) => {
+                        // package.json not found
+                    }
+                    _ => unreachable!(),
+                };
+            }
+            if let Some(parent) = &entry.parent() {
+                return self.pkg_info(parent).await.cloned();
+            }
+            Ok(None)
+        });
+        future.await
+    }
+
+    pub async fn is_file(&self, entry: &Entry) -> bool {
+        self.cached_stat(entry).await.file_type().map_or(false, |ft| ft.is_file())
+    }
+
+    pub async fn is_dir(&self, entry: &Entry) -> bool {
+        self.cached_stat(entry).await.file_type().map_or(false, |ft| ft.is_dir())
+    }
+
+    pub async fn exists(&self, entry: &Entry) -> bool {
+        self.cached_stat(entry).await.file_type().is_some()
+    }
+
+    pub async fn cached_stat(&self, entry: &Entry) -> EntryStat {
+        *entry.stat.get_or_init(async { self.stat(&entry.path).await }).await
+    }
+
+    /// Returns the canonicalized path of `self.path` if it is a symlink.
+    /// Returns None if `self.path` is not a symlink.
+    pub async fn symlink<'a>(&'a self, entry: &'a Entry) -> &'a Option<Box<Path>> {
+        entry
+            .symlink
+            .get_or_init(async {
+                assert!(entry.path.is_absolute());
+                if self.fs.read_link(&entry.path).await.is_err() {
+                    return None;
+                }
+                match dunce::canonicalize(&entry.path) {
+                    Ok(symlink_path) => Some(Box::from(symlink_path)),
+                    Err(_) => None,
+                }
+            })
+            .await
+    }
 }
 
-#[test]
-#[ignore]
-fn dependency_test() {
-    let case_path = super::test_helper::p(vec!["full", "a"]);
-    let request = "package2";
-    let resolver = Resolver::new(Default::default());
-    resolver.resolve(&case_path, request).unwrap();
-    let (file, missing) = resolver.get_dependency_from_entry();
-    assert_eq!(file.len(), 3);
-    assert_eq!(missing.len(), 1);
-}
+// #[test]
+// #[ignore]
+// fn dependency_test() {
+//     let case_path = super::test_helper::p(vec!["full", "a"]);
+//     let request = "package2";
+//     let resolver = Resolver::new(Default::default());
+//     resolver.resolve(&case_path, request).unwrap();
+//     let (file, missing) = resolver.get_dependency_from_entry();
+//     assert_eq!(file.len(), 3);
+//     assert_eq!(missing.len(), 1);
+// }

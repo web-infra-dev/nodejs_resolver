@@ -1,27 +1,21 @@
-use super::Plugin;
 use crate::{description::DescriptionData, log::color, log::depth, Context, Info, Resolver, State};
 
-pub struct MainFieldPlugin<'a> {
-    pkg_info: &'a DescriptionData,
-}
-
-impl<'a> MainFieldPlugin<'a> {
-    pub fn new(pkg_info: &'a DescriptionData) -> Self {
-        Self { pkg_info }
-    }
-}
-
-impl<'a> Plugin for MainFieldPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
+impl Resolver {
+    pub async fn main_field_apply(
+        &self,
+        info: Info,
+        pkg_info: &DescriptionData,
+        context: &mut Context,
+    ) -> State {
         let resolved = info.to_resolved_path();
-        if !self.pkg_info.dir().as_ref().eq(&*resolved) {
+        if !pkg_info.dir().as_ref().eq(&*resolved) {
             return State::Resolving(info);
         }
         let main_field_info = info.clone().with_path(resolved).with_target(".");
 
-        for user_main_field in &resolver.options.main_fields {
+        for user_main_field in &self.options.main_fields {
             if let Some(main_field) =
-                self.pkg_info.data().raw().get(user_main_field).and_then(|value| value.as_str())
+                pkg_info.data().raw().get(user_main_field).and_then(|value| value.as_str())
             {
                 if main_field == "." || main_field == "./" {
                     // if it pointed to itself.
@@ -29,7 +23,7 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
                 }
                 tracing::debug!(
                     "MainField in '{}' works, using {} field({})",
-                    color::blue(&format!("{:?}/package.json", self.pkg_info.dir().as_ref())),
+                    color::blue(&format!("{:?}/package.json", pkg_info.dir().as_ref())),
                     color::blue(user_main_field),
                     depth(&context.depth)
                 );
@@ -44,7 +38,7 @@ impl<'a> Plugin for MainFieldPlugin<'a> {
                 if fully_specified {
                     context.fully_specified.set(false);
                 }
-                let state = resolver._resolve(main_field_info, context);
+                let state = self._resolve(main_field_info, context).await;
                 if fully_specified {
                     context.fully_specified.set(true);
                 }

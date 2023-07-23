@@ -11,25 +11,8 @@ pub enum State {
 }
 
 impl State {
-    pub fn then<F: FnOnce(Info) -> State>(self, op: F) -> Self {
-        match self {
-            State::Resolving(info) => op(info),
-            _ => self,
-        }
-    }
-
-    pub fn map_success<F: FnOnce(Info) -> State>(self, op: F) -> Self {
-        match self {
-            State::Success(ResolveResult::Resource(info)) => op(info),
-            _ => self,
-        }
-    }
-
-    pub fn map_failed<F: FnOnce(Info) -> State>(self, op: F) -> Self {
-        match self {
-            State::Failed(info) => op(info),
-            _ => self,
-        }
+    pub fn is_resolving(&self) -> bool {
+        matches!(self, State::Resolving(_))
     }
 
     pub fn is_finished(&self) -> bool {
