@@ -1,13 +1,13 @@
-use crate::info::NormalizedPath;
-use crate::{AliasMap, Error, RResult};
-use once_cell::sync::OnceCell;
 use std::path::Path;
 use std::sync::Arc;
+
+use crate::info::NormalizedPath;
+use crate::{AliasMap, Error, RResult};
 
 #[derive(Debug)]
 pub struct PkgJSON {
     name: Option<Box<str>>,
-    alias_fields: OnceCell<Vec<(String, AliasMap)>>,
+    alias_fields: std::sync::OnceLock<Vec<(String, AliasMap)>>,
     raw: serde_json::Value,
 }
 
@@ -21,11 +21,7 @@ impl PkgJSON {
 
         let name = json.get("name").and_then(|v| v.as_str()).map(|s| s.into());
 
-        Ok(Self {
-            name,
-            alias_fields: OnceCell::new(),
-            raw: json,
-        })
+        Ok(Self { name, alias_fields: Default::default(), raw: json })
     }
 
     pub fn alias_fields(&self) -> &Vec<(String, AliasMap)> {
@@ -85,10 +81,7 @@ pub struct DescriptionData {
 
 impl DescriptionData {
     pub fn new<P: AsRef<Path>>(json: PkgJSON, dir_path: P) -> Self {
-        Self {
-            json: Arc::new(json),
-            dir_path: NormalizedPath::new(dir_path),
-        }
+        Self { json: Arc::new(json), dir_path: NormalizedPath::new(dir_path) }
     }
 
     pub fn dir(&self) -> &NormalizedPath {

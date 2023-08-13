@@ -1,8 +1,10 @@
 // Copy from https://github.com/dividab/tsconfig-paths
 
-use crate::{context::Context, Info, RResult, Resolver, State};
-use rustc_hash::FxHashMap;
 use std::path::{Path, PathBuf};
+
+use rustc_hash::FxHashMap;
+
+use crate::{context::Context, Info, RResult, Resolver, State};
 
 #[derive(Default, Debug)]
 pub struct TsConfigInfo {
@@ -26,21 +28,20 @@ impl Resolver {
             .iter()
             .map(|(key, paths)| {
                 let pattern = key.to_string();
-                let paths = paths
-                    .iter()
-                    .map(|path| absolute_base_url.join(path))
-                    .collect();
+                let paths = paths.iter().map(|path| absolute_base_url.join(path)).collect();
                 MappingEntry { pattern, paths }
             })
             .collect()
     }
 
-    fn parse_tsconfig(&self, location: &Path, context: &mut Context) -> RResult<TsConfigInfo> {
-        let tsconfig = self.parse_ts_file(location, context)?;
-        let base_url = tsconfig
-            .compiler_options
-            .as_ref()
-            .and_then(|options| options.base_url.clone());
+    async fn parse_tsconfig(
+        &self,
+        location: &Path,
+        context: &mut Context,
+    ) -> RResult<TsConfigInfo> {
+        let tsconfig = self.parse_ts_file(location, context).await?;
+        let base_url =
+            tsconfig.compiler_options.as_ref().and_then(|options| options.base_url.clone());
         let paths = tsconfig.compiler_options.and_then(|options| options.paths);
         Ok(TsConfigInfo { paths, base_url })
     }
@@ -88,13 +89,13 @@ impl Resolver {
             .unwrap_or_default()
     }
 
-    pub(super) fn _resolve_with_tsconfig(
+    pub(super) async fn _resolve_with_tsconfig(
         &self,
         info: Info,
         location: &Path,
         context: &mut Context,
     ) -> State {
-        let tsconfig = match self.parse_tsconfig(location, context) {
+        let tsconfig = match self.parse_tsconfig(location, context).await {
             Ok(tsconfig) => tsconfig,
             Err(error) => return State::Error(error),
         };
@@ -109,7 +110,7 @@ impl Resolver {
         if tsconfig.base_url.is_some() && !info.request().target().starts_with('.') {
             let target = absolute_base_url.join(info.request().target());
             let info = info.clone().with_path(target).with_target("");
-            let result = self._resolve(info, context);
+            let result = self._resolve(info, context).await;
             if result.is_finished() {
                 return result;
             }
@@ -128,18 +129,16 @@ impl Resolver {
             };
 
             for physical_path_pattern in &entry.paths {
-                let physical_path = &physical_path_pattern
-                    .display()
-                    .to_string()
-                    .replace('*', star_match);
+                let physical_path =
+                    &physical_path_pattern.display().to_string().replace('*', star_match);
                 let info = info.clone().with_path(physical_path).with_target("");
-                let result = self._resolve(info, context);
+                let result = self._resolve(info, context).await;
                 if result.is_finished() {
                     return result;
                 }
             }
         }
-        self._resolve(info, context)
+        self._resolve(info, context).await
     }
 }
 
@@ -148,17 +147,8 @@ fn test_get_absolute_mapping_entries() {
     let result = Resolver::get_absolute_mapping_entries(
         Path::new("/absolute/base/url"),
         &FxHashMap::from_iter(vec![
-            (
-                "*".to_string(),
-                (vec!["/foo1", "./foo2"])
-                    .into_iter()
-                    .map(String::from)
-                    .collect(),
-            ),
-            (
-                "longest/pre/fix/*".to_string(),
-                vec!["./foo2/bar".to_string()],
-            ),
+            ("*".to_string(), (vec!["/foo1", "./foo2"]).into_iter().map(String::from).collect()),
+            ("longest/pre/fix/*".to_string(), vec!["./foo2/bar".to_string()]),
             ("pre/fix/*".to_string(), vec!["/foo3".to_string()]),
         ]),
     );
@@ -173,10 +163,7 @@ fn test_get_absolute_mapping_entries() {
     },));
     assert!(result.contains(&MappingEntry {
         pattern: "*".to_string(),
-        paths: vec![
-            PathBuf::from("/foo1"),
-            PathBuf::from("/absolute/base/url/foo2")
-        ],
+        paths: vec![PathBuf::from("/foo1"), PathBuf::from("/absolute/base/url/foo2")],
     }));
 
     let result = Resolver::get_absolute_mapping_entries(

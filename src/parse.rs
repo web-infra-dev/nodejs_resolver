@@ -33,18 +33,8 @@ impl Request {
     pub fn from_request(request: &str) -> Self {
         let (target, query, fragment) = Self::parse_identifier(request);
         let is_directory = Self::is_target_directory(&target);
-        let target = if is_directory {
-            target[0..target.len() - 1].into()
-        } else {
-            target
-        };
-        Request {
-            kind: Resolver::get_target_kind(&target),
-            target,
-            query,
-            fragment,
-            is_directory,
-        }
+        let target = if is_directory { target[0..target.len() - 1].into() } else { target };
+        Request { kind: Resolver::get_target_kind(&target), target, query, fragment, is_directory }
     }
 
     pub fn target(&self) -> &str {
@@ -56,9 +46,7 @@ impl Request {
     }
 
     pub fn fragment(&self) -> &str {
-        self.fragment
-            .as_ref()
-            .map_or("", |fragment| fragment.as_ref())
+        self.fragment.as_ref().map_or("", |fragment| fragment.as_ref())
     }
 
     pub fn kind(&self) -> PathKind {
@@ -80,17 +68,11 @@ impl Request {
     }
 
     pub fn with_query(self, query: &str) -> Self {
-        Self {
-            query: (!query.is_empty()).then(|| query.into()),
-            ..self
-        }
+        Self { query: (!query.is_empty()).then(|| query.into()), ..self }
     }
 
     pub fn with_fragment(self, fragment: &str) -> Self {
-        Self {
-            fragment: (!fragment.is_empty()).then(|| fragment.into()),
-            ..self
-        }
+        Self { fragment: (!fragment.is_empty()).then(|| fragment.into()), ..self }
     }
 
     fn parse_identifier(ident: &str) -> (Box<str>, Option<Box<str>>, Option<Box<str>>) {
@@ -128,11 +110,9 @@ impl Request {
             (None, None) => (ident.into(), None, None),
             (None, Some(j)) => (ident[0..j].into(), None, Some(ident[j..].into())),
             (Some(i), None) => (ident[0..i].into(), Some(ident[i..].into()), None),
-            (Some(i), Some(j)) => (
-                ident[0..i].into(),
-                Some(ident[i..j].into()),
-                Some(ident[j..].into()),
-            ),
+            (Some(i), Some(j)) => {
+                (ident[0..i].into(), Some(ident[i..j].into()), Some(ident[j..].into()))
+            }
         }
     }
 
@@ -173,12 +153,7 @@ fn parse_identifier_test() {
     should_parsed("path/#r#hash", "path/", "", "#r#hash");
     should_parsed("path/#repo/#repo2#hash", "path/", "", "#repo/#repo2#hash");
     should_parsed("path/#r/#r#hash", "path/", "", "#r/#r#hash");
-    should_parsed(
-        "path/#/not/a/hash?not-a-query",
-        "path/",
-        "",
-        "#/not/a/hash?not-a-query",
-    );
+    should_parsed("path/#/not/a/hash?not-a-query", "path/", "", "#/not/a/hash?not-a-query");
     should_parsed("#a?b#c?d", "#a", "?b", "#c?d");
 
     // windows like
@@ -187,10 +162,5 @@ fn parse_identifier_test() {
     should_parsed("path\\#\\?", "path\\", "", "#\\?");
     should_parsed("path\\#repo#hash", "path\\", "", "#repo#hash");
     should_parsed("path\\#r#hash", "path\\", "", "#r#hash");
-    should_parsed(
-        "path\\#/not/a/hash?not-a-query",
-        "path\\",
-        "",
-        "#/not/a/hash?not-a-query",
-    );
+    should_parsed("path\\#/not/a/hash?not-a-query", "path\\", "", "#/not/a/hash?not-a-query");
 }

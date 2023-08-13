@@ -1,28 +1,16 @@
-use crate::{
-    description::{DescriptionData, PkgJSON},
-    entry::EntryStat,
-    tsconfig::TsConfig,
-    RResult,
-};
-use rustc_hash::FxHasher;
-use std::{
-    fmt::Debug,
-    fs,
-    hash::BuildHasherDefault,
-    path::{Path, PathBuf},
-    sync::Arc,
-    time::SystemTime,
-};
+use std::fmt::Debug;
+use std::path::{Path, PathBuf};
+use std::{hash::BuildHasherDefault, sync::Arc, time::SystemTime};
 
 use dashmap::DashMap;
+use rustc_hash::FxHasher;
 
-use std::time::Duration;
+use crate::description::{DescriptionData, PkgJSON};
+use crate::Resolver;
+use crate::{entry::EntryStat, tsconfig::TsConfig, RResult};
 
 #[derive(Debug, Default)]
 pub struct CachedFS {
-    /// Caches raw files
-    entries: CachedMap<String>,
-
     /// Caches parsed package.json
     descriptions: CachedMap<DescriptionData>,
 
@@ -40,10 +28,7 @@ pub struct CachedEntry<T: Sized> {
 
 impl<T: Sized> CachedEntry<T> {
     fn new(content: T, stat: EntryStat) -> Self {
-        Self {
-            content: content.into(),
-            stat,
-        }
+        Self { content: content.into(), stat }
     }
 
     fn content(&self) -> Arc<T> {
@@ -51,23 +36,12 @@ impl<T: Sized> CachedEntry<T> {
     }
 }
 
-const DEBOUNCE_INTERVAL: Duration = Duration::from_millis(300);
+const DEBOUNCE_INTERVAL: std::time::Duration = std::time::Duration::from_millis(300);
 
 impl CachedFS {
-    pub fn read_file(&self, path: &Path, file_stat: EntryStat) -> RResult<Arc<String>> {
-        if let Some(cached) = self.entries.get(path) {
-            if self.is_modified(file_stat.modified(), cached.stat.modified()) {
-                return Ok(cached.value().content());
-            }
-        }
-        let string = fs::read_to_string(path)?;
-        let entry = CachedEntry::new(string, file_stat);
-        self.entries.insert(path.to_path_buf(), entry.clone());
-        Ok(entry.content())
-    }
-
-    pub fn read_description_file(
+    pub async fn read_description_file(
         &self,
+        resolver: &Resolver,
         path: &Path,
         file_stat: EntryStat,
     ) -> RResult<Arc<DescriptionData>> {
@@ -76,7 +50,7 @@ impl CachedFS {
                 return Ok(cached.value().content());
             }
         }
-        let string = fs::read_to_string(path)?;
+        let string = resolver.fs.read_to_string(path).await?;
         let json = PkgJSON::parse(&string, path)?;
         let dir = path.parent().unwrap().to_path_buf();
         let info = DescriptionData::new(json, dir);
@@ -85,8 +59,9 @@ impl CachedFS {
         Ok(entry.content())
     }
 
-    pub fn read_tsconfig(
+    pub async fn read_tsconfig(
         &self,
+        resolver: &Resolver,
         path: &Path,
         file_stat: EntryStat,
     ) -> RResult<Arc<serde_json::Value>> {
@@ -95,7 +70,7 @@ impl CachedFS {
                 return Ok(cached.value().content());
             }
         }
-        let string = fs::read_to_string(path)?;
+        let string = resolver.fs.read_to_string(path).await?;
         let serde_json = TsConfig::parse(&string, path)?;
         let entry = CachedEntry::new(serde_json, file_stat);
         self.tsconfigs.insert(path.to_path_buf(), entry.clone());

@@ -1,6 +1,7 @@
+use std::collections::HashSet;
+
 /// port from https://github.com/webpack/enhanced-resolve/blob/main/lib/util/entrypoints.js
 use crate::{Error, RResult};
-use std::collections::HashSet;
 
 type MappingValue = serde_json::Value;
 type ConditionalMapping = serde_json::Map<String, MappingValue>;
@@ -169,13 +170,7 @@ pub trait Field {
         let Some((mapping, remaining_request, is_subpath_mapping, is_pattern)) = Self::find_match(root, &request)? else {
             return Ok(vec![])
         };
-        Self::mapping(
-            remaining_request,
-            is_pattern,
-            is_subpath_mapping,
-            mapping,
-            condition_names,
-        )
+        Self::mapping(remaining_request, is_pattern, is_subpath_mapping, mapping, condition_names)
     }
 }
 
@@ -204,13 +199,9 @@ impl Field for ExportsField {
             )))
         } else if exp.ends_with('/') != expect_folder {
             if expect_folder {
-                Err(Error::UnexpectedValue(format!(
-                    "Expected {exp} is folder mapping"
-                )))
+                Err(Error::UnexpectedValue(format!("Expected {exp} is folder mapping")))
             } else {
-                Err(Error::UnexpectedValue(format!(
-                    "Expected {exp} is file mapping"
-                )))
+                Err(Error::UnexpectedValue(format!("Expected {exp} is file mapping")))
             }
         } else {
             Ok(())
@@ -271,21 +262,15 @@ impl Field for ExportsField {
 impl Field for ImportsField {
     fn assert_request(request: &str) -> RResult<String> {
         if !request.starts_with('#') {
-            Err(Error::UnexpectedValue(format!(
-                "Request should start with #, but got {request}"
-            )))
+            Err(Error::UnexpectedValue(format!("Request should start with #, but got {request}")))
         } else if request.len() == 1 {
-            Err(Error::UnexpectedValue(
-                "Request should have at least 2 characters".to_string(),
-            ))
+            Err(Error::UnexpectedValue("Request should have at least 2 characters".to_string()))
         } else if request.starts_with("#/") {
             Err(Error::UnexpectedValue(format!(
                 "Import field key should not start with #/, but got {request}"
             )))
         } else if request.ends_with('/') {
-            Err(Error::UnexpectedValue(
-                "Only requesting file allowed".to_string(),
-            ))
+            Err(Error::UnexpectedValue("Only requesting file allowed".to_string()))
         } else {
             Ok(request.to_string())
         }
@@ -295,13 +280,9 @@ impl Field for ImportsField {
         let is_folder = exp.ends_with('/');
         if is_folder != expect_folder {
             if expect_folder {
-                Err(Error::UnexpectedValue(format!(
-                    "Expected {exp} is folder mapping"
-                )))
+                Err(Error::UnexpectedValue(format!("Expected {exp} is folder mapping")))
             } else {
-                Err(Error::UnexpectedValue(format!(
-                    "Expected {exp} is file mapping"
-                )))
+                Err(Error::UnexpectedValue(format!("Expected {exp} is file mapping")))
             }
         } else {
             Ok(())
@@ -353,16 +334,8 @@ fn get_next_list(path: &[char], target: char) -> Vec<Option<usize>> {
 fn pattern_key_compare(a: &str, b: &str) -> std::cmp::Ordering {
     let a_pattern_index = a.find('*');
     let b_pattern_index = b.find('*');
-    let base_len_a = if let Some(i) = a_pattern_index {
-        i + 1
-    } else {
-        a.len()
-    };
-    let base_len_b = if let Some(i) = b_pattern_index {
-        i + 1
-    } else {
-        b.len()
-    };
+    let base_len_a = if let Some(i) = a_pattern_index { i + 1 } else { a.len() };
+    let base_len_b = if let Some(i) = b_pattern_index { i + 1 } else { b.len() };
     if base_len_a > base_len_b {
         std::cmp::Ordering::Less
     } else if base_len_b > base_len_a || a_pattern_index.is_none() {
@@ -425,9 +398,10 @@ fn find_normalized_match_in_object<'a>(
 mod exports_field_map_test {
     use std::vec;
 
+    use serde_json::json;
+
     use super::*;
     use crate::test_helper;
-    use serde_json::json;
 
     fn process_exports_fields(
         value: serde_json::Value,
@@ -446,13 +420,7 @@ mod exports_field_map_test {
         let actual = process_exports_fields(value, request, condition_names);
         assert!(actual.is_ok());
         let actual = actual.unwrap();
-        assert_eq!(
-            actual,
-            expected
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<String>>()
-        )
+        assert_eq!(actual, expected.into_iter().map(|s| s.to_string()).collect::<Vec<String>>())
     }
 
     fn should_error(
@@ -496,12 +464,7 @@ mod exports_field_map_test {
         should_equal(json!("./main.js"), ".", vec![], vec!["./main.js"]);
         should_equal(json!("./main.js"), "./main.js", vec![], vec![]);
         should_equal(json!("./main.js"), "./lib.js", vec![], vec![]);
-        should_equal(
-            json!(["./a.js", "./b.js"]),
-            ".",
-            vec![],
-            vec!["./a.js", "./b.js"],
-        );
+        should_equal(json!(["./a.js", "./b.js"]), ".", vec![], vec!["./a.js", "./b.js"]);
         should_equal(json!(["./a.js", "./b.js"]), "./a.js", vec![], vec![]);
         should_equal(json!(["./a.js", "./b.js"]), "./lib.js", vec![], vec![]);
         should_equal(
@@ -2033,12 +1996,7 @@ mod exports_field_map_test {
             })
         };
 
-        should_equal(
-            value(),
-            "./subpath/sub-dir1.js",
-            vec![],
-            vec!["./subpath/dir1/dir1.js"],
-        );
+        should_equal(value(), "./subpath/sub-dir1.js", vec![], vec!["./subpath/dir1/dir1.js"]);
         should_equal(value(), "./valid-cjs", vec![], vec!["./asdf.js"]);
         should_equal(value(), "./space", vec![], vec!["./sp%20ce.js"]);
         should_equal(
@@ -2047,68 +2005,18 @@ mod exports_field_map_test {
             vec![],
             vec!["builtin:x/asdf.js", "./asdf.js"],
         );
-        should_equal(
-            value(),
-            "./fallbackfile",
-            vec![],
-            vec!["builtin:x", "./asdf.js"],
-        );
+        should_equal(value(), "./fallbackfile", vec![], vec!["builtin:x", "./asdf.js"]);
         should_equal(value(), "./condition", vec!["require"], vec!["./sp ce.js"]);
-        should_equal(
-            value(),
-            "./resolve-self",
-            vec!["require"],
-            vec!["./resolve-self.js"],
-        );
-        should_equal(
-            value(),
-            "./resolve-self",
-            vec!["import"],
-            vec!["./resolve-self.mjs"],
-        );
-        should_equal(
-            value(),
-            "./subpath/sub-dir1",
-            vec![],
-            vec!["./subpath/dir1/dir1.js"],
-        );
-        should_equal(
-            value(),
-            "./subpath/sub-dir1.js",
-            vec![],
-            vec!["./subpath/dir1/dir1.js"],
-        );
-        should_equal(
-            value(),
-            "./features/dir1",
-            vec![],
-            vec!["./subpath/dir1/dir1.js"],
-        );
-        should_equal(
-            value(),
-            "./dir1/dir1/trailer",
-            vec![],
-            vec!["./subpath/dir1/dir1.js"],
-        );
+        should_equal(value(), "./resolve-self", vec!["require"], vec!["./resolve-self.js"]);
+        should_equal(value(), "./resolve-self", vec!["import"], vec!["./resolve-self.mjs"]);
+        should_equal(value(), "./subpath/sub-dir1", vec![], vec!["./subpath/dir1/dir1.js"]);
+        should_equal(value(), "./subpath/sub-dir1.js", vec![], vec!["./subpath/dir1/dir1.js"]);
+        should_equal(value(), "./features/dir1", vec![], vec!["./subpath/dir1/dir1.js"]);
+        should_equal(value(), "./dir1/dir1/trailer", vec![], vec!["./subpath/dir1/dir1.js"]);
         should_equal(value(), "./dir2/trailer", vec![], vec!["./subpath/dir2.js"]);
-        should_equal(
-            value(),
-            "./dir2/dir2/trailer",
-            vec![],
-            vec!["./subpath/dir2/index.js"],
-        );
-        should_equal(
-            value(),
-            "./a/dir1/dir1",
-            vec![],
-            vec!["./subpath/dir1/dir1.js"],
-        );
-        should_equal(
-            value(),
-            "./a/b/dir1/dir1",
-            vec![],
-            vec!["./subpath/dir1/dir1.js"],
-        );
+        should_equal(value(), "./dir2/dir2/trailer", vec![], vec!["./subpath/dir2/index.js"]);
+        should_equal(value(), "./a/dir1/dir1", vec![], vec!["./subpath/dir1/dir1.js"]);
+        should_equal(value(), "./a/b/dir1/dir1", vec![], vec!["./subpath/dir1/dir1.js"]);
         // FIXME:
         // should_equal(
         //     value(),
@@ -2118,12 +2026,7 @@ mod exports_field_map_test {
         // );
         //  FIXME:
         // should_equal(value(), "./doubleslash", vec![], vec!["./asdf.js"]);
-        should_equal(
-            value(),
-            "./sub/no-a-file.js",
-            vec![],
-            vec!["./no-a-file.js"],
-        );
+        should_equal(value(), "./sub/no-a-file.js", vec![], vec!["./no-a-file.js"]);
         should_equal(value(), "./sub/internal/test.js", vec![], vec![]);
         // FIXME:
         // should_equal(
@@ -2144,8 +2047,9 @@ mod exports_field_map_test {
 
 #[test]
 fn imports_field_map_test() {
-    use crate::test_helper;
     use serde_json::json;
+
+    use crate::test_helper;
 
     fn process_imports_fields(
         value: serde_json::Value,
@@ -2164,13 +2068,7 @@ fn imports_field_map_test() {
         let actual = process_imports_fields(value, request, condition_names);
         assert!(actual.is_ok());
         let actual = actual.unwrap();
-        assert_eq!(
-            actual,
-            expected
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<String>>()
-        )
+        assert_eq!(actual, expected.into_iter().map(|s| s.to_string()).collect::<Vec<String>>())
     }
 
     fn should_error(

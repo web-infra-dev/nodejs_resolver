@@ -1,31 +1,14 @@
-use super::Plugin;
 use crate::{log::depth, options::Alias, AliasMap, Context, Info, ResolveResult, Resolver, State};
 
-pub struct AliasPlugin<'a>(&'a Alias);
-
-impl<'a> AliasPlugin<'a> {
-    pub fn new(alias: &'a Alias) -> Self {
-        Self(alias)
-    }
-
-    fn alias(&self) -> &Alias {
-        self.0
-    }
-}
-
-impl<'a> Plugin for AliasPlugin<'a> {
-    fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
+impl Resolver {
+    pub async fn alias_apply(&self, alias: &Alias, info: Info, context: &mut Context) -> State {
         let inner_target = info.request().target();
-        for (from, array) in self.alias() {
+        for (from, array) in alias {
             let only_module = from.ends_with('$');
             let from_to = from.len();
             let (hit, key) = if only_module {
                 let sub = &from[0..from_to - 1];
-                if inner_target.eq(sub) {
-                    (true, sub)
-                } else {
-                    (false, sub)
-                }
+                if inner_target.eq(sub) { (true, sub) } else { (false, sub) }
             } else {
                 let hit = inner_target
                     .strip_prefix(from)
@@ -35,6 +18,7 @@ impl<'a> Plugin for AliasPlugin<'a> {
                 (hit, from.as_str())
             };
             if hit {
+                // dbg!(inner_target, from);
                 tracing::debug!(
                     "AliasPlugin works, triggered by '{from}'({})",
                     depth(&context.depth)
@@ -65,7 +49,7 @@ impl<'a> Plugin for AliasPlugin<'a> {
                             if fully_specified {
                                 context.fully_specified.set(false);
                             }
-                            let state = resolver._resolve(alias_info, context);
+                            let state = self._resolve(alias_info, context).await;
                             if fully_specified {
                                 context.fully_specified.set(true);
                             }

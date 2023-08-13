@@ -1,20 +1,16 @@
-use super::Plugin;
 use crate::{kind::PathKind, log::depth, Context, Info, Resolver, State};
 
-#[derive(Default)]
-pub struct PreferRelativePlugin;
-
-impl Plugin for PreferRelativePlugin {
-    fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
+impl Resolver {
+    pub async fn prefer_relative_apply(&self, info: Info, context: &mut Context) -> State {
         if matches!(info.request().kind(), PathKind::Relative) {
             return State::Resolving(info);
         }
 
-        if resolver.options.prefer_relative {
+        if self.options.prefer_relative {
             tracing::debug!("AliasPlugin works({})", depth(&context.depth));
             let target = format!("./{}", info.request().target());
             let info = info.clone().with_target(&target);
-            let stats = resolver._resolve(info, context);
+            let stats = self._resolve(info, context).await;
             if stats.is_finished() {
                 return stats;
             }

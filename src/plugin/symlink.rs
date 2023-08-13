@@ -1,27 +1,21 @@
-use super::Plugin;
 use crate::{log::depth, Context, Info, ResolveResult, Resolver, State};
 
-#[derive(Default)]
-pub struct SymlinkPlugin;
-
-impl Plugin for SymlinkPlugin {
-    fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
+impl Resolver {
+    pub async fn symlink_apply(&self, info: Info, context: &mut Context) -> State {
         debug_assert!(info.request().target().is_empty());
 
-        if !resolver.options.symlinks {
+        if !self.options.symlinks {
             return State::Success(ResolveResult::Resource(info));
         }
 
         tracing::debug!("SymlinkPlugin works({})", depth(&context.depth));
-        let state = self.resolve_symlink(resolver, info, context);
+        let state = self.resolve_symlink(info).await;
         tracing::debug!("Leaving SymlinkPlugin({})", depth(&context.depth));
         state
     }
-}
 
-impl SymlinkPlugin {
-    fn resolve_symlink(&self, resolver: &Resolver, info: Info, _context: &mut Context) -> State {
-        let head = resolver.load_entry(info.normalized_path().as_ref());
+    async fn resolve_symlink(&self, info: Info) -> State {
+        let head = self.load_entry(info.normalized_path().as_ref());
 
         let entry_path = head.path();
         let mut entry = head.as_ref();
@@ -35,7 +29,7 @@ impl SymlinkPlugin {
                 break;
             }
 
-            if let Some(link) = entry.symlink() {
+            if let Some(link) = self.symlink(entry).await {
                 symlink = Some(link.to_path_buf());
                 break;
             }
@@ -52,20 +46,14 @@ impl SymlinkPlugin {
 
         let info = if let Some(symlink) = symlink {
             let mut path = symlink;
-            let tail = entry_path
-                .components()
-                .rev()
-                .take(index)
-                .collect::<Vec<_>>();
+            let tail = entry_path.components().rev().take(index).collect::<Vec<_>>();
             for c in tail.into_iter().rev() {
                 path.push(c);
             }
             head.init_real(path.clone().into_boxed_path());
             info.with_path(path)
         } else {
-            stack
-                .into_iter()
-                .for_each(|entry| entry.init_real(entry.path().into()));
+            stack.into_iter().for_each(|entry| entry.init_real(entry.path().into()));
             info
         };
 

@@ -1,9 +1,11 @@
 // copy from https://github.com/drivasperez/tsconfig
 
+use std::{path::Path, sync::Arc};
+
+use rustc_hash::FxHashMap;
+
 use crate::context::Context;
 use crate::{Error, Info, RResult, ResolveResult, Resolver, State};
-use rustc_hash::FxHashMap;
-use std::{path::Path, sync::Arc};
 
 #[derive(Debug, Clone, Default)]
 pub struct TsConfig {
@@ -29,17 +31,15 @@ impl TsConfig {
 }
 
 impl Resolver {
-    pub(super) fn parse_ts_file(
+    pub(super) async fn parse_ts_file(
         &self,
         location: &Path,
         context: &mut Context,
     ) -> RResult<TsConfig> {
-        let json = self.parse_file_to_value(location, context)?;
+        let json = self.parse_file_to_value(location, context).await?;
         let compiler_options = json.get("compilerOptions").map(|options| {
             // TODO: should optimized
-            let base_url = options
-                .get("baseUrl")
-                .map(|v| v.as_str().unwrap().to_string());
+            let base_url = options.get("baseUrl").map(|v| v.as_str().unwrap().to_string());
             let paths = options.get("paths").map(|v| {
                 let mut map = FxHashMap::default();
                 // TODO: should optimized
@@ -58,24 +58,23 @@ impl Resolver {
             CompilerOptions { base_url, paths }
         });
         let extends: Option<String> = json.get("extends").map(|v| v.to_string());
-        Ok(TsConfig {
-            extends,
-            compiler_options,
-        })
+        Ok(TsConfig { extends, compiler_options })
     }
 
-    fn parse_file_to_value(
+    #[async_recursion::async_recursion]
+    async fn parse_file_to_value(
         &self,
         location: &Path,
         context: &mut Context,
     ) -> RResult<serde_json::Value> {
         let entry = self.load_entry(location);
-        if !entry.is_file() {
+        if !self.is_file(&entry).await {
             // Its role is to ensure that `stat` exists
             return Err(Error::CantFindTsConfig(entry.path().into()));
         }
 
-        let value = self.cache.fs.read_tsconfig(location, entry.cached_stat())?;
+        let value =
+            self.cache.fs.read_tsconfig(self, location, self.cached_stat(&entry).await).await?;
         let mut json = Arc::as_ref(&value).clone();
 
         // merge `extends`.
@@ -87,7 +86,7 @@ impl Resolver {
             if prev_resolve_to_context {
                 context.resolve_to_context.set(false);
             }
-            let state = self._resolve(Info::new(dir, request), context);
+            let state = self._resolve(Info::new(dir, request), context).await;
             if prev_resolve_to_context {
                 context.resolve_to_context.set(true);
             }
@@ -95,13 +94,13 @@ impl Resolver {
             if let State::Success(result) = state {
                 let extends_tsconfig_json = match result {
                     ResolveResult::Resource(info) => {
-                        self.parse_file_to_value(&info.to_resolved_path(), context)
+                        self.parse_file_to_value(&info.to_resolved_path(), context).await
                     }
                     ResolveResult::Ignored => {
                         return Err(Error::UnexpectedValue(format!(
                             "{s} had been ignored in {}",
                             location.display()
-                        )))
+                        )));
                     }
                 }?;
                 merge(&mut json, extends_tsconfig_json);
