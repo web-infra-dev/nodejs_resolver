@@ -8,7 +8,7 @@ use std::sync::Arc;
 pub struct PkgJSON {
     name: Option<Box<str>>,
     alias_fields: OnceCell<Vec<(String, AliasMap)>>,
-    raw: serde_json::Value,
+    raw: Arc<serde_json::Value>,
 }
 
 impl PkgJSON {
@@ -24,7 +24,7 @@ impl PkgJSON {
         Ok(Self {
             name,
             alias_fields: OnceCell::new(),
-            raw: json,
+            raw: Arc::from(json),
         })
     }
 
@@ -53,7 +53,7 @@ impl PkgJSON {
     }
 
     pub(crate) fn get_filed(&self, field: &Vec<String>) -> Option<&serde_json::Value> {
-        let mut current_value = self.raw();
+        let mut current_value = self.raw().as_ref();
         for current_field in field {
             if !current_value.is_object() {
                 return None;
@@ -70,14 +70,14 @@ impl PkgJSON {
         self.name.as_deref()
     }
 
-    pub fn raw(&self) -> &serde_json::Value {
+    pub fn raw(&self) -> &Arc<serde_json::Value> {
         &self.raw
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DescriptionData {
-    json: Arc<PkgJSON>,
+    json: PkgJSON,
     /// The path to the directory where the description file located.
     /// It not a property in package.json.
     dir_path: NormalizedPath,
@@ -86,7 +86,7 @@ pub struct DescriptionData {
 impl DescriptionData {
     pub fn new<P: AsRef<Path>>(json: PkgJSON, dir_path: P) -> Self {
         Self {
-            json: Arc::new(json),
+            json,
             dir_path: NormalizedPath::new(dir_path),
         }
     }
