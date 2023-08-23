@@ -32,10 +32,19 @@ pub struct CachedFS {
 
 pub type CachedMap<T> = DashMap<PathBuf, CachedEntry<T>, BuildHasherDefault<FxHasher>>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CachedEntry<T: Sized> {
     content: Arc<T>,
     stat: EntryStat,
+}
+
+impl<T> Clone for CachedEntry<T> {
+    fn clone(&self) -> Self {
+        Self {
+            content: Arc::clone(&self.content),
+            stat: self.stat,
+        }
+    }
 }
 
 impl<T: Sized> CachedEntry<T> {
