@@ -111,8 +111,23 @@ impl Resolver {
             _ => options.enforce_extension,
         };
 
+        let tsconfig = match options.tsconfig {
+            Some(config) => {
+                // if is relative path, then resolve it to absolute path
+                if config.is_absolute() {
+                    Some(config)
+                } else {
+                    let cwd = std::env::current_dir().unwrap();
+                    // concat cwd and config, but remove ./ prefix
+                    Some(cwd.join(config.strip_prefix("./").unwrap_or(&config)))
+                }
+            }
+            None => None,
+        };
+
         let options = Options {
             enforce_extension,
+            tsconfig,
             ..options
         };
         Self { options, cache }

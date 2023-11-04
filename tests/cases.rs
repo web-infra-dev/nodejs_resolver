@@ -3813,3 +3813,38 @@ fn extension_alias2() {
         p(vec!["extension-alias", "dir2", "index.js"]),
     );
 }
+
+#[test]
+fn tsconfig_paths_relative() {
+    let base_path = p(vec!["tsconfig-paths-relative"]);
+    let resolver = Resolver::new(Options {
+        extensions: vec![".ts".to_string(), ".tsx".to_string()],
+        tsconfig: Some(PathBuf::from(
+            "./tests/fixtures/tsconfig-paths-relative/tsconfig.json",
+        )),
+        ..Default::default()
+    });
+    should_equal(
+        &resolver,
+        &base_path,
+        "component/empty",
+        p(vec![
+            "tsconfig-paths-relative",
+            "src",
+            "component",
+            "empty.tsx",
+        ]),
+    );
+    should_equal(
+        &resolver,
+        &base_path,
+        "empty",
+        base_path.join("src/empty.tsx"),
+    );
+    should_equal(
+        &resolver,
+        &base_path.join("src/component"),
+        "./empty",
+        base_path.join("src/component/empty.tsx"),
+    );
+}

@@ -98,6 +98,12 @@ impl Resolver {
             Ok(tsconfig) => tsconfig,
             Err(error) => return State::Error(error),
         };
+
+        let is_relative_request = info.request().target().starts_with('.');
+        if is_relative_request {
+            return self._resolve(info, context);
+        }
+
         let location_dir = location.parent().unwrap();
         let absolute_base_url = if let Some(base_url) = tsconfig.base_url.as_ref() {
             location_dir.join(base_url)
@@ -106,7 +112,7 @@ impl Resolver {
         };
 
         // resolve absolute path that relative from base_url
-        if tsconfig.base_url.is_some() && !info.request().target().starts_with('.') {
+        if tsconfig.base_url.is_some() && !is_relative_request {
             let target = absolute_base_url.join(info.request().target());
             let info = info.clone().with_path(target).with_target("");
             let result = self._resolve(info, context);
