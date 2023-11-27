@@ -1,14 +1,18 @@
+use nodejs_resolver::test_helper::{p, vec_to_set};
 use nodejs_resolver::{
-    test_helper::{p, vec_to_set},
-    AliasMap, Cache, EnforceExtension, Error, Options, ResolveResult, Resolver,
+    AliasMap, Cache, EnforceExtension, Error, Options, ResolveResult, Resolver, Resource,
 };
+use path_absolutize::Absolutize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 fn should_equal(resolver: &Resolver, path: &Path, request: &str, expected: PathBuf) {
     match resolver.resolve(path, request) {
         Ok(ResolveResult::Resource(resource)) => {
-            assert_eq!(resource.join(), expected);
+            let actual = resource.join();
+            let normalized = actual.absolutize().unwrap();
+            assert_eq!(actual, normalized);
+            assert_eq!(actual, expected);
         }
         Ok(ResolveResult::Ignored) => panic!("should not ignored"),
         Err(error) => panic!("{error:?}"),
@@ -770,6 +774,50 @@ fn alias_test() {
         "@A/index",
         p(vec!["alias", "b", "index"]),
     );
+}
+
+#[test]
+fn rspack_issue_4779() {
+    let should_eq = |a: &ResolveResult<Resource>, b: &ResolveResult<Resource>| match (a, b) {
+        (ResolveResult::Resource(a), ResolveResult::Resource(b)) => {
+            if cfg!(target_os = "windows") {
+                assert!(!a.path.to_string_lossy().to_string().contains('/'))
+            }
+            assert_eq!(
+                a.path.to_string_lossy().to_string(),
+                b.path.to_string_lossy().to_string()
+            );
+            assert!(a.query.is_none());
+            assert!(a.fragment.is_none());
+            assert!(b.query.is_none());
+            assert!(b.fragment.is_none());
+        }
+        _ => unreachable!(),
+    };
+
+    let base = p(vec!["alias", "b"]);
+    let resolver = Resolver::new(Options {
+        alias: vec![(
+            String::from("@app"),
+            vec![AliasMap::Target(base.to_string_lossy().to_string())],
+        )],
+        symlinks: true,
+        ..Default::default()
+    });
+    let res1 = resolver.resolve(&base, "@app/dir/index").unwrap();
+    resolver.clear_entries();
+    let _ = resolver.resolve(&p(vec!["symlink", "linked"]), "./index.js");
+    let _ = resolver.resolve(&base, "./index");
+    let res2 = resolver.resolve(&base, "@app/dir/index").unwrap();
+    should_eq(&res1, &res2);
+    resolver.clear_entries();
+    let _ = resolver.resolve(&base, "./index");
+    let res3 = resolver.resolve(&base, "@app/dir/index").unwrap();
+    should_eq(&res2, &res3);
+    resolver.clear_entries();
+    let _ = resolver.resolve(&p(vec!["symlink", "linked"]), "./index.js");
+    let res4 = resolver.resolve(&base, "@app/dir/index").unwrap();
+    should_eq(&res3, &res4);
 }
 
 #[test]

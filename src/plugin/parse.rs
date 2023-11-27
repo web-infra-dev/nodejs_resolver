@@ -1,11 +1,9 @@
-use super::Plugin;
 use crate::{depth, Context, Info, Resolver, State};
 
-#[derive(Default)]
 pub struct ParsePlugin;
 
-impl Plugin for ParsePlugin {
-    fn apply(&self, resolver: &Resolver, info: Info, context: &mut Context) -> State {
+impl ParsePlugin {
+    pub fn apply(resolver: &Resolver, info: Info, context: &mut Context) -> State {
         let request = info.request();
         let had_hash = !request.fragment().is_empty();
         let no_query = request.query().is_empty();

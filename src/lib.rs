@@ -146,8 +146,7 @@ impl Resolver {
             type FallbackPlugin<'a> = AliasPlugin<'a>;
             FallbackPlugin::new(&self.options.fallback).apply(self, info, &mut context)
         });
-        let result =
-            result.map_success(|info| SymlinkPlugin::default().apply(self, info, &mut context));
+        let result = result.map_success(|info| SymlinkPlugin::apply(self, info, &mut context));
 
         // let duration = start.elapsed().as_millis();
         // println!("time cost: {:?} us", duration); // us
@@ -183,10 +182,9 @@ impl Resolver {
             return State::Error(Error::Overflow);
         }
 
-        let state = ParsePlugin::default()
-            .apply(self, info, context)
+        let state = ParsePlugin::apply(self, info, context)
             .then(|info| AliasPlugin::new(&self.options.alias).apply(self, info, context))
-            .then(|info| PreferRelativePlugin::default().apply(self, info, context))
+            .then(|info| PreferRelativePlugin::apply(self, info, context))
             .then(|info| {
                 let request = info.to_resolved_path();
                 let entry = self.load_entry(&request);
